@@ -34,7 +34,7 @@ function waitForToken() {
     }
 
    if (!token || token.length < 5) {
-    document.getElementById("posts").innerHTML = "לא קיבלתי טוקן... (" + token + ")";
+   document.getElementById("posts").innerHTML = "Token: [" + token + "]";
     setTimeout(waitForToken, 1000);
     return;
 }
@@ -96,3 +96,4 @@ document.getElementById("posts").innerHTML = "JS עובד!";
 
 </body>
 </html>
+
