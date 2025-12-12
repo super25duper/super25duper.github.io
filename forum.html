@@ -7,7 +7,8 @@
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <!-- כאן נמצא firebase.initializeApp + const db = firebase.database(); -->
+
+  <!-- firebase.initializeApp + const db -->
   <script src="firebaseConfig.js"></script>
 </head>
 <body>
@@ -15,90 +16,123 @@
   <h1>פורום</h1>
   <div id="posts">טוען...</div>
 
-  <script>
-  document.addEventListener("DOMContentLoaded", function () {
+<script>
+document.addEventListener("DOMContentLoaded", function () {
 
-    // 1. הגנה – לעבוד רק מתוך WebView של אנדרואיד
-    const ua = navigator.userAgent.toLowerCase();
-    if (!(ua.includes("wv") || ua.includes("android"))) {
+  /* =========================
+     שכבה 1 – זיהוי WebView
+     ========================= */
+
+  const isKodularWebView =
+    window.AppInventor &&
+    typeof window.AppInventor.getWebViewString === "function";
+
+  if (!isKodularWebView) {
+    // דפדפן רגיל – חסימה מיידית
+    window.location.href = "forbidden.html";
+    return;
+  }
+
+  /* =========================
+     שכבה 2 – Timeout על token
+     ========================= */
+
+  let tokenReceived = false;
+
+  setTimeout(function () {
+    if (!tokenReceived) {
+      // WebView אבל לא מהאפליקציה / בלי token
       window.location.href = "forbidden.html";
-      return;
     }
+  }, 2000);
 
-    // 2. מחכים ל-token מהאפליקציה
+  /* =========================
+     שכבה 3 – קבלת token
+     ========================= */
+
+  function waitForToken() {
     let token = "";
 
-    function waitForToken() {
-      try {
-        token = window.AppInventor.getWebViewString();
-      } catch (e) {
-        token = "";
-      }
+    try {
+      token = window.AppInventor.getWebViewString();
+    } catch (e) {
+      token = "";
+    }
 
-      // אם אין token עדיין – מחכים עוד קצת
-      if (!token || token === "0" || token === "null") {
-        setTimeout(waitForToken, 400);
+    if (token && token !== "0" && token !== "null") {
+      tokenReceived = true;
+      validateToken(token);
+    } else {
+      setTimeout(waitForToken, 300);
+    }
+  }
+
+  waitForToken();
+
+  /* =========================
+     שכבה 4 – אימות token
+     ========================= */
+
+  function validateToken(token) {
+    db.ref("users").once("value").then(function (snap) {
+
+      let approved = false;
+
+      snap.forEach(function (child) {
+        const u = child.val();
+        if (u.token == token && u.approved === true) {
+          approved = true;
+        }
+      });
+
+      if (!approved) {
+        window.location.href = "forbidden.html";
         return;
       }
 
-      // יש token → בודקים בפיירבייס
-      validateToken(token);
-    }
+      // משתמש מאושר
+      loadPosts();
 
-    waitForToken();
+    }).catch(function () {
+      document.getElementById("posts").innerText =
+        "שגיאה בטעינת הנתונים.";
+    });
+  }
 
-    // 3. אימות token בפיירבייס
-    function validateToken(token) {
-      db.ref("users").once("value").then(function (snap) {
-        let approved = false;
+  /* =========================
+     טעינת פוסטים
+     ========================= */
 
-        snap.forEach(function (child) {
-          const u = child.val();
-          if (u.token == token && u.approved === true) {
-            approved = true;
-          }
-        });
+  function loadPosts() {
+    db.ref("posts").once("value").then(function (snap) {
 
-        if (!approved) {
-          // token לא קיים / לא מאושר → בלוק
-          window.location.href = "forbidden.html";
-          return;
-        }
+      let html = "";
 
-        // מאושר → טוענים פוסטים
-        loadPosts();
-      }).catch(function () {
-        document.getElementById("posts").innerText = "שגיאה בטעינת הנתונים.";
+      snap.forEach(function (pSnap) {
+        const p = pSnap.val();
+        html += `
+          <div style="border:1px solid #ccc;padding:12px;margin:8px;">
+            <h3>${p.title || ""}</h3>
+            <p>${p.text || ""}</p>
+            <small>מאת: ${p.author || ""}</small>
+          </div>
+        `;
       });
-    }
 
-    // 4. טעינת פוסטים מה־DB
-    function loadPosts() {
-      db.ref("posts").once("value").then(function (snap) {
-        let html = "";
+      if (!html) {
+        html = "<p>אין עדיין פוסטים.</p>";
+      }
 
-        snap.forEach(function (pSnap) {
-          const p = pSnap.val();
-          html +=
-            '<div style="border:1px solid #ccc;padding:12px;margin:8px;">' +
-              '<h3>' + (p.title || '') + '</h3>' +
-              '<p>' + (p.text || '') + '</p>' +
-              '<small>מאת: ' + (p.author || '') + '</small>' +
-            '</div>';
-        });
+      document.getElementById("posts").innerHTML = html;
 
-        if (!html) {
-          html = "<p>אין עדיין פוסטים.</p>";
-        }
+    }).catch(function () {
+      document.getElementById("posts").innerText =
+        "שגיאה בטעינת הפוסטים.";
+    });
+  }
 
-        document.getElementById("posts").innerHTML = html;
-      }).catch(function () {
-        document.getElementById("posts").innerText = "שגיאה בטעינת הפוסטים.";
-      });
-    }
-
-  });
-  </script>
+});
+</script>
 
 </body>
 </html>
