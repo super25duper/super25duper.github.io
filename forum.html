@@ -14,7 +14,7 @@
 <h1>פורום</h1>
 
 <div id="log" style="padding:15px;font-size:18px;background:#eee;border:1px solid #ccc;margin-bottom:10px;">
-נטען...
+לוג: מתחיל...
 </div>
 
 <div id="posts">טוען...</div>
@@ -27,16 +27,18 @@ function log(msg) {
 
 document.addEventListener("DOMContentLoaded", function () {
 
-    log("דף נטען — בודק WebView...");
+    log("שלב 1: דף נטען");
 
+    // שלב 2 – בדיקת WebView (ללא redirect!)
     const ua = navigator.userAgent.toLowerCase();
+
     if (!(ua.includes("wv") || ua.includes("android"))) {
-        log("לא WebView — redirect");
-       // window.location.href = "forbidden.html";
-        return;
+        log("שלב 2: לא WebView — ממשיך בכל זאת (ביטלנו redirect)");
+    } else {
+        log("שלב 2: זוהה WebView");
     }
 
-    log("Firebase מוכן…");
+    log("שלב 3: Firebase מוכן");
 
     let token = "";
 
@@ -48,38 +50,40 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (!token || token === "0" || token === "null") {
-            log("ממתין ל-token… ערך נוכחי: [" + token + "]");
+            log("שלב 4: ממתין ל-token… ערך נוכחי: [" + token + "]");
             setTimeout(waitForToken, 500);
             return;
         }
 
-        log("קיבלתי token: " + token);
+        log("שלב 4: קיבלתי token: " + token);
+
         validateToken(token);
     }
 
     waitForToken();
 
     function validateToken(token) {
-        log("בודק token בפיירבייס…");
+        log("שלב 5: בודק token בפיירבייס…");
 
-        db.ref("users").once("value").then(snap => {
+        firebase.database().ref("users").once("value").then(snap => {
 
             let approved = false;
 
             snap.forEach(child => {
                 const u = child.val();
-                if (u.token === token && u.approved === true) {
+                if (u.token == token && u.approved === true) {
                     approved = true;
                 }
             });
 
+            log("שלב 6: תוצאת בדיקה → approved = " + approved);
+
             if (!approved) {
-                log("token לא מאומת — redirect");
-                window.location.href = "forbidden.html";
+                log("שלב 7: token לא תקין — אבל לא מבצע redirect");
                 return;
             }
 
-            log("token תקין — טוען פוסטים…");
+            log("שלב 7: token תקין — טוען פוסטים");
             loadPosts();
         })
         .catch(err => {
@@ -88,7 +92,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function loadPosts() {
-        db.ref("posts").once("value").then(snap => {
+        firebase.database().ref("posts").once("value").then(snap => {
+
             let html = "";
 
             snap.forEach(pSnap => {
@@ -102,11 +107,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 `;
             });
 
-            if (html === "") html = "<p>אין עדיין פוסטים.</p>";
+            if (html === "") html = "<p>אין פוסטים.</p>";
 
             document.getElementById("posts").innerHTML = html;
 
-            log("הפוסטים נטענו בהצלחה!");
+            log("שלב 8: פוסטים נטענו בהצלחה");
         });
     }
 
