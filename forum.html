@@ -33,11 +33,11 @@ function waitForToken() {
         token = "";
     }
 
-    if (!token || token.length < 5) {
-        // עדיין אין token מהאפליקציה → מחכים
-        setTimeout(waitForToken, 200);
-        return;
-    }
+   if (!token || token.length < 5) {
+    document.getElementById("posts").innerHTML = "לא קיבלתי טוקן... (" + token + ")";
+    setTimeout(waitForToken, 1000);
+    return;
+}
 
     // יש token אמיתי → ממשיכים לבדוק בפיירבייס
     validateToken(token);
@@ -95,3 +95,4 @@ function loadPosts() {
 
 </body>
 </html>
+
