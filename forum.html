@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const ua = navigator.userAgent.toLowerCase();
     if (!(ua.includes("wv") || ua.includes("android"))) {
         log("לא WebView — redirect");
-        window.location.href = "forbidden.html";
+       // window.location.href = "forbidden.html";
         return;
     }
 
