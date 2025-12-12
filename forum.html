@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <title>פורום מאובטח</title>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="firebaseConfig.js"></script>
@@ -13,43 +12,64 @@
 <body>
 
 <h1>פורום</h1>
+
+<!-- תיבת לוג -->
+<div id="log" style="padding:15px;font-size:18px;background:#eee;border:1px solid #ccc;margin-bottom:10px;">
+נטען...
+</div>
+
+<!-- תיבת פוסטים -->
 <div id="posts">טוען...</div>
 
 <script>
 
-// 0. בדיקת WebView (אסור דפדפן רגיל)
+function log(msg) {
+    document.getElementById("log").innerText = "לוג: " + msg;
+}
+
+// 0. בדיקת WebView
+log("בודק WebView...");
+
 const ua = navigator.userAgent.toLowerCase();
 if (!(ua.includes("wv") || ua.includes("android"))) {
+    log("לא WebView → הפניה ל-forbidden.html");
     window.location.href = "forbidden.html";
 }
 
-// 1. ניסיון לקבל token מהאפליקציה
+// 1. התחברות לפיירבייס
+log("Firebase נטען...");
+
+const db = firebase.database();
+
+// 2. המתנה ל-token מהאפליקציה
 let token = "";
 
 function waitForToken() {
+
     try {
         token = window.AppInventor.getWebViewString();
     } catch(e) {
         token = "";
     }
 
-   if (!token || token.length < 5) {
-   document.getElementById("posts").innerHTML = "Token: [" + token + "]";
-    setTimeout(waitForToken, 1000);
-    return;
-}
+    if (!token) {
+        log("ממתין ל-token... ערך נוכחי: [" + token + "]");
+        setTimeout(waitForToken, 500);
+        return;
+    }
 
-    // יש token אמיתי → ממשיכים לבדוק בפיירבייס
+    log("קיבלתי token: " + token);
+
     validateToken(token);
 }
 
 waitForToken();
 
-// 2. חיבור לפיירבייס
-const db = firebase.database();
-
-// 3. אימות token
+// 3. אימות token בפיירבייס
 function validateToken(token) {
+
+    log("בודק token בפיירבייס...");
+
     db.ref("users").once("value").then(snap => {
 
         let approved = false;
@@ -62,11 +82,17 @@ function validateToken(token) {
         });
 
         if (!approved) {
+            log("token לא מאומת → הפניה ל-forbidden.html");
             window.location.href = "forbidden.html";
             return;
         }
 
+        log("token תקין! טוען פוסטים...");
+
         loadPosts();
+    })
+    .catch(err => {
+        log("שגיאת Firebase: " + err.message);
     });
 }
 
@@ -74,6 +100,7 @@ function validateToken(token) {
 function loadPosts() {
 
     db.ref("posts").once("value").then(snap => {
+
         let html = "";
 
         snap.forEach(pSnap => {
@@ -83,17 +110,18 @@ function loadPosts() {
                     <h3>${p.title}</h3>
                     <p>${p.text}</p>
                     <small>מאת: ${p.author}</small>
-                </div>`;
+                </div>
+            `;
         });
 
         if (html === "") html = "<p>אין עדיין פוסטים.</p>";
 
         document.getElementById("posts").innerHTML = html;
+
+        log("הפוסטים נטענו בהצלחה!");
     });
 }
-document.getElementById("posts").innerHTML = "JS עובד!";
-</script>
 
+</script>
 </body>
 </html>
-
