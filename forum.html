@@ -13,10 +13,17 @@
 <body>
 
 <h1>פורום</h1>
-
 <div id="posts">טוען...</div>
 
 <script>
+
+// 0. בדיקת WebView (אסור דפדפן רגיל)
+const ua = navigator.userAgent.toLowerCase();
+if (!(ua.includes("wv") || ua.includes("android"))) {
+    window.location.href = "forbidden.html";
+}
+
+// 1. ניסיון לקבל token מהאפליקציה
 let token = "";
 
 function waitForToken() {
@@ -27,64 +34,48 @@ function waitForToken() {
     }
 
     if (!token || token.length < 5) {
-        // מחכה שהאפליקציה תשלח את ה-token
+        // עדיין אין token מהאפליקציה → מחכים
         setTimeout(waitForToken, 200);
         return;
     }
 
-    // הגענו לכאן → יש token אמיתי
-    startAuthCheck();
+    // יש token אמיתי → ממשיכים לבדוק בפיירבייס
+    validateToken(token);
 }
 
 waitForToken();
-// 1. בדיקת WebView (ולא דפדפן רגיל)
-const ua = navigator.userAgent.toLowerCase();
-if (!(ua.includes("wv") || ua.includes("android"))) {
-    window.location.href = "forbidden.html";
-}
 
-// 2. קבלת token מהאפליקציה (WebViewString)
-function getToken() {
-    try {
-        return window.AppInventor.getWebViewString();
-    } catch (e) {
-        return "";
-    }
-}
+// 2. חיבור לפיירבייס
+const db = firebase.database();
 
-let token = "";
-let interval = setInterval(() => {
-    token = getToken();
-    if (token) {
-        clearInterval(interval);
-        validateToken(token);
-    }
-}, 150);
-
-// 3. אימות token בפיירבייס
+// 3. אימות token
 function validateToken(token) {
     db.ref("users").once("value").then(snap => {
-        let ok = false;
+
+        let approved = false;
 
         snap.forEach(child => {
             const u = child.val();
-            if (u.token === token && u.approved === true) ok = true;
+            if (u.token === token && u.approved === true) {
+                approved = true;
+            }
         });
 
-        if (!ok) {
+        if (!approved) {
             window.location.href = "forbidden.html";
             return;
         }
 
-        // אם הכל טוב — טוענים פוסטים
         loadPosts();
     });
 }
 
 // 4. טעינת פוסטים
 function loadPosts() {
+
     db.ref("posts").once("value").then(snap => {
         let html = "";
+
         snap.forEach(pSnap => {
             const p = pSnap.val();
             html += `
@@ -95,9 +86,7 @@ function loadPosts() {
                 </div>`;
         });
 
-        if (html === "") {
-            html = "<p>אין עדיין פוסטים.</p>";
-        }
+        if (html === "") html = "<p>אין עדיין פוסטים.</p>";
 
         document.getElementById("posts").innerHTML = html;
     });
@@ -106,5 +95,3 @@ function loadPosts() {
 
 </body>
 </html>
-
-
