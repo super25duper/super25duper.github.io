@@ -17,6 +17,7 @@
 <div id="posts">טוען...</div>
 
 <script>
+    const token = window.AppInventor.getWebViewString();
 // 1. בדיקת WebView (ולא דפדפן רגיל)
 const ua = navigator.userAgent.toLowerCase();
 if (!(ua.includes("wv") || ua.includes("android"))) {
@@ -86,3 +87,4 @@ function loadPosts() {
 
 </body>
 </html>
+
