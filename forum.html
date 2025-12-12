@@ -13,12 +13,10 @@
 
 <h1>פורום</h1>
 
-<!-- תיבת לוג -->
 <div id="log" style="padding:15px;font-size:18px;background:#eee;border:1px solid #ccc;margin-bottom:10px;">
 נטען...
 </div>
 
-<!-- תיבת פוסטים -->
 <div id="posts">טוען...</div>
 
 <script>
@@ -27,101 +25,92 @@ function log(msg) {
     document.getElementById("log").innerText = "לוג: " + msg;
 }
 
-// 0. בדיקת WebView
-log("בודק WebView...");
+document.addEventListener("DOMContentLoaded", function () {
 
-const ua = navigator.userAgent.toLowerCase();
-if (!(ua.includes("wv") || ua.includes("android"))) {
-    log("לא WebView → הפניה ל-forbidden.html");
-    window.location.href = "forbidden.html";
-}
+    log("דף נטען — בודק WebView...");
 
-// 1. התחברות לפיירבייס
-log("Firebase נטען...");
-
-const db = firebase.database();
-
-// 2. המתנה ל-token מהאפליקציה
-let token = "";
-
-function waitForToken() {
-
-    try {
-        token = window.AppInventor.getWebViewString();
-    } catch(e) {
-        token = "";
-    }
-
-    if (!token) {
-        log("ממתין ל-token... ערך נוכחי: [" + token + "]");
-        setTimeout(waitForToken, 500);
+    const ua = navigator.userAgent.toLowerCase();
+    if (!(ua.includes("wv") || ua.includes("android"))) {
+        log("לא WebView — redirect");
+        window.location.href = "forbidden.html";
         return;
     }
 
-    log("קיבלתי token: " + token);
+    log("Firebase מוכן…");
 
-    validateToken(token);
-}
+    let token = "";
 
-waitForToken();
+    function waitForToken() {
+        try {
+            token = window.AppInventor.getWebViewString();
+        } catch(e) {
+            token = "";
+        }
 
-// 3. אימות token בפיירבייס
-function validateToken(token) {
-
-    log("בודק token בפיירבייס...");
-
-    db.ref("users").once("value").then(snap => {
-
-        let approved = false;
-
-        snap.forEach(child => {
-            const u = child.val();
-            if (u.token === token && u.approved === true) {
-                approved = true;
-            }
-        });
-
-        if (!approved) {
-            log("token לא מאומת → הפניה ל-forbidden.html");
-            window.location.href = "forbidden.html";
+        if (!token || token === "0" || token === "null") {
+            log("ממתין ל-token… ערך נוכחי: [" + token + "]");
+            setTimeout(waitForToken, 500);
             return;
         }
 
-        log("token תקין! טוען פוסטים...");
+        log("קיבלתי token: " + token);
+        validateToken(token);
+    }
 
-        loadPosts();
-    })
-    .catch(err => {
-        log("שגיאת Firebase: " + err.message);
-    });
-}
+    waitForToken();
 
-// 4. טעינת פוסטים
-function loadPosts() {
+    function validateToken(token) {
+        log("בודק token בפיירבייס…");
 
-    db.ref("posts").once("value").then(snap => {
+        db.ref("users").once("value").then(snap => {
 
-        let html = "";
+            let approved = false;
 
-        snap.forEach(pSnap => {
-            const p = pSnap.val();
-            html += `
-                <div style="border:1px solid #ccc;padding:12px;margin:8px;">
-                    <h3>${p.title}</h3>
-                    <p>${p.text}</p>
-                    <small>מאת: ${p.author}</small>
-                </div>
-            `;
+            snap.forEach(child => {
+                const u = child.val();
+                if (u.token === token && u.approved === true) {
+                    approved = true;
+                }
+            });
+
+            if (!approved) {
+                log("token לא מאומת — redirect");
+                window.location.href = "forbidden.html";
+                return;
+            }
+
+            log("token תקין — טוען פוסטים…");
+            loadPosts();
+        })
+        .catch(err => {
+            log("שגיאת Firebase: " + err.message);
         });
+    }
 
-        if (html === "") html = "<p>אין עדיין פוסטים.</p>";
+    function loadPosts() {
+        db.ref("posts").once("value").then(snap => {
+            let html = "";
 
-        document.getElementById("posts").innerHTML = html;
+            snap.forEach(pSnap => {
+                const p = pSnap.val();
+                html += `
+                    <div style="border:1px solid #ccc;padding:12px;margin:8px;">
+                        <h3>${p.title}</h3>
+                        <p>${p.text}</p>
+                        <small>מאת: ${p.author}</small>
+                    </div>
+                `;
+            });
 
-        log("הפוסטים נטענו בהצלחה!");
-    });
-}
+            if (html === "") html = "<p>אין עדיין פוסטים.</p>";
 
+            document.getElementById("posts").innerHTML = html;
+
+            log("הפוסטים נטענו בהצלחה!");
+        });
+    }
+
+});
 </script>
 </body>
 </html>
