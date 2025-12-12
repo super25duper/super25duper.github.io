@@ -1,121 +1,104 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-<meta charset="UTF-8">
-<title>פורום מאובטח</title>
+  <meta charset="UTF-8">
+  <title>פורום מאובטח</title>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-<script src="firebaseConfig.js"></script>
-
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <!-- כאן נמצא firebase.initializeApp + const db = firebase.database(); -->
+  <script src="firebaseConfig.js"></script>
 </head>
 <body>
 
-<h1>פורום</h1>
+  <h1>פורום</h1>
+  <div id="posts">טוען...</div>
 
-<div id="log" style="padding:15px;font-size:18px;background:#eee;border:1px solid #ccc;margin-bottom:10px;">
-לוג: מתחיל...
-</div>
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
 
-<div id="posts">טוען...</div>
-
-<script>
-
-function log(msg) {
-    document.getElementById("log").innerText = "לוג: " + msg;
-}
-
-document.addEventListener("DOMContentLoaded", function () {
-
-    log("שלב 1: דף נטען");
-
-    // שלב 2 – בדיקת WebView (ללא redirect!)
+    // 1. הגנה – לעבוד רק מתוך WebView של אנדרואיד
     const ua = navigator.userAgent.toLowerCase();
-
     if (!(ua.includes("wv") || ua.includes("android"))) {
-        log("שלב 2: לא WebView — ממשיך בכל זאת (ביטלנו redirect)");
-    } else {
-        log("שלב 2: זוהה WebView");
+      window.location.href = "forbidden.html";
+      return;
     }
 
-    log("שלב 3: Firebase מוכן");
-
+    // 2. מחכים ל-token מהאפליקציה
     let token = "";
 
     function waitForToken() {
-        try {
-            token = window.AppInventor.getWebViewString();
-        } catch(e) {
-            token = "";
-        }
+      try {
+        token = window.AppInventor.getWebViewString();
+      } catch (e) {
+        token = "";
+      }
 
-        if (!token || token === "0" || token === "null") {
-            log("שלב 4: ממתין ל-token… ערך נוכחי: [" + token + "]");
-            setTimeout(waitForToken, 500);
-            return;
-        }
+      // אם אין token עדיין – מחכים עוד קצת
+      if (!token || token === "0" || token === "null") {
+        setTimeout(waitForToken, 400);
+        return;
+      }
 
-        log("שלב 4: קיבלתי token: " + token);
-
-        validateToken(token);
+      // יש token → בודקים בפיירבייס
+      validateToken(token);
     }
 
     waitForToken();
 
+    // 3. אימות token בפיירבייס
     function validateToken(token) {
-        log("שלב 5: בודק token בפיירבייס…");
+      db.ref("users").once("value").then(function (snap) {
+        let approved = false;
 
-        firebase.database().ref("users").once("value").then(snap => {
-
-            let approved = false;
-
-            snap.forEach(child => {
-                const u = child.val();
-                if (u.token == token && u.approved === true) {
-                    approved = true;
-                }
-            });
-
-            log("שלב 6: תוצאת בדיקה → approved = " + approved);
-
-            if (!approved) {
-                log("שלב 7: token לא תקין — אבל לא מבצע redirect");
-                return;
-            }
-
-            log("שלב 7: token תקין — טוען פוסטים");
-            loadPosts();
-        })
-        .catch(err => {
-            log("שגיאת Firebase: " + err.message);
+        snap.forEach(function (child) {
+          const u = child.val();
+          if (u.token == token && u.approved === true) {
+            approved = true;
+          }
         });
+
+        if (!approved) {
+          // token לא קיים / לא מאושר → בלוק
+          window.location.href = "forbidden.html";
+          return;
+        }
+
+        // מאושר → טוענים פוסטים
+        loadPosts();
+      }).catch(function () {
+        document.getElementById("posts").innerText = "שגיאה בטעינת הנתונים.";
+      });
     }
 
+    // 4. טעינת פוסטים מה־DB
     function loadPosts() {
-        firebase.database().ref("posts").once("value").then(snap => {
+      db.ref("posts").once("value").then(function (snap) {
+        let html = "";
 
-            let html = "";
-
-            snap.forEach(pSnap => {
-                const p = pSnap.val();
-                html += `
-                    <div style="border:1px solid #ccc;padding:12px;margin:8px;">
-                        <h3>${p.title}</h3>
-                        <p>${p.text}</p>
-                        <small>מאת: ${p.author}</small>
-                    </div>
-                `;
-            });
-
-            if (html === "") html = "<p>אין פוסטים.</p>";
-
-            document.getElementById("posts").innerHTML = html;
-
-            log("שלב 8: פוסטים נטענו בהצלחה");
+        snap.forEach(function (pSnap) {
+          const p = pSnap.val();
+          html +=
+            '<div style="border:1px solid #ccc;padding:12px;margin:8px;">' +
+              '<h3>' + (p.title || '') + '</h3>' +
+              '<p>' + (p.text || '') + '</p>' +
+              '<small>מאת: ' + (p.author || '') + '</small>' +
+            '</div>';
         });
+
+        if (!html) {
+          html = "<p>אין עדיין פוסטים.</p>";
+        }
+
+        document.getElementById("posts").innerHTML = html;
+      }).catch(function () {
+        document.getElementById("posts").innerText = "שגיאה בטעינת הפוסטים.";
+      });
     }
 
-});
-</script>
+  });
+  </script>
+
 </body>
 </html>
