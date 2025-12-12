@@ -17,12 +17,26 @@
 <div id="posts">טוען...</div>
 
 <script>
-    let token = "";
-try {
-  token = window.AppInventor.getWebViewString();
-} catch (e) {
-  token = "";
+let token = "";
+
+function waitForToken() {
+    try {
+        token = window.AppInventor.getWebViewString();
+    } catch(e) {
+        token = "";
+    }
+
+    if (!token || token.length < 5) {
+        // מחכה שהאפליקציה תשלח את ה-token
+        setTimeout(waitForToken, 200);
+        return;
+    }
+
+    // הגענו לכאן → יש token אמיתי
+    startAuthCheck();
 }
+
+waitForToken();
 // 1. בדיקת WebView (ולא דפדפן רגיל)
 const ua = navigator.userAgent.toLowerCase();
 if (!(ua.includes("wv") || ua.includes("android"))) {
@@ -92,4 +106,5 @@ function loadPosts() {
 
 </body>
 </html>
+
 
