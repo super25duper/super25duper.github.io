@@ -147,6 +147,9 @@ if (cached) {
 
         document.getElementById("posts").innerHTML = html;
 
+// ⭐ שמירה בזיכרון
+sessionStorage.setItem("cachedPosts", html);
+
         if (fromRefresh) {
           setTimeout(function () {
             isRefreshing = false;
