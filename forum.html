@@ -20,6 +20,7 @@
   <h1>פורום הבניידים!</h1>
 </header>
 
+<!-- Pull To Refresh indicator -->
 <div id="pull-indicator" style="
   display:none;
   text-align:center;
@@ -31,14 +32,14 @@
 
 <main class="forum-container">
   <div id="posts">
-  <div class="loader"></div>
-</div>
+    <div class="loader"></div>
+  </div>
 </main>
 
 <script>
-/* ==================================================
-   0️⃣ חסימה מיידית – לא WebView = החוצה
-   ================================================== */
+/* ===============================
+   חסימה מיידית – לא WebView
+   =============================== */
 (function () {
   try {
     if (!window.AppInventor) {
@@ -49,17 +50,14 @@
   }
 })();
 
-/* ==================================================
-   קוד ראשי
-   ================================================== */
 document.addEventListener("DOMContentLoaded", function () {
 
   let payload = null;
   let isRefreshing = false;
 
-  /* ==================================================
-     1️⃣ קבלת payload מקודולר
-     ================================================== */
+  /* ===============================
+     קבלת payload מהאפליקציה
+     =============================== */
   function waitForPayload() {
     try {
       const raw = window.AppInventor.getWebViewString();
@@ -78,9 +76,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   waitForPayload();
 
-  /* ==================================================
-     2️⃣ התחברות ל-Firebase Auth
-     ================================================== */
+  /* ===============================
+     Firebase Auth
+     =============================== */
   function loginToFirebase(data) {
     if (!data.email || !data.password || !data.token) {
       window.location.replace("forbidden.html");
@@ -97,9 +95,9 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  /* ==================================================
-     3️⃣ אימות token מול DB
-     ================================================== */
+  /* ===============================
+     אימות token
+     =============================== */
   function validateToken(uid, token) {
     firebase.database()
       .ref("sessions/" + uid + "/token")
@@ -109,17 +107,16 @@ document.addEventListener("DOMContentLoaded", function () {
           window.location.replace("forbidden.html");
           return;
         }
-        loadPost();
-loadComments();
+        loadPosts();
       })
       .catch(function () {
         window.location.replace("forbidden.html");
       });
   }
 
-  /* ==================================================
-     4️⃣ טעינת פוסטים (עם תמיכה בריענון)
-     ================================================== */
+  /* ===============================
+     טעינת פוסטים
+     =============================== */
   function loadPosts(fromRefresh = false) {
     firebase.database()
       .ref("posts")
@@ -150,7 +147,6 @@ loadComments();
           setTimeout(function () {
             isRefreshing = false;
             indicator.style.display = "none";
-            
           }, 300);
         }
       })
@@ -158,47 +154,18 @@ loadComments();
         window.location.replace("forbidden.html");
       });
   }
-     function loadComments() {
-  firebase.database()
-    .ref("comments/" + postId)
-    .once("value")
-    .then(function (snap) {
-      let html = "";
 
-      snap.forEach(function (cSnap) {
-        const c = cSnap.val();
-
-        html += `
-          <div class="post">
-            <p>${c.text || ""}</p>
-            <small>מאת: ${c.author || ""}</small>
-          </div>
-        `;
-      });
-
-      if (!html) {
-        html = "<p>אין תגובות עדיין.</p>";
-      }
-
-      document.getElementById("comments").innerHTML = html;
-    })
-    .catch(function () {
-      document.getElementById("comments").innerHTML =
-        "<p>שגיאה בטעינת תגובות.</p>";
-    });
-}
-
-  /* ==================================================
-     5️⃣ מעבר לפוסט בודד
-     ================================================== */
+  /* ===============================
+     מעבר לפוסט בודד
+     =============================== */
   window.openPost = function (postId) {
     window.location.href =
       "post.html?postId=" + encodeURIComponent(postId);
   };
 
-  /* ==================================================
-     6️⃣ Pull To Refresh (יציב ולא מציק)
-     ================================================== */
+  /* ===============================
+     Pull To Refresh
+     =============================== */
   let startY = 0;
   let pulling = false;
   const THRESHOLD = 90;
@@ -218,21 +185,18 @@ loadComments();
     if (diff <= 0) return;
 
     indicator.style.display = "block";
-    
 
     if (diff > THRESHOLD) {
-  pulling = false;
-  isRefreshing = true;
-  indicator.style.display = "block"; // ודא שה-spinner נראה
-  loadPosts(true);
-}
+      pulling = false;
+      isRefreshing = true;
+      loadPosts(true);
+    }
   });
 
   document.addEventListener("touchend", function () {
     pulling = false;
     if (!isRefreshing) {
       indicator.style.display = "none";
-     
     }
   });
 
