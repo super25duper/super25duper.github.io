@@ -20,6 +20,7 @@
   <h1>פורום הבניידים!</h1>
 </header>
 
+<!-- Pull To Refresh Indicator -->
 <div id="pull-indicator" style="
   display:none;
   text-align:center;
@@ -36,7 +37,9 @@
 </main>
 
 <script>
-/* חסימה מיידית לדפדפן */
+/* ==================================================
+   0️⃣ חסימה מיידית – לא WebView = החוצה
+   ================================================== */
 (function () {
   try {
     if (!window.AppInventor) {
@@ -47,11 +50,17 @@
   }
 })();
 
+/* ==================================================
+   קוד ראשי
+   ================================================== */
 document.addEventListener("DOMContentLoaded", function () {
 
   let payload = null;
   let isRefreshing = false;
 
+  /* ==================================================
+     1️⃣ קבלת payload מקודולר
+     ================================================== */
   function waitForPayload() {
     try {
       const raw = window.AppInventor.getWebViewString();
@@ -64,11 +73,15 @@ document.addEventListener("DOMContentLoaded", function () {
       setTimeout(waitForPayload, 200);
       return;
     }
+
     loginToFirebase(payload);
   }
 
   waitForPayload();
 
+  /* ==================================================
+     2️⃣ התחברות ל-Firebase Auth
+     ================================================== */
   function loginToFirebase(data) {
     if (!data.email || !data.password || !data.token) {
       window.location.replace("forbidden.html");
@@ -85,6 +98,9 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
+  /* ==================================================
+     3️⃣ אימות token מול DB
+     ================================================== */
   function validateToken(uid, token) {
     firebase.database()
       .ref("sessions/" + uid + "/token")
@@ -100,24 +116,34 @@ document.addEventListener("DOMContentLoaded", function () {
         window.location.replace("forbidden.html");
       });
   }
-window.openPost = function(postId) {
-  window.location.href = "post.html?postId=" + encodeURIComponent(postId);
-};
 
-  snap.forEach(function (pSnap) {
-  const p = pSnap.val();
-  const postId = pSnap.key;
+  /* ==================================================
+     4️⃣ טעינת פוסטים (עם תמיכה בריענון)
+     ================================================== */
+  function loadPosts(fromRefresh = false) {
+    firebase.database()
+      .ref("posts")
+      .once("value")
+      .then(function (snap) {
+        let html = "";
 
-  html += `
-    <div class="post" onclick="openPost('${postId}')">
-      <h3>${p.title || ""}</h3>
-      <p>${p.text || ""}</p>
-      <small>מאת: ${p.author || ""}</small>
-    </div>
-  `;
-});
+        snap.forEach(function (pSnap) {
+          const p = pSnap.val();
+          const postId = pSnap.key;
 
-        if (!html) html = "<p>אין עדיין פוסטים.</p>";
+          html += `
+            <div class="post" onclick="openPost('${postId}')">
+              <h3>${p.title || ""}</h3>
+              <p>${p.text || ""}</p>
+              <small>מאת: ${p.author || ""}</small>
+            </div>
+          `;
+        });
+
+        if (!html) {
+          html = "<p>אין עדיין פוסטים.</p>";
+        }
+
         document.getElementById("posts").innerHTML = html;
 
         if (fromRefresh) {
@@ -133,7 +159,17 @@ window.openPost = function(postId) {
       });
   }
 
-  /* Pull To Refresh */
+  /* ==================================================
+     5️⃣ מעבר לפוסט בודד
+     ================================================== */
+  window.openPost = function (postId) {
+    window.location.href =
+      "post.html?postId=" + encodeURIComponent(postId);
+  };
+
+  /* ==================================================
+     6️⃣ Pull To Refresh (יציב ולא מציק)
+     ================================================== */
   let startY = 0;
   let pulling = false;
   const THRESHOLD = 90;
@@ -153,7 +189,8 @@ window.openPost = function(postId) {
     if (diff <= 0) return;
 
     indicator.style.display = "block";
-    indicator.innerText = diff > THRESHOLD ? "שחרר לרענון" : "↓ משוך לרענון";
+    indicator.innerText =
+      diff > THRESHOLD ? "שחרר לרענון" : "↓ משוך לרענון";
 
     if (diff > THRESHOLD) {
       pulling = false;
