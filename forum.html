@@ -157,6 +157,35 @@ document.addEventListener("DOMContentLoaded", function () {
         window.location.replace("forbidden.html");
       });
   }
+     function loadComments() {
+  firebase.database()
+    .ref("comments/" + postId)
+    .once("value")
+    .then(function (snap) {
+      let html = "";
+
+      snap.forEach(function (cSnap) {
+        const c = cSnap.val();
+
+        html += `
+          <div class="post">
+            <p>${c.text || ""}</p>
+            <small>מאת: ${c.author || ""}</small>
+          </div>
+        `;
+      });
+
+      if (!html) {
+        html = "<p>אין תגובות עדיין.</p>";
+      }
+
+      document.getElementById("comments").innerHTML = html;
+    })
+    .catch(function () {
+      document.getElementById("comments").innerHTML =
+        "<p>שגיאה בטעינת תגובות.</p>";
+    });
+}
 
   /* ==================================================
      5️⃣ מעבר לפוסט בודד
