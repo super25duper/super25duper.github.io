@@ -18,12 +18,59 @@
 <header class="top-bar">
   <h1>פורום הבניידים!</h1>
 </header>
+<div id="pull-indicator">↓ משוך לרענון</div>
 
 <main class="forum-container">
   <div id="posts">טוען...</div>
 </main>
 
+<script>
+/* ===============================
+   5️⃣ Pull To Refresh (HTML Native)
+   =============================== */
 
+let startY = 0;
+let pulling = false;
+let refreshed = false;
+const THRESHOLD = 90;
+
+document.addEventListener("touchstart", function (e) {
+  if (window.scrollY === 0) {
+    startY = e.touches[0].clientY;
+    pulling = true;
+    refreshed = false;
+  }
+});
+
+document.addEventListener("touchmove", function (e) {
+  if (!pulling) return;
+
+  const currentY = e.touches[0].clientY;
+  const diff = currentY - startY;
+
+  if (diff > 30 && !refreshed) {
+    const ind = document.getElementById("pull-indicator");
+    ind.style.display = "block";
+    ind.innerText = diff > THRESHOLD ? "שחרר לרענון" : "↓ משוך לרענון";
+  }
+
+  if (diff > THRESHOLD && !refreshed) {
+    refreshed = true;
+    pulling = false;
+    document.getElementById("pull-indicator").innerText = "מרענן…";
+    loadPosts(); // ← ריענון אמיתי, בלי Reload
+  }
+});
+
+document.addEventListener("touchend", function () {
+  pulling = false;
+  setTimeout(() => {
+    const ind = document.getElementById("pull-indicator");
+    ind.style.display = "none";
+    ind.innerText = "↓ משוך לרענון";
+  }, 300);
+});
+</script>
 <script>
 /* ===============================
    0️⃣ חסימה מיידית לדפדפן רגיל
