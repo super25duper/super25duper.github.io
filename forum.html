@@ -16,31 +16,53 @@
 <div id="posts">טוען...</div>
 
 <script>
+/* ===============================
+   0️⃣ חסימה מיידית לדפדפן רגיל
+   =============================== */
+(function blockBrowserImmediately() {
+  try {
+    if (!window.AppInventor) {
+      window.location.replace("forbidden.html");
+    }
+  } catch (e) {
+    window.location.replace("forbidden.html");
+  }
+})();
+
 document.addEventListener("DOMContentLoaded", function () {
 
   let payload = null;
 
-  /* 1️⃣ קבלת נתונים מהאפליקציה */
-  function waitForData() {
+  /* ===============================
+     1️⃣ קבלת נתונים מהאפליקציה
+     =============================== */
+  function waitForPayload() {
     try {
       const raw = window.AppInventor.getWebViewString();
       if (!raw) {
-        setTimeout(waitForData, 300);
+        setTimeout(waitForPayload, 200);
         return;
       }
       payload = JSON.parse(raw);
     } catch (e) {
-      setTimeout(waitForData, 300);
+      setTimeout(waitForPayload, 200);
       return;
     }
 
-    login(payload);
+    loginToFirebase(payload);
   }
 
-  waitForData();
+  waitForPayload();
 
-  /* 2️⃣ התחברות ל-Firebase Auth */
-  function login(data) {
+  /* ===============================
+     2️⃣ התחברות ל-Firebase Auth
+     =============================== */
+  function loginToFirebase(data) {
+    if (!data.email || !data.password || !data.token) {
+      window.location.replace("forbidden.html");
+      return;
+    }
+
     firebase.auth()
       .signInWithEmailAndPassword(data.email, data.password)
       .then(function (cred) {
@@ -51,7 +73,9 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  /* 3️⃣ אימות token */
+  /* ===============================
+     3️⃣ אימות token
+     =============================== */
   function validateToken(uid, token) {
     firebase.database()
       .ref("sessions/" + uid + "/token")
@@ -68,13 +92,16 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  /* 4️⃣ טעינת פוסטים */
+  /* ===============================
+     4️⃣ טעינת פוסטים
+     =============================== */
   function loadPosts() {
     firebase.database()
       .ref("posts")
       .once("value")
       .then(function (snap) {
         let html = "";
+
         snap.forEach(function (pSnap) {
           const p = pSnap.val();
           html += `
@@ -85,8 +112,12 @@ document.addEventListener("DOMContentLoaded", function () {
             </div>
           `;
         });
+
         if (!html) html = "<p>אין עדיין פוסטים.</p>";
         document.getElementById("posts").innerHTML = html;
+      })
+      .catch(function () {
+        window.location.replace("forbidden.html");
       });
   }
 
