@@ -20,16 +20,13 @@
   <h1>פורום הבניידים!</h1>
 </header>
 
-<!-- Pull To Refresh Indicator -->
 <div id="pull-indicator" style="
   display:none;
   text-align:center;
-  font-size:14px;
-  color:#777;
   padding:6px;
   user-select:none;
 ">
-  ↓ משוך לרענון
+  <div class="loader"></div>
 </div>
 
 <main class="forum-container">
@@ -191,13 +188,11 @@ document.addEventListener("DOMContentLoaded", function () {
     if (diff <= 0) return;
 
     indicator.style.display = "block";
-    indicator.innerText =
-      diff > THRESHOLD ? "שחרר לרענון" : "↓ משוך לרענון";
+    
 
     if (diff > THRESHOLD) {
       pulling = false;
       isRefreshing = true;
-      indicator.innerText = "מרענן…";
       loadPosts(true);
     }
   });
@@ -206,7 +201,7 @@ document.addEventListener("DOMContentLoaded", function () {
     pulling = false;
     if (!isRefreshing) {
       indicator.style.display = "none";
-      indicator.innerText = "↓ משוך לרענון";
+     
     }
   });
 
