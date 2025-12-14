@@ -2,7 +2,7 @@
 <html lang="he">
 <head>
   <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>פורום מאובטח</title>
 
   <!-- Firebase -->
@@ -10,67 +10,32 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script src="firebaseConfig.js"></script>
-<link rel="stylesheet" href="css/forum.css">
-</head>
-<body>
 
+  <link rel="stylesheet" href="css/forum.css">
+</head>
+
+<body>
 
 <header class="top-bar">
   <h1>פורום הבניידים!</h1>
 </header>
-<div id="pull-indicator">↓ משוך לרענון</div>
+
+<!-- אינדיקטור Pull -->
+<div id="pull-indicator" style="
+  display:none;
+  text-align:center;
+  font-size:14px;
+  color:#777;
+  padding:6px;
+  user-select:none;
+">
+  ↓ משוך לרענון
+</div>
 
 <main class="forum-container">
   <div id="posts">טוען...</div>
 </main>
 
-<script>
-/* ===============================
-   5️⃣ Pull To Refresh (HTML Native)
-   =============================== */
-
-let startY = 0;
-let pulling = false;
-let refreshed = false;
-const THRESHOLD = 90;
-
-document.addEventListener("touchstart", function (e) {
-  if (window.scrollY === 0) {
-    startY = e.touches[0].clientY;
-    pulling = true;
-    refreshed = false;
-  }
-});
-
-document.addEventListener("touchmove", function (e) {
-  if (!pulling) return;
-
-  const currentY = e.touches[0].clientY;
-  const diff = currentY - startY;
-
-  if (diff > 30 && !refreshed) {
-    const ind = document.getElementById("pull-indicator");
-    ind.style.display = "block";
-    ind.innerText = diff > THRESHOLD ? "שחרר לרענון" : "↓ משוך לרענון";
-  }
-
-  if (diff > THRESHOLD && !refreshed) {
-    refreshed = true;
-    pulling = false;
-    document.getElementById("pull-indicator").innerText = "מרענן…";
-    loadPosts(); // ← ריענון אמיתי, בלי Reload
-  }
-});
-
-document.addEventListener("touchend", function () {
-  pulling = false;
-  setTimeout(() => {
-    const ind = document.getElementById("pull-indicator");
-    ind.style.display = "none";
-    ind.innerText = "↓ משוך לרענון";
-  }, 300);
-});
-</script>
 <script>
 /* ===============================
    0️⃣ חסימה מיידית לדפדפן רגיל
@@ -160,8 +125,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         snap.forEach(function (pSnap) {
           const p = pSnap.val();
-            html += `
-              <div class="post">
+          html += `
+            <div class="post">
               <h3>${p.title || ""}</h3>
               <p>${p.text || ""}</p>
               <small>מאת: ${p.author || ""}</small>
@@ -176,6 +141,51 @@ document.addEventListener("DOMContentLoaded", function () {
         window.location.replace("forbidden.html");
       });
   }
+
+  /* ===============================
+     5️⃣ Pull To Refresh (HTML)
+     =============================== */
+
+  let startY = 0;
+  let pulling = false;
+  let refreshed = false;
+  const THRESHOLD = 90;
+  const indicator = document.getElementById("pull-indicator");
+
+  document.addEventListener("touchstart", function (e) {
+    if (window.scrollY === 0) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+      refreshed = false;
+    }
+  });
+
+  document.addEventListener("touchmove", function (e) {
+    if (!pulling) return;
+
+    const diff = e.touches[0].clientY - startY;
+    if (diff <= 0) return;
+
+    if (diff > 30 && !refreshed) {
+      indicator.style.display = "block";
+      indicator.innerText = diff > THRESHOLD ? "שחרר לרענון" : "↓ משוך לרענון";
+    }
+
+    if (diff > THRESHOLD && !refreshed) {
+      refreshed = true;
+      pulling = false;
+      indicator.innerText = "מרענן…";
+      loadPosts();
+    }
+  });
+
+  document.addEventListener("touchend", function () {
+    pulling = false;
+    setTimeout(function () {
+      indicator.style.display = "none";
+      indicator.innerText = "↓ משוך לרענון";
+    }, 300);
+  });
 
 });
 </script>
