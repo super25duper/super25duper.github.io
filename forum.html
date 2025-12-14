@@ -191,10 +191,11 @@ document.addEventListener("DOMContentLoaded", function () {
     
 
     if (diff > THRESHOLD) {
-      pulling = false;
-      isRefreshing = true;
-      loadPosts(true);
-    }
+  pulling = false;
+  isRefreshing = true;
+  indicator.style.display = "block"; // ודא שה-spinner נראה
+  loadPosts(true);
+}
   });
 
   document.addEventListener("touchend", function () {
