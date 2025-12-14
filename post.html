@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>פוסט</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="firebaseConfig.js"></script>
+
+  <link rel="stylesheet" href="css/forum.css">
+</head>
+
+<body>
+
+<header class="top-bar">
+  <h1>צפייה בפוסט</h1>
+</header>
+
+<main class="forum-container">
+  <div id="post">טוען פוסט...</div>
+</main>
+
+<script>
+/* ===============================
+   0️⃣ חסימה מיידית לדפדפן רגיל
+   =============================== */
+(function () {
+  try {
+    if (!window.AppInventor) {
+      window.location.replace("forbidden.html");
+    }
+  } catch (e) {
+    window.location.replace("forbidden.html");
+  }
+})();
+
+document.addEventListener("DOMContentLoaded", function () {
+
+  const params = new URLSearchParams(window.location.search);
+  const postId = params.get("postId");
+
+  if (!postId) {
+    window.location.replace("forbidden.html");
+    return;
+  }
+
+  let payload = null;
+
+  /* ===============================
+     1️⃣ קבלת נתונים מהאפליקציה
+     =============================== */
+  function waitForPayload() {
+    try {
+      const raw = window.AppInventor.getWebViewString();
+      if (!raw) {
+        setTimeout(waitForPayload, 200);
+        return;
+      }
+      payload = JSON.parse(raw);
+    } catch (e) {
+      setTimeout(waitForPayload, 200);
+      return;
+    }
+
+    loginToFirebase(payload);
+  }
+
+  waitForPayload();
+
+  /* ===============================
+     2️⃣ התחברות ל-Firebase Auth
+     =============================== */
+  function loginToFirebase(data) {
+    if (!data.email || !data.password || !data.token) {
+      window.location.replace("forbidden.html");
+      return;
+    }
+
+    firebase.auth()
+      .signInWithEmailAndPassword(data.email, data.password)
+      .then(function (cred) {
+        validateToken(cred.user.uid, data.token);
+      })
+      .catch(function () {
+        window.location.replace("forbidden.html");
+      });
+  }
+
+  /* ===============================
+     3️⃣ אימות token
+     =============================== */
+  function validateToken(uid, token) {
+    firebase.database()
+      .ref("sessions/" + uid + "/token")
+      .once("value")
+      .then(function (snap) {
+        if (!snap.exists() || snap.val() !== token) {
+          window.location.replace("forbidden.html");
+          return;
+        }
+        loadPost();
+      })
+      .catch(function () {
+        window.location.replace("forbidden.html");
+      });
+  }
+
+  /* ===============================
+     4️⃣ טעינת פוסט בודד
+     =============================== */
+  function loadPost() {
+    firebase.database()
+      .ref("posts/" + postId)
+      .once("value")
+      .then(function (snap) {
+        if (!snap.exists()) {
+          document.getElementById("post").innerHTML =
+            "<p>הפוסט לא נמצא.</p>";
+          return;
+        }
+
+        const p = snap.val();
+
+        document.getElementById("post").innerHTML = `
+          <div class="post">
+            <h3>${p.title || ""}</h3>
+            <p>${p.text || ""}</p>
+            <small>מאת: ${p.author || ""}</small>
+          </div>
+        `;
+      })
+      .catch(function () {
+        window.location.replace("forbidden.html");
+      });
+  }
+
+});
+</script>
+
+</body>
+</html>
