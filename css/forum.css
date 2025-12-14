@@ -41,3 +41,11 @@ body {
   margin-top: 10px;
   color: #6b7280;
 }
+#pull-indicator {
+  text-align: center;
+  font-size: 14px;
+  color: #777;
+  padding: 6px;
+  display: none;
+  user-select: none;
+}
