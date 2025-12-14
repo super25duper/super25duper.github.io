@@ -20,7 +20,6 @@
   <h1>פורום הבניידים!</h1>
 </header>
 
-<!-- אינדיקטור Pull -->
 <div id="pull-indicator" style="
   display:none;
   text-align:center;
@@ -37,10 +36,8 @@
 </main>
 
 <script>
-/* ===============================
-   0️⃣ חסימה מיידית לדפדפן רגיל
-   =============================== */
-(function blockBrowserImmediately() {
+/* חסימה מיידית לדפדפן */
+(function () {
   try {
     if (!window.AppInventor) {
       window.location.replace("forbidden.html");
@@ -53,10 +50,8 @@
 document.addEventListener("DOMContentLoaded", function () {
 
   let payload = null;
+  let isRefreshing = false;
 
-  /* ===============================
-     1️⃣ קבלת נתונים מהאפליקציה
-     =============================== */
   function waitForPayload() {
     try {
       const raw = window.AppInventor.getWebViewString();
@@ -69,15 +64,11 @@ document.addEventListener("DOMContentLoaded", function () {
       setTimeout(waitForPayload, 200);
       return;
     }
-
     loginToFirebase(payload);
   }
 
   waitForPayload();
 
-  /* ===============================
-     2️⃣ התחברות ל-Firebase Auth
-     =============================== */
   function loginToFirebase(data) {
     if (!data.email || !data.password || !data.token) {
       window.location.replace("forbidden.html");
@@ -94,9 +85,6 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  /* ===============================
-     3️⃣ אימות token
-     =============================== */
   function validateToken(uid, token) {
     firebase.database()
       .ref("sessions/" + uid + "/token")
@@ -113,10 +101,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  /* ===============================
-     4️⃣ טעינת פוסטים
-     =============================== */
-  function loadPosts() {
+  function loadPosts(fromRefresh = false) {
     firebase.database()
       .ref("posts")
       .once("value")
@@ -136,55 +121,56 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (!html) html = "<p>אין עדיין פוסטים.</p>";
         document.getElementById("posts").innerHTML = html;
+
+        if (fromRefresh) {
+          setTimeout(function () {
+            isRefreshing = false;
+            indicator.style.display = "none";
+            indicator.innerText = "↓ משוך לרענון";
+          }, 300);
+        }
       })
       .catch(function () {
         window.location.replace("forbidden.html");
       });
   }
 
-  /* ===============================
-     5️⃣ Pull To Refresh (HTML)
-     =============================== */
-
+  /* Pull To Refresh */
   let startY = 0;
   let pulling = false;
-  let refreshed = false;
   const THRESHOLD = 90;
   const indicator = document.getElementById("pull-indicator");
 
   document.addEventListener("touchstart", function (e) {
-    if (window.scrollY === 0) {
+    if (window.scrollY === 0 && !isRefreshing) {
       startY = e.touches[0].clientY;
       pulling = true;
-      refreshed = false;
     }
   });
 
   document.addEventListener("touchmove", function (e) {
-    if (!pulling) return;
+    if (!pulling || isRefreshing) return;
 
     const diff = e.touches[0].clientY - startY;
     if (diff <= 0) return;
 
-    if (diff > 30 && !refreshed) {
-      indicator.style.display = "block";
-      indicator.innerText = diff > THRESHOLD ? "שחרר לרענון" : "↓ משוך לרענון";
-    }
+    indicator.style.display = "block";
+    indicator.innerText = diff > THRESHOLD ? "שחרר לרענון" : "↓ משוך לרענון";
 
-    if (diff > THRESHOLD && !refreshed) {
-      refreshed = true;
+    if (diff > THRESHOLD) {
       pulling = false;
+      isRefreshing = true;
       indicator.innerText = "מרענן…";
-      loadPosts();
+      loadPosts(true);
     }
   });
 
   document.addEventListener("touchend", function () {
     pulling = false;
-    setTimeout(function () {
+    if (!isRefreshing) {
       indicator.style.display = "none";
       indicator.innerText = "↓ משוך לרענון";
-    }, 300);
+    }
   });
 
 });
