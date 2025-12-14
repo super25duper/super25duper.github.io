@@ -21,12 +21,7 @@
 </header>
 
 <!-- Pull indicator -->
-<div id="pull-indicator" style="
-  display:none;
-  text-align:center;
-  padding:6px;
-  user-select:none;
-">
+<div id="pull-indicator" style="display:none;text-align:center;padding:6px;">
   <div class="loader"></div>
 </div>
 
@@ -40,9 +35,19 @@
   <hr>
 
   <!-- תגובות -->
-  <div id="comments">
-    <div class="loader"></div>
-  </div>
+  <section class="comments">
+    <h3>תגובות</h3>
+
+    <div id="comments">
+      <div class="loader"></div>
+    </div>
+
+    <!-- הוספת תגובה -->
+    <div class="comment-form">
+      <textarea id="commentText" placeholder="כתוב תגובה..."></textarea>
+      <button id="sendComment">שלח תגובה</button>
+    </div>
+  </section>
 
 </main>
 
@@ -63,10 +68,11 @@
 document.addEventListener("DOMContentLoaded", function () {
 
   let payload = null;
+  let currentUID = null;
   let isRefreshing = false;
 
   /* ===============================
-     חילוץ postId מה־URL
+     חילוץ postId
      =============================== */
   const params = new URLSearchParams(window.location.search);
   const postId = params.get("postId");
@@ -91,7 +97,6 @@ document.addEventListener("DOMContentLoaded", function () {
       setTimeout(waitForPayload, 200);
       return;
     }
-
     loginToFirebase(payload);
   }
 
@@ -109,7 +114,8 @@ document.addEventListener("DOMContentLoaded", function () {
     firebase.auth()
       .signInWithEmailAndPassword(data.email, data.password)
       .then(function (cred) {
-        validateToken(cred.user.uid, data.token);
+        currentUID = cred.user.uid;
+        validateToken(currentUID, data.token);
       })
       .catch(function () {
         window.location.replace("forbidden.html");
@@ -128,7 +134,6 @@ document.addEventListener("DOMContentLoaded", function () {
           window.location.replace("forbidden.html");
           return;
         }
-
         loadPost();
         loadComments();
       })
@@ -146,8 +151,7 @@ document.addEventListener("DOMContentLoaded", function () {
       .once("value")
       .then(function (snap) {
         if (!snap.exists()) {
-          document.getElementById("post").innerHTML =
-            "<p>הפוסט לא נמצא.</p>";
+          document.getElementById("post").innerHTML = "<p>הפוסט לא נמצא.</p>";
           return;
         }
 
@@ -174,29 +178,41 @@ document.addEventListener("DOMContentLoaded", function () {
 
         snap.forEach(function (cSnap) {
           const c = cSnap.val();
-
           html += `
-            <div class="post">
+            <div class="comment">
               <p>${c.text || ""}</p>
               <small>מאת: ${c.author || ""}</small>
             </div>
           `;
         });
 
-        if (!html) {
-          html = "<p>אין תגובות עדיין.</p>";
-        }
-
-        document.getElementById("comments").innerHTML = html;
-      })
-      .catch(function () {
         document.getElementById("comments").innerHTML =
-          "<p>שגיאה בטעינת תגובות.</p>";
+          html || "<p>אין תגובות עדיין.</p>";
       });
   }
 
   /* ===============================
-     Pull To Refresh (פוסט + תגובות)
+     שליחת תגובה
+     =============================== */
+  document.getElementById("sendComment").onclick = function () {
+    const text = document.getElementById("commentText").value.trim();
+    if (!text) return;
+
+    const commentRef =
+      firebase.database().ref("comments/" + postId).push();
+
+    commentRef.set({
+      text: text,
+      author: payload.username || "משתמש",
+      time: Date.now()
+    }).then(function () {
+      document.getElementById("commentText").value = "";
+      loadComments();
+    });
+  };
+
+  /* ===============================
+     Pull To Refresh
      =============================== */
   let startY = 0;
   let pulling = false;
@@ -234,9 +250,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   document.addEventListener("touchend", function () {
     pulling = false;
-    if (!isRefreshing) {
-      indicator.style.display = "none";
-    }
+    if (!isRefreshing) indicator.style.display = "none";
   });
 
 });
