@@ -109,7 +109,8 @@ document.addEventListener("DOMContentLoaded", function () {
           window.location.replace("forbidden.html");
           return;
         }
-        loadPosts();
+        loadPost();
+loadComments();
       })
       .catch(function () {
         window.location.replace("forbidden.html");
