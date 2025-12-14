@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>פוסט</title>
+  <title>צפייה בפוסט</title>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -19,6 +19,17 @@
 <header class="top-bar">
   <h1>צפייה בפוסט</h1>
 </header>
+
+<!-- Pull indicator -->
+<div id="pull-indicator" style="
+  display:none;
+  text-align:center;
+  padding:6px;
+  user-select:none;
+">
+  <div class="loader"></div>
+</div>
+
 <main class="forum-container">
 
   <!-- פוסט -->
@@ -37,7 +48,7 @@
 
 <script>
 /* ===============================
-   0️⃣ חסימה מיידית לדפדפן רגיל
+   חסימה מיידית – לא WebView
    =============================== */
 (function () {
   try {
@@ -51,6 +62,12 @@
 
 document.addEventListener("DOMContentLoaded", function () {
 
+  let payload = null;
+  let isRefreshing = false;
+
+  /* ===============================
+     חילוץ postId מה־URL
+     =============================== */
   const params = new URLSearchParams(window.location.search);
   const postId = params.get("postId");
 
@@ -59,10 +76,8 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
 
-  let payload = null;
-
   /* ===============================
-     1️⃣ קבלת נתונים מהאפליקציה
+     קבלת payload מקודולר
      =============================== */
   function waitForPayload() {
     try {
@@ -83,7 +98,7 @@ document.addEventListener("DOMContentLoaded", function () {
   waitForPayload();
 
   /* ===============================
-     2️⃣ התחברות ל-Firebase Auth
+     Firebase Auth
      =============================== */
   function loginToFirebase(data) {
     if (!data.email || !data.password || !data.token) {
@@ -102,7 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ===============================
-     3️⃣ אימות token
+     אימות token
      =============================== */
   function validateToken(uid, token) {
     firebase.database()
@@ -113,7 +128,9 @@ document.addEventListener("DOMContentLoaded", function () {
           window.location.replace("forbidden.html");
           return;
         }
+
         loadPost();
+        loadComments();
       })
       .catch(function () {
         window.location.replace("forbidden.html");
@@ -121,7 +138,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ===============================
-     4️⃣ טעינת פוסט בודד
+     טעינת פוסט
      =============================== */
   function loadPost() {
     firebase.database()
@@ -135,7 +152,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const p = snap.val();
-
         document.getElementById("post").innerHTML = `
           <div class="post">
             <h3>${p.title || ""}</h3>
@@ -143,11 +159,85 @@ document.addEventListener("DOMContentLoaded", function () {
             <small>מאת: ${p.author || ""}</small>
           </div>
         `;
-      })
-      .catch(function () {
-        window.location.replace("forbidden.html");
       });
   }
+
+  /* ===============================
+     טעינת תגובות
+     =============================== */
+  function loadComments() {
+    firebase.database()
+      .ref("comments/" + postId)
+      .once("value")
+      .then(function (snap) {
+        let html = "";
+
+        snap.forEach(function (cSnap) {
+          const c = cSnap.val();
+
+          html += `
+            <div class="post">
+              <p>${c.text || ""}</p>
+              <small>מאת: ${c.author || ""}</small>
+            </div>
+          `;
+        });
+
+        if (!html) {
+          html = "<p>אין תגובות עדיין.</p>";
+        }
+
+        document.getElementById("comments").innerHTML = html;
+      })
+      .catch(function () {
+        document.getElementById("comments").innerHTML =
+          "<p>שגיאה בטעינת תגובות.</p>";
+      });
+  }
+
+  /* ===============================
+     Pull To Refresh (פוסט + תגובות)
+     =============================== */
+  let startY = 0;
+  let pulling = false;
+  const THRESHOLD = 90;
+  const indicator = document.getElementById("pull-indicator");
+
+  document.addEventListener("touchstart", function (e) {
+    if (window.scrollY === 0 && !isRefreshing) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  });
+
+  document.addEventListener("touchmove", function (e) {
+    if (!pulling || isRefreshing) return;
+
+    const diff = e.touches[0].clientY - startY;
+    if (diff <= 0) return;
+
+    indicator.style.display = "block";
+
+    if (diff > THRESHOLD) {
+      pulling = false;
+      isRefreshing = true;
+
+      loadPost();
+      loadComments();
+
+      setTimeout(function () {
+        isRefreshing = false;
+        indicator.style.display = "none";
+      }, 400);
+    }
+  });
+
+  document.addEventListener("touchend", function () {
+    pulling = false;
+    if (!isRefreshing) {
+      indicator.style.display = "none";
+    }
+  });
 
 });
 </script>
