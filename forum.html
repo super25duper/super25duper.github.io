@@ -112,8 +112,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         snap.forEach(function (pSnap) {
           const p = pSnap.val();
-          html += `
-            <div style="border:1px solid #ccc;padding:12px;margin:8px;">
+            html += `
+              <div class="post">
               <h3>${p.title || ""}</h3>
               <p>${p.text || ""}</p>
               <small>מאת: ${p.author || ""}</small>
