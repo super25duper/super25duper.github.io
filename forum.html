@@ -196,6 +196,7 @@ sessionStorage.setItem("cachedPosts", html);
     if (diff > THRESHOLD) {
       pulling = false;
       isRefreshing = true;
+sessionStorage.removeItem("cachedPosts");
       loadPosts(true);
     }
   });
