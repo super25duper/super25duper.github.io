@@ -100,24 +100,22 @@ document.addEventListener("DOMContentLoaded", function () {
         window.location.replace("forbidden.html");
       });
   }
+window.openPost = function(postId) {
+  window.location.href = "post.html?postId=" + encodeURIComponent(postId);
+};
 
-  function loadPosts(fromRefresh = false) {
-    firebase.database()
-      .ref("posts")
-      .once("value")
-      .then(function (snap) {
-        let html = "";
+  snap.forEach(function (pSnap) {
+  const p = pSnap.val();
+  const postId = pSnap.key;
 
-        snap.forEach(function (pSnap) {
-          const p = pSnap.val();
-          html += `
-            <div class="post">
-              <h3>${p.title || ""}</h3>
-              <p>${p.text || ""}</p>
-              <small>מאת: ${p.author || ""}</small>
-            </div>
-          `;
-        });
+  html += `
+    <div class="post" onclick="openPost('${postId}')">
+      <h3>${p.title || ""}</h3>
+      <p>${p.text || ""}</p>
+      <small>מאת: ${p.author || ""}</small>
+    </div>
+  `;
+});
 
         if (!html) html = "<p>אין עדיין פוסטים.</p>";
         document.getElementById("posts").innerHTML = html;
