@@ -1,0 +1,82 @@
+/* תגובות */
+.comments {
+  margin-top: 24px;
+}
+
+.comment {
+  background: #f8fafc;
+  border-right: 4px solid #93c5fd;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.comment-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.comment-author {
+  font-weight: bold;
+}
+
+.comment-time {
+  opacity: 0.8;
+}
+
+/* הוספת תגובה */
+.add-comment-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 15px;
+}
+
+.comment-box {
+  margin-top: 12px;
+}
+
+.comment-box textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  resize: none;
+  font-size: 14px;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.comment-actions button {
+  flex: 1;
+  padding: 8px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+}
+
+.comment-actions button:first-child {
+  background: #10b981;
+  color: #fff;
+}
+
+.comment-actions button:last-child {
+  background: #e5e7eb;
+}
+
+/* עזר */
+.hidden {
+  display: none;
+}
