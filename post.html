@@ -12,6 +12,7 @@
   <script src="firebaseConfig.js"></script>
 
   <link rel="stylesheet" href="css/forum.css">
+  <link rel="stylesheet" href="css/post.css">
 </head>
 
 <body>
@@ -20,8 +21,8 @@
   <h1>צפייה בפוסט</h1>
 </header>
 
-<!-- Pull indicator -->
-<div id="pull-indicator" style="display:none;text-align:center;padding:6px;">
+<!-- Pull to refresh -->
+<div id="pull-indicator">
   <div class="loader"></div>
 </div>
 
@@ -32,226 +33,158 @@
     <div class="loader"></div>
   </div>
 
-  <hr>
-
   <!-- תגובות -->
   <section class="comments">
+
     <h3>תגובות</h3>
 
     <div id="comments">
       <div class="loader"></div>
     </div>
 
-    <!-- הוספת תגובה -->
-    <div class="comment-form">
+    <!-- כפתור הוספת תגובה -->
+    <button id="openComment" class="add-comment-btn">
+      הוסף תגובה
+    </button>
+
+    <!-- טופס תגובה -->
+    <div id="commentBox" class="comment-box hidden">
       <textarea id="commentText" placeholder="כתוב תגובה..."></textarea>
-      <button id="sendComment">שלח תגובה</button>
+      <div class="comment-actions">
+        <button id="sendComment">שלח</button>
+        <button id="cancelComment">ביטול</button>
+      </div>
     </div>
+
   </section>
 
 </main>
 
 <script>
-/* ===============================
-   חסימה מיידית – לא WebView
-   =============================== */
+/* חסימה מיידית */
 (function () {
   try {
-    if (!window.AppInventor) {
-      window.location.replace("forbidden.html");
-    }
+    if (!window.AppInventor) location.replace("forbidden.html");
   } catch (e) {
-    window.location.replace("forbidden.html");
+    location.replace("forbidden.html");
   }
 })();
 
 document.addEventListener("DOMContentLoaded", function () {
 
   let payload = null;
-  let currentUID = null;
   let isRefreshing = false;
 
-  /* ===============================
-     חילוץ postId
-     =============================== */
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(location.search);
   const postId = params.get("postId");
+  if (!postId) location.replace("forbidden.html");
 
-  if (!postId) {
-    window.location.replace("forbidden.html");
-    return;
-  }
-
-  /* ===============================
-     קבלת payload מקודולר
-     =============================== */
   function waitForPayload() {
     try {
       const raw = window.AppInventor.getWebViewString();
-      if (!raw) {
-        setTimeout(waitForPayload, 200);
-        return;
-      }
+      if (!raw) return setTimeout(waitForPayload, 200);
       payload = JSON.parse(raw);
-    } catch (e) {
-      setTimeout(waitForPayload, 200);
-      return;
+    } catch {
+      return setTimeout(waitForPayload, 200);
     }
-    loginToFirebase(payload);
+    login();
   }
 
   waitForPayload();
 
-  /* ===============================
-     Firebase Auth
-     =============================== */
-  function loginToFirebase(data) {
-    if (!data.email || !data.password || !data.token) {
-      window.location.replace("forbidden.html");
-      return;
-    }
-
+  function login() {
     firebase.auth()
-      .signInWithEmailAndPassword(data.email, data.password)
-      .then(function (cred) {
-        currentUID = cred.user.uid;
-        validateToken(currentUID, data.token);
-      })
-      .catch(function () {
-        window.location.replace("forbidden.html");
-      });
+      .signInWithEmailAndPassword(payload.email, payload.password)
+      .then(c => validate(c.user.uid, payload.token))
+      .catch(() => location.replace("forbidden.html"));
   }
 
-  /* ===============================
-     אימות token
-     =============================== */
-  function validateToken(uid, token) {
-    firebase.database()
-      .ref("sessions/" + uid + "/token")
+  function validate(uid, token) {
+    firebase.database().ref("sessions/" + uid + "/token")
       .once("value")
-      .then(function (snap) {
-        if (!snap.exists() || snap.val() !== token) {
-          window.location.replace("forbidden.html");
-          return;
-        }
+      .then(snap => {
+        if (!snap.exists() || snap.val() !== token)
+          location.replace("forbidden.html");
         loadPost();
         loadComments();
-      })
-      .catch(function () {
-        window.location.replace("forbidden.html");
       });
   }
 
-  /* ===============================
-     טעינת פוסט
-     =============================== */
   function loadPost() {
-    firebase.database()
-      .ref("posts/" + postId)
+    firebase.database().ref("posts/" + postId)
       .once("value")
-      .then(function (snap) {
-        if (!snap.exists()) {
-          document.getElementById("post").innerHTML = "<p>הפוסט לא נמצא.</p>";
-          return;
-        }
-
+      .then(snap => {
         const p = snap.val();
         document.getElementById("post").innerHTML = `
           <div class="post">
-            <h3>${p.title || ""}</h3>
-            <p>${p.text || ""}</p>
-            <small>מאת: ${p.author || ""}</small>
+            <h3>${p.title}</h3>
+            <p>${p.text}</p>
+            <small>מאת: ${p.author}</small>
           </div>
         `;
       });
   }
 
-  /* ===============================
-     טעינת תגובות
-     =============================== */
   function loadComments() {
-    firebase.database()
-      .ref("comments/" + postId)
+    firebase.database().ref("comments/" + postId)
       .once("value")
-      .then(function (snap) {
+      .then(snap => {
         let html = "";
-
-        snap.forEach(function (cSnap) {
+        snap.forEach(cSnap => {
           const c = cSnap.val();
+          const d = new Date(c.time);
+          const t = d.getHours().toString().padStart(2,"0") + ":" +
+                    d.getMinutes().toString().padStart(2,"0");
           html += `
             <div class="comment">
-              <p>${c.text || ""}</p>
-              <small>מאת: ${c.author || ""}</small>
+              <div class="comment-meta">
+                <span class="comment-author">${c.author}</span>
+                <span class="comment-time">${t}</span>
+              </div>
+              <p>${c.text}</p>
             </div>
           `;
         });
-
         document.getElementById("comments").innerHTML =
           html || "<p>אין תגובות עדיין.</p>";
       });
   }
 
-  /* ===============================
-     שליחת תגובה
-     =============================== */
-  document.getElementById("sendComment").onclick = function () {
-    const text = document.getElementById("commentText").value.trim();
+  /* פתיחת טופס תגובה */
+  const openBtn = document.getElementById("openComment");
+  const box = document.getElementById("commentBox");
+  const textarea = document.getElementById("commentText");
+
+  openBtn.onclick = () => {
+    box.classList.remove("hidden");
+    openBtn.style.display = "none";
+    setTimeout(() => {
+      textarea.focus();
+      textarea.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
+  };
+
+  document.getElementById("cancelComment").onclick = () => {
+    box.classList.add("hidden");
+    openBtn.style.display = "block";
+    textarea.value = "";
+  };
+
+  document.getElementById("sendComment").onclick = () => {
+    const text = textarea.value.trim();
     if (!text) return;
 
-    const commentRef =
-      firebase.database().ref("comments/" + postId).push();
-
-    commentRef.set({
-      text: text,
-      author: payload.username || "משתמש",
+    firebase.database().ref("comments/" + postId).push({
+      text,
+      author: payload.username,
       time: Date.now()
-    }).then(function () {
-      document.getElementById("commentText").value = "";
+    }).then(() => {
+      textarea.value = "";
+      box.classList.add("hidden");
+      openBtn.style.display = "block";
       loadComments();
     });
   };
-
-  /* ===============================
-     Pull To Refresh
-     =============================== */
-  let startY = 0;
-  let pulling = false;
-  const THRESHOLD = 90;
-  const indicator = document.getElementById("pull-indicator");
-
-  document.addEventListener("touchstart", function (e) {
-    if (window.scrollY === 0 && !isRefreshing) {
-      startY = e.touches[0].clientY;
-      pulling = true;
-    }
-  });
-
-  document.addEventListener("touchmove", function (e) {
-    if (!pulling || isRefreshing) return;
-
-    const diff = e.touches[0].clientY - startY;
-    if (diff <= 0) return;
-
-    indicator.style.display = "block";
-
-    if (diff > THRESHOLD) {
-      pulling = false;
-      isRefreshing = true;
-
-      loadPost();
-      loadComments();
-
-      setTimeout(function () {
-        isRefreshing = false;
-        indicator.style.display = "none";
-      }, 400);
-    }
-  });
-
-  document.addEventListener("touchend", function () {
-    pulling = false;
-    if (!isRefreshing) indicator.style.display = "none";
-  });
 
 });
 </script>
