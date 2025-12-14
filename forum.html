@@ -8,8 +8,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-  <!-- firebase.initializeApp + const db -->
   <script src="firebaseConfig.js"></script>
 </head>
 <body>
@@ -20,58 +18,49 @@
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
-  /* ===============================
-     1️⃣ חובה: משתמש מחובר ב-Auth
-     =============================== */
-  firebase.auth().onAuthStateChanged(function (user) {
+  let payload = null;
 
-    if (!user) {
-      // אין Auth → חסימה
-      window.location.replace("forbidden.html");
+  /* 1️⃣ קבלת נתונים מהאפליקציה */
+  function waitForData() {
+    try {
+      const raw = window.AppInventor.getWebViewString();
+      if (!raw) {
+        setTimeout(waitForData, 300);
+        return;
+      }
+      payload = JSON.parse(raw);
+    } catch (e) {
+      setTimeout(waitForData, 300);
       return;
     }
 
-    const uid = user.uid;
+    login(payload);
+  }
 
-    /* ===============================
-       2️⃣ קבלת token מהאפליקציה
-       =============================== */
-    let token = "";
+  waitForData();
 
-    function waitForToken() {
-      try {
-        token = window.AppInventor.getWebViewString();
-      } catch (e) {
-        token = "";
-      }
+  /* 2️⃣ התחברות ל-Firebase Auth */
+  function login(data) {
+    firebase.auth()
+      .signInWithEmailAndPassword(data.email, data.password)
+      .then(function (cred) {
+        validateToken(cred.user.uid, data.token);
+      })
+      .catch(function () {
+        window.location.replace("forbidden.html");
+      });
+  }
 
-      if (!token || token === "null" || token === "0") {
-        setTimeout(waitForToken, 300);
-        return;
-      }
-
-      validateToken(uid, token);
-    }
-
-    waitForToken();
-  });
-
-  /* ===============================
-     3️⃣ אימות token מול session
-     =============================== */
+  /* 3️⃣ אימות token */
   function validateToken(uid, token) {
     firebase.database()
       .ref("sessions/" + uid + "/token")
       .once("value")
       .then(function (snap) {
-
         if (!snap.exists() || snap.val() !== token) {
-          // token לא תואם → חסימה
           window.location.replace("forbidden.html");
           return;
         }
-
-        // Auth + token תקינים
         loadPosts();
       })
       .catch(function () {
@@ -79,17 +68,13 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  /* ===============================
-     4️⃣ טעינת פוסטים
-     =============================== */
+  /* 4️⃣ טעינת פוסטים */
   function loadPosts() {
     firebase.database()
       .ref("posts")
       .once("value")
       .then(function (snap) {
-
         let html = "";
-
         snap.forEach(function (pSnap) {
           const p = pSnap.val();
           html += `
@@ -100,15 +85,8 @@ document.addEventListener("DOMContentLoaded", function () {
             </div>
           `;
         });
-
-        if (!html) {
-          html = "<p>אין עדיין פוסטים.</p>";
-        }
-
+        if (!html) html = "<p>אין עדיין פוסטים.</p>";
         document.getElementById("posts").innerHTML = html;
-      })
-      .catch(function () {
-        window.location.replace("forbidden.html");
       });
   }
 
