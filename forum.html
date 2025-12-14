@@ -51,6 +51,10 @@
 })();
 
 document.addEventListener("DOMContentLoaded", function () {
+const cached = sessionStorage.getItem("cachedPosts");
+if (cached) {
+  document.getElementById("posts").innerHTML = cached;
+}
 
   let payload = null;
   let isRefreshing = false;
