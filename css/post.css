@@ -177,3 +177,7 @@ body {
 .hidden {
   display: none !important;
 }
+.comment-box {
+  position: relative;
+  scroll-margin-bottom: 120px;
+}
