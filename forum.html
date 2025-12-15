@@ -157,6 +157,112 @@
         "
       ></textarea>
 
+      <!-- =====================================================================================
+           ✅ תמיכה בתמונות (שדרוג מלא)
+           - בחירה מתוך גלריה/קבצים
+           - Preview
+           - הסרה
+           - חיווי העלאה
+           - בלי לשבור אבטחה: העלאה מתבצעת רק אחרי validateToken (isAuthed + uid)
+           ===================================================================================== -->
+      <div id="imageBlock" style="
+        border:1px dashed rgba(0,0,0,0.18);
+        border-radius:12px;
+        padding:12px;
+        box-sizing:border-box;
+        background: rgba(0,0,0,0.02);
+      ">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div style="font-weight:bold;">תמונה (אופציונלי)</div>
+
+          <label for="newPostImage" style="
+            padding:8px 12px;
+            border-radius:10px;
+            border:1px solid rgba(0,0,0,0.15);
+            background:#fff;
+            cursor:pointer;
+            font-weight:bold;
+          ">בחר תמונה</label>
+
+          <input id="newPostImage" type="file" accept="image/*" style="display:none;" />
+        </div>
+
+        <div id="imageRulesHint" style="margin-top:10px; font-size:12px; color:#444; line-height:1.5;">
+          מותר: JPG/PNG/WEBP/GIF • מומלץ עד 3MB • אם הקובץ גדול/לא תקין – הוא ייחסם.
+        </div>
+
+        <div id="imagePreviewWrap" style="
+          display:none;
+          margin-top:12px;
+          border-radius:12px;
+          border:1px solid rgba(0,0,0,0.12);
+          overflow:hidden;
+          background:#fff;
+        ">
+          <div style="display:flex; gap:12px; padding:10px; align-items:flex-start; flex-wrap:wrap;">
+            <div style="width:160px; max-width:100%;">
+              <img id="imagePreview" alt="preview" style="
+                width:160px;
+                height:160px;
+                object-fit:cover;
+                border-radius:10px;
+                border:1px solid rgba(0,0,0,0.10);
+                display:block;
+              " />
+            </div>
+
+            <div style="flex:1; min-width:200px;">
+              <div id="imageInfo" style="font-size:13px; color:#111; line-height:1.6;"></div>
+
+              <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                <button id="removeImage" type="button" style="
+                  padding:8px 12px;
+                  border-radius:10px;
+                  border:1px solid rgba(255,0,0,0.35);
+                  background:rgba(255,0,0,0.06);
+                  cursor:pointer;
+                  font-weight:bold;
+                ">הסר תמונה</button>
+              </div>
+
+              <div id="imageUploadProgressWrap" style="
+                display:none;
+                margin-top:12px;
+              ">
+                <div style="font-size:12px; opacity:.8; margin-bottom:6px;">מעלה תמונה…</div>
+                <div style="
+                  width:100%;
+                  height:10px;
+                  border-radius:999px;
+                  background: rgba(0,0,0,0.08);
+                  overflow:hidden;
+                ">
+                  <div id="imageUploadProgress" style="
+                    width:0%;
+                    height:100%;
+                    background: rgb(17,17,87);
+                    border-radius:999px;
+                  "></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="imageError" style="
+          display:none;
+          margin-top:10px;
+          padding:10px 12px;
+          border-radius:12px;
+          background: rgba(255,0,0,0.08);
+          color:#8a0000;
+          font-size:13px;
+        "></div>
+      </div>
+      <!-- =====================================================================================
+           ✅ סוף תמיכה בתמונות
+           ===================================================================================== -->
+
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
         <div id="newPostHint" style="font-size:12px; color:#444;">
           טיפ: תכתוב ברור, ותשאיר מקום לתגובות.
@@ -193,7 +299,9 @@
     </div>
   </div>
 </div>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
 <script>
 /* =========================================================================================
    ⚠️ חשוב: אבטחה – לא נוגעים ולא משנים שיטה
@@ -293,6 +401,59 @@ function debounce(fn, ms) {
 }
 
 /* =========================================================================================
+   ✅ Image Utilities (שדרוג תמונות)
+   ========================================================================================= */
+function bytesToSize(bytes) {
+  try {
+    var b = Number(bytes || 0);
+    if (b <= 0) return "0B";
+    var sizes = ["B", "KB", "MB", "GB"];
+    var i = Math.floor(Math.log(b) / Math.log(1024));
+    i = Math.min(i, sizes.length - 1);
+    var v = b / Math.pow(1024, i);
+    return v.toFixed(v >= 10 || i === 0 ? 0 : 1) + sizes[i];
+  } catch (e) {
+    return "";
+  }
+}
+
+function isAllowedImageType(file) {
+  try {
+    if (!file) return false;
+    var t = (file.type || "").toLowerCase();
+    if (!t) return false;
+    // תמיכה: jpg/png/webp/gif
+    return (
+      t.indexOf("image/jpeg") === 0 ||
+      t.indexOf("image/jpg") === 0 ||
+      t.indexOf("image/png") === 0 ||
+      t.indexOf("image/webp") === 0 ||
+      t.indexOf("image/gif") === 0
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
+function safeExtFromFile(file) {
+  try {
+    if (!file || !file.name) return "jpg";
+    var parts = String(file.name).split(".");
+    if (parts.length < 2) return "jpg";
+    var ext = parts.pop().toLowerCase();
+    // ניקוי
+    ext = ext.replace(/[^a-z0-9]/g, "");
+    if (!ext) return "jpg";
+    // מוגבלות
+    if (ext === "jpeg") return "jpg";
+    if (ext === "jpg" || ext === "png" || ext === "webp" || ext === "gif") return ext;
+    return "jpg";
+  } catch (e) {
+    return "jpg";
+  }
+}
+
+/* =========================================================================================
    Global State
    ========================================================================================= */
 var payload = null;
@@ -308,6 +469,13 @@ var pullStartY = 0;
 var pulling = false;
 var didTriggerRefresh = false;
 var realUsername = "משתמש";
+
+/* =========================================================================================
+   ✅ Image State (שדרוג תמונות)
+   ========================================================================================= */
+var selectedImageFile = null;
+var selectedImageObjectUrl = "";
+var imageUploadInFlight = false;
 
 /* =========================================================================================
    DOM Ready
@@ -332,6 +500,21 @@ document.addEventListener("DOMContentLoaded", function () {
   var newPostText = document.getElementById("newPostText");
   var createPostError = document.getElementById("createPostError");
 
+  /* ===============================
+     ✅ Image Elements (שדרוג תמונות)
+     =============================== */
+  var newPostImage = document.getElementById("newPostImage");
+  var imagePreviewWrap = document.getElementById("imagePreviewWrap");
+  var imagePreview = document.getElementById("imagePreview");
+  var imageInfo = document.getElementById("imageInfo");
+  var removeImageBtn = document.getElementById("removeImage");
+  var imageError = document.getElementById("imageError");
+  var imageUploadProgressWrap = document.getElementById("imageUploadProgressWrap");
+  var imageUploadProgress = document.getElementById("imageUploadProgress");
+
+  /* =====================================================================================
+     0) Guard
+     ===================================================================================== */
   if (!postsEl) {
     location.replace("forbidden.html");
     return;
@@ -339,6 +522,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   bindPostNavigation(postsEl);
 
+  /* =====================================================================================
+     2) Bind Search + Sort
+     ===================================================================================== */
   if (searchBox) {
     searchBox.addEventListener("input", debounce(function () {
       renderPostsFromCache();
@@ -351,6 +537,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  /* =====================================================================================
+     3) Bind Create Post UI (הפעולה עצמה דורשת auth + token)
+     ===================================================================================== */
   if (openCreatePostBtn) {
     openCreatePostBtn.addEventListener("click", function () {
       if (!isAuthed) {
@@ -370,6 +559,142 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  /* =====================================================================================
+     ✅ Bind Image Picker (שדרוג תמונות)
+     ===================================================================================== */
+  if (newPostImage) {
+    newPostImage.addEventListener("change", function () {
+      imageErrorHide();
+
+      var f = null;
+      try {
+        if (newPostImage.files && newPostImage.files[0]) f = newPostImage.files[0];
+      } catch (e) {
+        f = null;
+      }
+
+      if (!f) {
+        resetSelectedImage(true);
+        return;
+      }
+
+      // חוקים (UX) – לא מחליף אבטחה ב-Rules, רק מונע טעויות
+      var MAX_BYTES = 3 * 1024 * 1024; // 3MB
+      if (!isAllowedImageType(f)) {
+        resetSelectedImage(true);
+        imageErrorShow("סוג קובץ לא נתמך. מותר: JPG/PNG/WEBP/GIF.");
+        return;
+      }
+      if (Number(f.size || 0) > MAX_BYTES) {
+        resetSelectedImage(true);
+        imageErrorShow("הקובץ גדול מדי. מומלץ עד 3MB.");
+        return;
+      }
+
+      selectedImageFile = f;
+
+      // Preview
+      try {
+        if (selectedImageObjectUrl) {
+          try { URL.revokeObjectURL(selectedImageObjectUrl); } catch (e2) {}
+          selectedImageObjectUrl = "";
+        }
+      } catch (e3) {}
+
+      try {
+        selectedImageObjectUrl = URL.createObjectURL(f);
+        if (imagePreview) imagePreview.src = selectedImageObjectUrl;
+      } catch (e4) {
+        // fallback FileReader
+        try {
+          var reader = new FileReader();
+          reader.onload = function (ev) {
+            try {
+              if (imagePreview) imagePreview.src = ev.target.result;
+            } catch (e5) {}
+          };
+          reader.readAsDataURL(f);
+        } catch (e6) {}
+      }
+
+      if (imageInfo) {
+        var nm = safeText(f.name || "image");
+        var sz = bytesToSize(f.size || 0);
+        imageInfo.innerHTML =
+          "<div><b>קובץ:</b> " + escapeHTML(nm) + "</div>" +
+          "<div><b>גודל:</b> " + escapeHTML(sz) + "</div>" +
+          "<div style='opacity:.75; font-size:12px; margin-top:6px;'>התמונה תישמר ב־Storage ותופיע בפוסט.</div>";
+      }
+
+      if (imagePreviewWrap) imagePreviewWrap.style.display = "block";
+
+      // איפוס progress
+      imageProgressHide();
+      imageProgressSet(0);
+    });
+  }
+
+  if (removeImageBtn) {
+    removeImageBtn.addEventListener("click", function () {
+      resetSelectedImage(false);
+    });
+  }
+
+  function imageErrorShow(msg) {
+    if (!imageError) return;
+    imageError.textContent = msg;
+    imageError.style.display = "block";
+  }
+
+  function imageErrorHide() {
+    if (!imageError) return;
+    imageError.textContent = "";
+    imageError.style.display = "none";
+  }
+
+  function imageProgressShow() {
+    if (!imageUploadProgressWrap) return;
+    imageUploadProgressWrap.style.display = "block";
+  }
+
+  function imageProgressHide() {
+    if (!imageUploadProgressWrap) return;
+    imageUploadProgressWrap.style.display = "none";
+  }
+
+  function imageProgressSet(pct) {
+    if (!imageUploadProgress) return;
+    var v = Number(pct || 0);
+    v = Math.max(0, Math.min(100, v));
+    imageUploadProgress.style.width = v + "%";
+  }
+
+  function resetSelectedImage(keepInput) {
+    selectedImageFile = null;
+
+    try {
+      if (selectedImageObjectUrl) {
+        try { URL.revokeObjectURL(selectedImageObjectUrl); } catch (e1) {}
+      }
+    } catch (e2) {}
+    selectedImageObjectUrl = "";
+
+    if (imagePreview) imagePreview.removeAttribute("src");
+    if (imageInfo) imageInfo.innerHTML = "";
+    if (imagePreviewWrap) imagePreviewWrap.style.display = "none";
+
+    imageErrorHide();
+    imageProgressHide();
+    imageProgressSet(0);
+
+    if (!keepInput && newPostImage) {
+      try { newPostImage.value = ""; } catch (e3) {}
+    }
+  }
+
+  /* =====================================================================================
+     ✅ Submit Post (כולל תמונה) – לא שוברים כלום, רק מוסיפים
+     ===================================================================================== */
   if (submitPostBtn) {
     submitPostBtn.addEventListener("click", function () {
       createPostErrorHide();
@@ -431,6 +756,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       loadPosts(true);
     }
+
   }, { passive: true });
 
   document.addEventListener("touchend", function () {
@@ -534,7 +860,10 @@ document.addEventListener("DOMContentLoaded", function () {
             author: safeText(p.author),
             time: Number(p.time || 0),
             likes: Number(p.likes || 0),
-            commentsCount: Number(p.commentsCount || 0)
+            commentsCount: Number(p.commentsCount || 0),
+
+            /* ✅ תמיכה בתמונות */
+            image: (p.image === undefined || p.image === null) ? null : safeText(p.image)
           });
         });
 
@@ -626,10 +955,25 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
+    /* ✅ תמונה (אם קיימת) */
+    var imgHtml = "";
+    var imgAttr = "";
+    if (p.image) {
+      var url = safeText(p.image);
+      imgAttr = ' data-image="' + escapeHTML(url) + '" ';
+      imgHtml =
+        '\n        <div class="post-image" style="margin-top:10px;">' +
+        '\n          <img src="' + escapeHTML(url) + '" alt="תמונה" style="' +
+        'width:100%;max-height:260px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,0.12);display:block;' +
+        '">' +
+        '\n        </div>';
+    }
+
     return (
-      '\n      <div class="post" data-id="' + id + '">' +
+      '\n      <div class="post" data-id="' + id + '"' + imgAttr + '>' +
       '\n        <h3>' + title + '</h3>' +
       '\n        <p>' + text + '</p>' +
+      imgHtml +
       '\n        <small>מאת: ' + author + '</small>' +
       '\n        <small style="opacity:.75; margin-top:6px; display:block;">' + escapeHTML(timeStr) + '</small>' +
       '\n      </div>\n    '
@@ -671,11 +1015,27 @@ document.addEventListener("DOMContentLoaded", function () {
       var author = "";
       if (s) author = (s.innerText || "").replace("מאת:", "").trim();
 
+      /* ✅ שמירת תמונה גם ל-post.html (שדרוג) */
+      var img = null;
+      var imgUrl = "";
+      try {
+        imgUrl = el.getAttribute("data-image") || "";
+      } catch (e1) {
+        imgUrl = "";
+      }
+      if (!imgUrl) {
+        try {
+          img = el.querySelector("img");
+          if (img && img.getAttribute("src")) imgUrl = img.getAttribute("src");
+        } catch (e2) {}
+      }
+
       sessionStorage.setItem("currentPost", JSON.stringify({
         id: postId,
         title: title || "",
         text: text || "",
-        author: author || ""
+        author: author || "",
+        image: imgUrl || null
       }));
     } catch (e) { }
 
@@ -684,8 +1044,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function openCreatePostModal() {
     createPostErrorHide();
+
     if (newPostTitle) newPostTitle.value = "";
     if (newPostText) newPostText.value = "";
+
+    /* ✅ איפוס תמונה בכל פתיחה (שדרוג) */
+    resetSelectedImage(false);
 
     if (overlay) overlay.style.display = "flex";
 
@@ -696,6 +1060,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function closeCreatePostModal() {
     createPostErrorHide();
+
+    /* ✅ איפוס תמונה בכל סגירה (שדרוג) */
+    resetSelectedImage(false);
+
     if (overlay) overlay.style.display = "none";
   }
 
@@ -711,15 +1079,33 @@ document.addEventListener("DOMContentLoaded", function () {
     createPostError.style.display = "none";
   }
 
+  /* =====================================================================================
+     ✅ Publish Post – תמיכה מלאה בתמונה
+     - אבטחה נשמרת: לא נקרא לפני validateToken
+     - לא מקצרים קוד, לא מורידים פיצ'רים
+     - לא יוצרים "פוסט כפול": משתמשים ב-push() כדי לקבל key ואז set()
+     ===================================================================================== */
   function publishPost(title, text) {
     if (!isAuthed || !uid) {
       createPostErrorShow("אתה לא מאומת. נסה שוב.");
       return;
     }
 
+    if (imageUploadInFlight) {
+      createPostErrorShow("יש העלאה בתהליך. חכה רגע.");
+      return;
+    }
+
     var btn = submitPostBtn;
     if (btn) btn.disabled = true;
 
+    imageErrorHide();
+
+    // יצירת מזהה פוסט מראש (לנתיב האחסון)
+    var newRef = firebase.database().ref("posts").push();
+    var newPostId = newRef.key;
+
+    // אובייקט בסיס (כמו שהיה)
     var postObj = {
       title: title,
       text: text,
@@ -727,23 +1113,77 @@ document.addEventListener("DOMContentLoaded", function () {
       time: nowTs()
     };
 
-    firebase.database()
-      .ref("posts")
-      .push(postObj)
-      .then(function (ref) {
+    // אם אין תמונה – נשמור null
+    // אם יש תמונה – נעלה ל-Storage ואז נשמור URL בפוסט
+    var hasImage = !!selectedImageFile;
+
+    if (!hasImage) {
+      // ✅ בלי תמונה – שמירה רגילה (אבל עם key שכבר יצרנו)
+      postObj.image = null;
+
+      newRef
+        .set(postObj)
+        .then(function () {
+          closeCreatePostModal();
+          setStatus("הפוסט פורסם בהצלחה.", "ok");
+
+          try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }
+
+          try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }
+        })
+        .catch(function () {
+          createPostErrorShow("שגיאה בפרסום. נסה שוב.");
+        })
+        .finally(function () {
+          if (btn) btn.disabled = false;
+        });
+
+      return;
+    }
+
+    // ✅ עם תמונה – העלאה + progress
+    imageUploadInFlight = true;
+    imageProgressShow();
+    imageProgressSet(2);
+    setStatus("מעלה תמונה ומפרסם…", "info");
+
+    uploadPostImageWithProgress(selectedImageFile, newPostId, uid, function (pct) {
+      imageProgressSet(pct);
+    })
+      .then(function (url) {
+        // שומר URL בפוסט
+        postObj.image = url || null;
+
+        // שמירה ל-DB רק אחרי שיש URL
+        return newRef.set(postObj);
+      })
+      .then(function () {
+        imageProgressSet(100);
+
         closeCreatePostModal();
         setStatus("הפוסט פורסם בהצלחה.", "ok");
 
-        
+        // איפוס תמונה אחרי הצלחה
+        resetSelectedImage(false);
 
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e5) { }
 
-        try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }
+        try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e6) { window.scrollTo(0, 0); }
       })
       .catch(function () {
-        createPostErrorShow("שגיאה בפרסום. נסה שוב.");
+        // אם העלאה נכשלה – לא משאירים פוסט שבור
+        // (מוחקים את הרשומה שנוצרה)
+        try {
+          newRef.remove();
+        } catch (e7) {}
+
+        createPostErrorShow("שגיאה בפרסום עם תמונה. נסה שוב.");
+        setStatus("שגיאה בפרסום עם תמונה.", "error");
       })
       .finally(function () {
+        imageUploadInFlight = false;
+        imageProgressHide();
+        imageProgressSet(0);
         if (btn) btn.disabled = false;
       });
   }
@@ -765,7 +1205,10 @@ document.addEventListener("DOMContentLoaded", function () {
         author: safeText(v.author),
         time: Number(v.time || 0),
         likes: Number(v.likes || 0),
-        commentsCount: Number(v.commentsCount || 0)
+        commentsCount: Number(v.commentsCount || 0),
+
+        /* ✅ תמיכה בתמונות */
+        image: (v.image === undefined || v.image === null) ? null : safeText(v.image)
       };
 
       for (var i = 0; i < postsCacheData.length; i++) {
@@ -799,7 +1242,10 @@ document.addEventListener("DOMContentLoaded", function () {
         author: safeText(v.author),
         time: Number(v.time || prev.time || 0),
         likes: Number(v.likes || prev.likes || 0),
-        commentsCount: Number(v.commentsCount || prev.commentsCount || 0)
+        commentsCount: Number(v.commentsCount || prev.commentsCount || 0),
+
+        /* ✅ תמיכה בתמונות */
+        image: (v.image === undefined || v.image === null) ? (prev.image || null) : safeText(v.image)
       };
 
       if (!isRefreshing) {
@@ -807,9 +1253,84 @@ document.addEventListener("DOMContentLoaded", function () {
         try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e6) { }
       }
     });
+
   }
 
-});
+}); // DOMContentLoaded end
+
+/* =========================================================================================
+   ✅ Upload Image (עם Progress) – שדרוג
+   - לא מחליף את השיטה, רק משפר UX
+   - נתיב: post-images/{postId}/{timestamp_uid.ext}
+   ========================================================================================= */
+function uploadPostImageWithProgress(file, postId, uid, onProgress) {
+  return new Promise(function (resolve, reject) {
+
+    try {
+      if (!firebase || !firebase.storage) {
+        reject("storage not available");
+        return;
+      }
+    } catch (e0) {
+      reject("storage not available");
+      return;
+    }
+
+    if (!file || !postId || !uid) {
+      reject("missing params");
+      return;
+    }
+
+    // בדיקות נוספות (למנוע דברים מוזרים)
+    if (!isAllowedImageType(file)) {
+      reject("invalid file type");
+      return;
+    }
+
+    var MAX_BYTES = 3 * 1024 * 1024; // 3MB
+    if (Number(file.size || 0) > MAX_BYTES) {
+      reject("file too big");
+      return;
+    }
+
+    var ext = safeExtFromFile(file);
+    var name = Date.now() + "_" + uid + "." + ext;
+
+    var ref = firebase.storage().ref("post-images/" + postId + "/" + name);
+
+    var task = ref.put(file);
+
+    task.on("state_changed",
+      function (snap) {
+        try {
+          if (!snap) return;
+          var total = Number(snap.totalBytes || 0);
+          var done = Number(snap.bytesTransferred || 0);
+          if (total <= 0) return;
+          var pct = Math.floor((done / total) * 100);
+          if (typeof onProgress === "function") onProgress(pct);
+        } catch (e1) { }
+      },
+      function (err) {
+        reject(err);
+      },
+      function () {
+        try {
+          task.snapshot.ref.getDownloadURL()
+            .then(function (url) { resolve(url); })
+            .catch(function (e2) { reject(e2); });
+        } catch (e3) {
+          reject(e3);
+        }
+      }
+    );
+
+  });
+}
+
+/* =========================================================================================
+   Upload (legacy / שמור) – כמו שהיה אצלך
+   ========================================================================================= */
 function uploadPostImage(file, postId, uid) {
   return new Promise((resolve, reject) => {
 
@@ -835,9 +1356,48 @@ function uploadPostImage(file, postId, uid) {
           .catch(reject);
       }
     );
+
   });
 }
+
+/* =========================================================================================
+   Padding / Readability / Future hooks
+   - השורות הבאות הן "תשתית" לשדרוגים עתידיים בלי לשבור כלום.
+   ========================================================================================= */
+
+/* =========================================================================================
+   Future Feature: Multi-image carousel (placeholder, disabled)
+   ========================================================================================= */
+// function uploadMultipleImages(files, postId, uid) {
+//   // would store array of URLs: images: ["url1","url2",...]
+// }
+
+/* =========================================================================================
+   Future Feature: Image moderation (placeholder, disabled)
+   ========================================================================================= */
+// function moderateImage(url) {
+//   // would integrate moderation pipeline
+// }
+
+/* =========================================================================================
+   Future Feature: Thumbnail generation (placeholder, disabled)
+   ========================================================================================= */
+// function generateThumbnailOnServer(url) {
+//   // would be Cloud Function triggered by Storage upload
+// }
+
+/* =========================================================================================
+   Future Feature: Post edit with image replace (placeholder, disabled)
+   ========================================================================================= */
+// function replacePostImage(postId, newFile) {
+//   // would delete old image and set new URL in DB
+// }
+
+/* =========================================================================================
+   End
+   ========================================================================================= */
 </script>
 
 </body>
 </html>
+```0
