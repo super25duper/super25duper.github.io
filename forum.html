@@ -12,6 +12,18 @@
   <script src="firebaseConfig.js"></script>
 
   <link rel="stylesheet" href="css/forum.css">
+
+  <style>
+    /* אנימציית מעבר (B) */
+    .post {
+      transition: transform .15s ease, opacity .15s ease;
+      cursor: pointer;
+    }
+    .post:active {
+      transform: scale(0.97);
+      opacity: .85;
+    }
+  </style>
 </head>
 
 <body>
@@ -43,39 +55,40 @@
 (function () {
   try {
     if (!window.AppInventor) {
-      window.location.replace("forbidden.html");
+      location.replace("forbidden.html");
     }
   } catch (e) {
-    window.location.replace("forbidden.html");
+    location.replace("forbidden.html");
   }
 })();
 
-document.addEventListener("DOMContentLoaded", function () {
+/* ===============================
+   Cache (A)
+   =============================== */
+const cached = sessionStorage.getItem("cachedPosts");
+if (cached) {
+  document.getElementById("posts").innerHTML = cached;
+}
 
-  const cached = sessionStorage.getItem("cachedPosts");
-  if (cached) {
-    document.getElementById("posts").innerHTML = cached;
-  }
+/* ===============================
+   Main
+   =============================== */
+document.addEventListener("DOMContentLoaded", function () {
 
   let payload = null;
   let isRefreshing = false;
 
   /* ===============================
-     קבלת payload מהאפליקציה
+     Payload מקודולר
      =============================== */
   function waitForPayload() {
     try {
       const raw = window.AppInventor.getWebViewString();
-      if (!raw) {
-        setTimeout(waitForPayload, 200);
-        return;
-      }
+      if (!raw) return setTimeout(waitForPayload, 200);
       payload = JSON.parse(raw);
     } catch (e) {
-      setTimeout(waitForPayload, 200);
-      return;
+      return setTimeout(waitForPayload, 200);
     }
-
     loginToFirebase(payload);
   }
 
@@ -86,18 +99,14 @@ document.addEventListener("DOMContentLoaded", function () {
      =============================== */
   function loginToFirebase(data) {
     if (!data.email || !data.password || !data.token) {
-      window.location.replace("forbidden.html");
+      location.replace("forbidden.html");
       return;
     }
 
     firebase.auth()
       .signInWithEmailAndPassword(data.email, data.password)
-      .then(function (cred) {
-        validateToken(cred.user.uid, data.token);
-      })
-      .catch(function () {
-        window.location.replace("forbidden.html");
-      });
+      .then(c => validateToken(c.user.uid, data.token))
+      .catch(() => location.replace("forbidden.html"));
   }
 
   /* ===============================
@@ -107,16 +116,14 @@ document.addEventListener("DOMContentLoaded", function () {
     firebase.database()
       .ref("sessions/" + uid + "/token")
       .once("value")
-      .then(function (snap) {
+      .then(snap => {
         if (!snap.exists() || snap.val() !== token) {
-          window.location.replace("forbidden.html");
+          location.replace("forbidden.html");
           return;
         }
         loadPosts();
       })
-      .catch(function () {
-        window.location.replace("forbidden.html");
-      });
+      .catch(() => location.replace("forbidden.html"));
   }
 
   /* ===============================
@@ -126,20 +133,16 @@ document.addEventListener("DOMContentLoaded", function () {
     firebase.database()
       .ref("posts")
       .once("value")
-      .then(function (snap) {
+      .then(snap => {
+
         let html = "";
 
-        snap.forEach(function (pSnap) {
+        snap.forEach(pSnap => {
           const p = pSnap.val();
           const postId = pSnap.key;
 
           html += `
-            <div class="post"
-                 data-id="${postId}"
-                 data-title="${(p.title || "").replace(/"/g, "&quot;")}"
-                 data-text="${(p.text || "").replace(/"/g, "&quot;")}"
-                 data-author="${(p.author || "").replace(/"/g, "&quot;")}"
-                 onclick="openPost(this)">
+            <div class="post" data-id="${postId}">
               <h3>${p.title || ""}</h3>
               <p>${p.text || ""}</p>
               <small>מאת: ${p.author || ""}</small>
@@ -147,45 +150,51 @@ document.addEventListener("DOMContentLoaded", function () {
           `;
         });
 
-        if (!html) {
-          html = "<p>אין עדיין פוסטים.</p>";
-        }
+        if (!html) html = "<p>אין עדיין פוסטים.</p>";
 
-        document.getElementById("posts").innerHTML = html;
+        const postsEl = document.getElementById("posts");
+        postsEl.innerHTML = html;
 
-        // ⭐ שמירה בזיכרון
+        /* Cache (A) */
         sessionStorage.setItem("cachedPosts", html);
 
+        /* חיבור קליקים – FIX עיקרי */
+        postsEl.querySelectorAll(".post").forEach(el => {
+          el.addEventListener("click", () => {
+            const id = el.dataset.id;
+            openPost(id, el);
+          });
+        });
+
         if (fromRefresh) {
-          setTimeout(function () {
+          setTimeout(() => {
             isRefreshing = false;
             indicator.style.display = "none";
           }, 300);
         }
       })
-      .catch(function () {
-        window.location.replace("forbidden.html");
-      });
+      .catch(() => location.replace("forbidden.html"));
   }
 
   /* ===============================
-     מעבר לפוסט בודד (✔️ מתוקן)
+     מעבר לפוסט (A + B)
      =============================== */
-  window.openPost = function (el) {
-    const postId = el.dataset.id;
+  function openPost(postId, el) {
+    const title = el.querySelector("h3")?.innerText || "";
+    const text = el.querySelector("p")?.innerText || "";
+    const author = el.querySelector("small")?.innerText.replace("מאת: ","") || "";
 
-    sessionStorage.setItem(
-      "currentPost",
-      JSON.stringify({
-        id: postId,
-        title: el.dataset.title,
-        text: el.dataset.text,
-        author: el.dataset.author
-      })
-    );
+    sessionStorage.setItem("currentPost", JSON.stringify({
+      id: postId,
+      title,
+      text,
+      author
+    }));
 
-    location.href = "post.html?postId=" + encodeURIComponent(postId);
-  };
+    setTimeout(() => {
+      location.href = "post.html?postId=" + encodeURIComponent(postId);
+    }, 120);
+  }
 
   /* ===============================
      Pull To Refresh
@@ -195,16 +204,15 @@ document.addEventListener("DOMContentLoaded", function () {
   const THRESHOLD = 90;
   const indicator = document.getElementById("pull-indicator");
 
-  document.addEventListener("touchstart", function (e) {
-    if (window.scrollY === 0 && !isRefreshing) {
+  document.addEventListener("touchstart", e => {
+    if (scrollY === 0 && !isRefreshing) {
       startY = e.touches[0].clientY;
       pulling = true;
     }
   });
 
-  document.addEventListener("touchmove", function (e) {
+  document.addEventListener("touchmove", e => {
     if (!pulling || isRefreshing) return;
-
     const diff = e.touches[0].clientY - startY;
     if (diff <= 0) return;
 
@@ -218,11 +226,9 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.addEventListener("touchend", function () {
+  document.addEventListener("touchend", () => {
     pulling = false;
-    if (!isRefreshing) {
-      indicator.style.display = "none";
-    }
+    if (!isRefreshing) indicator.style.display = "none";
   });
 
 });
