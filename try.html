@@ -1,311 +1,176 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <title>Firebase Storage Upload DEBUG (v8) - Single File</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Upload to Firebase Storage (v12)</title>
   <style>
-    body {
-      font-family: monospace;
-      max-width: 900px;
-      margin: 20px auto;
-      padding: 10px;
-    }
-    button {
-      padding: 10px 16px;
-      margin-top: 10px;
-    }
-    pre {
-      background: #111;
-      color: #0f0;
-      padding: 10px;
-      height: 340px;
-      overflow-y: auto;
-      font-size: 12px;
-    }
-    .warn { color: #ffb300; }
-    .err { color: #ff5252; }
-    .ok  { color: #69f0ae; }
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; }
+    button { padding: 10px 14px; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    progress { width: 100%; height: 18px; margin-top: 12px; }
+    .log { font-family: monospace; background:#111; color:#0f0; padding:10px; border-radius:10px; height: 200px; overflow:auto; }
+    img { max-width: 100%; border-radius: 12px; margin-top: 12px; display:none; }
+    a { word-break: break-all; }
   </style>
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyBf-12UCoHpIMg81MWaer7DmtfVla95X9M",
-    authDomain: "try-a-69b75.firebaseapp.com",
-    projectId: "try-a-69b75",
-    storageBucket: "try-a-69b75.firebasestorage.app",
-    messagingSenderId: "136796358688",
-    appId: "1:136796358688:web:f6d41df5505e26ec0b5445",
-    measurementId: "G-ST0TTENTGF"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
-  <!-- Firebase v8 SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body>
 
-<h2>Firebase Storage Upload – DEBUG (v8) | קובץ יחיד</h2>
+  <h2>העלאת תמונה ל-Firebase Storage</h2>
 
-<p>
-  <b>URL:</b> <span id="urlText"></span><br>
-  <b>Origin:</b> <span id="originText"></span>
-</p>
+  <p><b>כתובת הדף:</b> <span id="url"></span></p>
 
-<input id="fileInput" type="file" accept="image/*"><br>
-<button id="uploadBtn" disabled>UPLOAD</button>
-<button id="cancelBtn" disabled>CANCEL</button>
+  <input id="fileInput" type="file" accept="image/*" />
+  <button id="uploadBtn" disabled>העלה</button>
 
-<p id="status"></p>
+  <progress id="progress" value="0" max="100" style="display:none;"></progress>
+  <p id="status"></p>
 
-<h3>LOG OUTPUT</h3>
-<pre id="log"></pre>
+  <p id="linkWrap" style="display:none;">
+    <b>קישור לתמונה:</b> <a id="fileUrl" href="#" target="_blank" rel="noopener">—</a>
+  </p>
 
-<script>
-  const logBox = document.getElementById("log");
-  const status = document.getElementById("status");
-  const urlText = document.getElementById("urlText");
-  const originText = document.getElementById("originText");
-  const fileInput = document.getElementById("fileInput");
-  const uploadBtn = document.getElementById("uploadBtn");
-  const cancelBtn = document.getElementById("cancelBtn");
+  <img id="preview" alt="preview" />
 
-  urlText.textContent = location.href;
-  originText.textContent = location.origin;
+  <h3>לוגים</h3>
+  <div class="log" id="log"></div>
 
-  function logLine(prefixClass, ...args) {
-    console.log(...args);
-    const line = args.map(a => typeof a === "object" ? JSON.stringify(a, null, 2) : String(a)).join(" ");
-    if (prefixClass) {
-      logBox.innerHTML += `<span class="${prefixClass}">${line.replace(/</g,"&lt;")}</span>\n`;
-    } else {
-      logBox.textContent += line + "\n";
+  <script type="module">
+    // ===== Firebase v12 imports =====
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+    import {
+      getStorage,
+      ref,
+      uploadBytesResumable,
+      getDownloadURL
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
+
+    // ===== UI =====
+    const urlEl = document.getElementById("url");
+    const logEl = document.getElementById("log");
+    const statusEl = document.getElementById("status");
+    const fileInput = document.getElementById("fileInput");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const progressEl = document.getElementById("progress");
+    const linkWrap = document.getElementById("linkWrap");
+    const fileUrlEl = document.getElementById("fileUrl");
+    const previewEl = document.getElementById("preview");
+
+    urlEl.textContent = location.href;
+
+    function log(...args) {
+      const line = args.map(a => typeof a === "object" ? JSON.stringify(a, null, 2) : String(a)).join(" ");
+      console.log(...args);
+      logEl.textContent += line + "\n";
+      logEl.scrollTop = logEl.scrollHeight;
     }
-    logBox.scrollTop = logBox.scrollHeight;
-  }
 
-  function log(...args){ logLine("", ...args); }
-  function ok(...args){ logLine("ok", ...args); }
-  function warn(...args){ logLine("warn", ...args); }
-  function err(...args){ logLine("err", ...args); }
+    log("START");
+    log("protocol:", location.protocol);
 
-  ok("=== SCRIPT START ===");
-  log("[Env] href:", location.href);
-  log("[Env] origin:", location.origin);
+    if (location.protocol === "file:") {
+      log("WARNING: אתה פותח ב-file://. עבור ל-Live Server / http://localhost כדי ש-module יעבוד.");
+    }
 
-  if (location.protocol === "file:") {
-    warn("[WARN] אתה פותח ב-file://. זה לפעמים גורם לבקשות להיחסם/להיתקע. מומלץ לפתוח דרך http://localhost (Live Server).");
-  } else {
-    ok("[OK] אתה על HTTP/HTTPS.");
-  }
+    // ===== Your Firebase config =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyBf-12UCoHpIMg81MWaer7DmtfVla95X9M",
+      authDomain: "try-a-69b75.firebaseapp.com",
+      projectId: "try-a-69b75",
+      storageBucket: "try-a-69b75.firebasestorage.app",
+      messagingSenderId: "136796358688",
+      appId: "1:136796358688:web:f6d41df5505e26ec0b5445",
+      measurementId: "G-ST0TTENTGF"
+    };
 
-  /* ==============================
-     Firebase CONFIG (בתוך הדף)
-     ============================== */
-  const firebaseConfig = {
-    apiKey: "AIzaSyAb6crKn7LDVhYtFMUtErtZNKEL6lfW5pA",
-    authDomain: "bigone-86490.firebaseapp.com",
-    databaseURL: "https://bigone-86490-default-rtdb.firebaseio.com",
-    projectId: "bigone-86490",
-    storageBucket: "bigone-86490.appspot.com",
-    messagingSenderId: "543555505186",
-    appId: "1:543555505186:web:46f992f414561830b50e7b",
-    measurementId: "G-GVPSS1D63D"
-  };
+    // ===== Init Firebase =====
+    const app = initializeApp(firebaseConfig);
+    log("initializeApp OK");
 
-  try {
-    firebase.initializeApp(firebaseConfig);
-    ok("[Firebase] initializeApp OK");
-  } catch (e) {
-    err("[Firebase] initializeApp FAILED");
-    err(e?.message || e);
-  }
+    // Analytics is optional for upload
+    try {
+      getAnalytics(app);
+      log("getAnalytics OK (optional)");
+    } catch (e) {
+      log("getAnalytics FAILED (not critical):", e?.message || e);
+    }
 
-  let storage = null;
-  try {
-    storage = firebase.storage();
-    ok("[Firebase] storage() OK");
-  } catch (e) {
-    err("[Firebase] storage() FAILED");
-    err(e?.message || e);
-  }
+    // ===== Init Storage =====
+    const storage = getStorage(app);
+    log("getStorage OK, bucket:", storage?.app?.options?.storageBucket);
 
-  // אופציונלי: בדיקה שה-bucket נראה נכון
-  try {
-    const bucketFromSdk = storage?._delegate?._bucket?.bucket;
-    log("[Firebase] bucket from SDK:", bucketFromSdk || "(unknown)");
-  } catch {}
+    // ===== File selection =====
+    let file = null;
 
-  /* ==============================
-     UI + UPLOAD DEBUG
-     ============================== */
-  let file = null;
-  let uploadTask = null;
-  let stallTimer = null;
-  let lastProgressTime = 0;
+    fileInput.addEventListener("change", () => {
+      file = fileInput.files?.[0] || null;
+      uploadBtn.disabled = !file;
 
-  function clearStallTimer() {
-    if (stallTimer) clearInterval(stallTimer);
-    stallTimer = null;
-  }
+      linkWrap.style.display = "none";
+      previewEl.style.display = "none";
+      progressEl.style.display = "none";
+      progressEl.value = 0;
 
-  function startStallMonitor() {
-    clearStallTimer();
-    lastProgressTime = Date.now();
-    stallTimer = setInterval(() => {
-      const diff = Date.now() - lastProgressTime;
-      if (diff > 8000) {
-        warn(`[STALL] אין התקדמות כבר ${Math.round(diff/1000)} שניות. אם זה נשאר על 0% -> חסימה ברשת/סביבה או בעיית הרשאות.`);
-        warn(`[HINT] בדוק DevTools > Network אם יש בקשות ל-firebasestorage.googleapis.com שנתקעות ב-(pending).`);
-        clearStallTimer();
+      if (file) {
+        statusEl.textContent = "נבחר קובץ: " + file.name;
+        log("Selected file:", { name: file.name, size: file.size, type: file.type });
+      } else {
+        statusEl.textContent = "";
+        log("No file selected");
       }
-    }, 1000);
-  }
-
-  fileInput.addEventListener("change", () => {
-    log("[UI] file input change event");
-    file = fileInput.files[0] || null;
-
-    if (!file) {
-      warn("[UI] No file selected");
-      uploadBtn.disabled = true;
-      return;
-    }
-
-    ok("[UI] File selected:");
-    log({
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      lastModified: file.lastModified
     });
 
-    uploadBtn.disabled = false;
-    status.textContent = "קובץ נבחר: " + file.name;
-  });
+    // ===== Upload =====
+    uploadBtn.addEventListener("click", () => {
+      if (!file) return;
 
-  cancelBtn.addEventListener("click", () => {
-    log("[UI] Cancel clicked");
-    if (uploadTask) {
-      try {
-        uploadTask.cancel();
-        warn("[UPLOAD] cancel() called");
-      } catch (e) {
-        err("[UPLOAD] cancel() failed:", e?.message || e);
-      }
-    }
-  });
-
-  uploadBtn.addEventListener("click", () => {
-    log("[UI] Upload button clicked");
-
-    if (!file) { err("[ERROR] Clicked upload but file is null"); return; }
-    if (!storage) { err("[ERROR] storage is null"); return; }
-
-    // אם יש העלאה קודמת תקועה - נבטל
-    if (uploadTask) {
-      warn("[UPLOAD] Previous task exists -> canceling it first");
-      try { uploadTask.cancel(); } catch {}
-      uploadTask = null;
-      clearStallTimer();
-    }
-
-    ok("[UPLOAD] Starting upload");
-
-    try {
       const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-      const path = `debug_uploads/${Date.now()}_${safeName}`;
+      const path = `uploads/${Date.now()}_${safeName}`;
 
-      log("[UPLOAD] Path:", path);
+      log("Uploading to path:", path);
 
-      const storageRef = storage.ref(path);
-      log("[UPLOAD] storage.ref created");
-      log("[UPLOAD] fullPath:", storageRef.fullPath);
+      const storageRef = ref(storage, path);
+      const task = uploadBytesResumable(storageRef, file, {
+        contentType: file.type || "application/octet-stream"
+      });
 
-      // מטא-דאטה מפורטת (עוזר ב-debug)
-      const metadata = {
-        contentType: file.type || "application/octet-stream",
-        cacheControl: "public,max-age=3600"
-      };
-      log("[UPLOAD] metadata:", metadata);
+      uploadBtn.disabled = true;
+      progressEl.style.display = "block";
+      statusEl.textContent = "מעלה...";
 
-      // התחלת העלאה
-      uploadTask = storageRef.put(file, metadata);
-      ok("[UPLOAD] put() called");
-      cancelBtn.disabled = false;
-
-      startStallMonitor();
-
-      uploadTask.on(
-        "state_changed",
-        snapshot => {
-          lastProgressTime = Date.now();
-
-          const p = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          log(`[UPLOAD] progress ${p.toFixed(1)}%`, {
-            bytesTransferred: snapshot.bytesTransferred,
-            totalBytes: snapshot.totalBytes,
-            state: snapshot.state
-          });
-
-          status.textContent = `מעלה... ${p.toFixed(0)}%`;
+      task.on("state_changed",
+        (snap) => {
+          const p = (snap.bytesTransferred / snap.totalBytes) * 100;
+          progressEl.value = p;
+          statusEl.textContent = `מעלה... ${p.toFixed(0)}%`;
+          log("progress:", p.toFixed(1) + "%", "state:", snap.state);
         },
-        error => {
-          clearStallTimer();
-          cancelBtn.disabled = true;
-
-          err("[UPLOAD] ERROR callback fired");
-          err({
-            code: error.code,
-            message: error.message,
-            name: error.name,
-            serverResponse: error.serverResponse || null
-          });
-
-          status.textContent = "שגיאה: " + error.message;
+        (errObj) => {
+          uploadBtn.disabled = false;
+          log("UPLOAD ERROR:", { code: errObj.code, message: errObj.message });
+          statusEl.textContent = "שגיאה: " + errObj.message;
         },
         async () => {
-          clearStallTimer();
-          cancelBtn.disabled = true;
+          uploadBtn.disabled = false;
+          log("Upload complete");
+          const url = await getDownloadURL(task.snapshot.ref);
 
-          ok("[UPLOAD] COMPLETE callback fired");
+          fileUrlEl.href = url;
+          fileUrlEl.textContent = url;
+          linkWrap.style.display = "block";
 
-          try {
-            const url = await uploadTask.snapshot.ref.getDownloadURL();
-            ok("[UPLOAD] Download URL:");
-            log(url);
-            status.textContent = "העלאה הושלמה";
-          } catch (e) {
-            err("[UPLOAD] getDownloadURL failed:", e?.message || e);
-            status.textContent = "הועלה אבל נכשל בקבלת URL";
-          }
+          previewEl.src = url;
+          previewEl.style.display = "block";
+
+          statusEl.textContent = "העלאה הושלמה";
+          log("Download URL:", url);
         }
       );
-    } catch (e) {
-      clearStallTimer();
-      cancelBtn.disabled = true;
+    });
 
-      err("[FATAL] Exception during upload");
-      err(e?.message || e);
-    }
-  });
-
-  ok("=== SCRIPT READY ===");
-  warn("[NEXT] אם זה עדיין נתקע על 0%: פתח DevTools > Network וחפש בקשות ל-firebasestorage.googleapis.com והסטטוס שלהן (pending/blocked/canceled).");
-</script>
+    log("READY");
+  </script>
 
 </body>
 </html>
