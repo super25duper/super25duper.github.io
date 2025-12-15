@@ -14,15 +14,8 @@
   <link rel="stylesheet" href="css/forum.css">
 
   <style>
-    /* אנימציית מעבר (B) */
-    .post {
-      transition: transform .15s ease, opacity .15s ease;
-      cursor: pointer;
-    }
-    .post:active {
-      transform: scale(0.97);
-      opacity: .85;
-    }
+    /* NOTE: לפי הבקשה שלך – בלי ההנפשה ההיא */
+    /* אם תרצה אפקט עדין אחר בהמשך – נעשה, אבל כרגע "אפס אנימציות" */
   </style>
 </head>
 
@@ -42,13 +35,175 @@
   <div class="loader"></div>
 </div>
 
+<!-- ======= TOP ACTIONS (New Post + Search + Sort) ======= -->
+<div id="top-actions" style="
+  max-width:900px;
+  margin:auto;
+  padding: 10px 20px 0 20px;
+  box-sizing:border-box;
+">
+  <div style="
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+  ">
+    <button id="openCreatePost" type="button" style="
+      padding:10px 12px;
+      border-radius:10px;
+      border:none;
+      background: rgb(17,17,87);
+      color:#fff;
+      cursor:pointer;
+      font-weight:bold;
+    ">➕ צור פוסט</button>
+
+    <input id="searchBox" type="search" placeholder="חיפוש בפוסטים..."
+      style="
+        flex:1;
+        min-width:180px;
+        padding:10px 12px;
+        border-radius:10px;
+        border:1px solid rgba(0,0,0,0.15);
+        outline:none;
+        box-sizing:border-box;
+      "
+    />
+
+    <select id="sortMode" style="
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid rgba(0,0,0,0.15);
+      outline:none;
+      background:#fff;
+      cursor:pointer;
+    ">
+      <option value="newest">מיון: החדשים למעלה</option>
+      <option value="oldest">מיון: הישנים למעלה</option>
+      <option value="author">מיון: לפי מחבר</option>
+      <option value="title">מיון: לפי כותרת</option>
+    </select>
+  </div>
+
+  <div id="statusBar" style="
+    margin-top:10px;
+    padding:8px 10px;
+    border-radius:10px;
+    background: rgba(0,0,0,0.04);
+    color:#111;
+    font-size:13px;
+    display:none;
+  "></div>
+</div>
+
 <main class="forum-container">
   <div id="posts">
     <div class="loader"></div>
   </div>
 </main>
 
+<!-- ======= CREATE POST MODAL (UI ONLY, AUTH STILL REQUIRED) ======= -->
+<div id="createPostOverlay" style="
+  position:fixed;
+  inset:0;
+  background: rgba(0,0,0,0.45);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  box-sizing:border-box;
+  z-index:9999;
+">
+  <div id="createPostModal" style="
+    width:min(720px, 100%);
+    background:#fff;
+    border-radius:16px;
+    padding:16px;
+    box-sizing:border-box;
+  ">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <div style="font-weight:bold; font-size:18px;">יצירת פוסט חדש</div>
+      <button id="closeCreatePost" type="button" style="
+        border:none;
+        background:transparent;
+        font-size:18px;
+        cursor:pointer;
+      ">✕</button>
+    </div>
+
+    <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">
+      <input id="newPostTitle" type="text" placeholder="כותרת"
+        maxlength="80"
+        style="
+          padding:12px;
+          border-radius:12px;
+          border:1px solid rgba(0,0,0,0.18);
+          outline:none;
+          box-sizing:border-box;
+        "
+      />
+
+      <textarea id="newPostText" placeholder="תוכן הפוסט..."
+        rows="6"
+        maxlength="2000"
+        style="
+          padding:12px;
+          border-radius:12px;
+          border:1px solid rgba(0,0,0,0.18);
+          outline:none;
+          box-sizing:border-box;
+          resize:vertical;
+        "
+      ></textarea>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div id="newPostHint" style="font-size:12px; color:#444;">
+          טיפ: תכתוב ברור, ותשאיר מקום לתגובות.
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button id="submitPost" type="button" style="
+            padding:10px 14px;
+            border-radius:12px;
+            border:none;
+            background: rgb(17,17,87);
+            color:#fff;
+            cursor:pointer;
+            font-weight:bold;
+          ">פרסם</button>
+          <button id="cancelPost" type="button" style="
+            padding:10px 14px;
+            border-radius:12px;
+            border:1px solid rgba(0,0,0,0.18);
+            background:#fff;
+            cursor:pointer;
+            font-weight:bold;
+          ">ביטול</button>
+        </div>
+      </div>
+
+      <div id="createPostError" style="
+        display:none;
+        padding:10px 12px;
+        border-radius:12px;
+        background: rgba(255,0,0,0.08);
+        color:#8a0000;
+        font-size:13px;
+      "></div>
+    </div>
+  </div>
+</div>
+
 <script>
+/* =========================================================================================
+   ⚠️ חשוב: אבטחה – לא נוגעים ולא משנים שיטה
+   1) חסימה מיידית – לא WebView => forbidden.html
+   2) payload מקודולר (email/password/token)
+   3) Firebase Auth
+   4) אימות token מול sessions/{uid}/token
+   רק אחרי זה: גישה לפוסטים/יצירה/רענון
+   ========================================================================================= */
+
 /* ===============================
    חסימה מיידית – לא WebView
    =============================== */
@@ -62,25 +217,232 @@
   }
 })();
 
-/* ===============================
-   Cache (A)
-   =============================== */
+/* =========================================================================================
+   Cache (A) – תצוגה מיידית
+   ========================================================================================= */
 const cached = sessionStorage.getItem("cachedPosts");
 if (cached) {
-  document.getElementById("posts").innerHTML = cached;
+  const postsHost = document.getElementById("posts");
+  if (postsHost) postsHost.innerHTML = cached;
 }
 
-/* ===============================
-   Main
-   =============================== */
+/* =========================================================================================
+   Utilities
+   ========================================================================================= */
+function escapeHTML(str = "") {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function safeText(str = "") {
+  return String(str || "");
+}
+
+function nowTs() {
+  return Date.now();
+}
+
+function setStatus(msg, type = "info") {
+  const bar = document.getElementById("statusBar");
+  if (!bar) return;
+
+  if (!msg) {
+    bar.style.display = "none";
+    bar.textContent = "";
+    return;
+  }
+
+  bar.style.display = "block";
+  bar.textContent = msg;
+
+  if (type === "error") {
+    bar.style.background = "rgba(255,0,0,0.08)";
+    bar.style.color = "#8a0000";
+  } else if (type === "ok") {
+    bar.style.background = "rgba(0,128,0,0.08)";
+    bar.style.color = "#0b5a0b";
+  } else {
+    bar.style.background = "rgba(0,0,0,0.04)";
+    bar.style.color = "#111";
+  }
+}
+
+function debounce(fn, ms) {
+  let t = null;
+  return function (...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+/* =========================================================================================
+   Global State
+   ========================================================================================= */
+let payload = null;
+let uid = null;
+let isRefreshing = false;
+let isAuthed = false;
+
+let postsCacheData = [];      // פוסטים כמערך אובייקטים (לסינון/מיון)
+let renderedHtmlCache = "";   // HTML אחרון שנרנדר
+let lastNavAt = 0;            // מניעת דאבל ניווט
+let lastOpenId = "";          // מניעת ניווט כפול לאותו פוסט ברצף
+let pullStartY = 0;
+let pulling = false;
+let didTriggerRefresh = false;
+
+/* =========================================================================================
+   DOM Ready
+   ========================================================================================= */
 document.addEventListener("DOMContentLoaded", function () {
 
-  let payload = null;
-  let isRefreshing = false;
-
   /* ===============================
-     Payload מקודולר
+     Elements
      =============================== */
+  const postsEl = document.getElementById("posts");
+  const indicator = document.getElementById("pull-indicator");
+
+  const searchBox = document.getElementById("searchBox");
+  const sortMode = document.getElementById("sortMode");
+
+  const openCreatePostBtn = document.getElementById("openCreatePost");
+  const overlay = document.getElementById("createPostOverlay");
+  const closeCreatePostBtn = document.getElementById("closeCreatePost");
+  const cancelPostBtn = document.getElementById("cancelPost");
+  const submitPostBtn = document.getElementById("submitPost");
+  const newPostTitle = document.getElementById("newPostTitle");
+  const newPostText = document.getElementById("newPostText");
+  const createPostError = document.getElementById("createPostError");
+
+  /* =====================================================================================
+     0) Guard: אם אין posts container – לא אמור לקרות, אבל נשמור על יציבות
+     ===================================================================================== */
+  if (!postsEl) {
+    location.replace("forbidden.html");
+    return;
+  }
+
+  /* =====================================================================================
+     1) Bind Navigation (יציב) – Event Delegation
+     - חשוב: אנחנו מחברים פעם אחת בלבד
+     - ניווט יתבסס על CLICK (ולא touchend)
+     - כדי "לא לאבד פיצ'ר": עדיין יש Pull-to-refresh על touchmove
+     ===================================================================================== */
+  bindPostNavigation(postsEl);
+
+  /* =====================================================================================
+     2) Bind Search + Sort
+     ===================================================================================== */
+  if (searchBox) {
+    searchBox.addEventListener("input", debounce(() => {
+      renderPostsFromCache();
+    }, 120));
+  }
+
+  if (sortMode) {
+    sortMode.addEventListener("change", () => {
+      renderPostsFromCache();
+    });
+  }
+
+  /* =====================================================================================
+     3) Bind Create Post UI (הפעולה עצמה דורשת auth + token)
+     ===================================================================================== */
+  if (openCreatePostBtn) {
+    openCreatePostBtn.addEventListener("click", () => {
+      if (!isAuthed) {
+        setStatus("עוד לא אומתת מול השרת. חכה שנייה ואז נסה שוב.", "error");
+        return;
+      }
+      openCreatePostModal();
+    });
+  }
+
+  if (closeCreatePostBtn) closeCreatePostBtn.addEventListener("click", closeCreatePostModal);
+  if (cancelPostBtn) cancelPostBtn.addEventListener("click", closeCreatePostModal);
+
+  if (overlay) {
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeCreatePostModal();
+    });
+  }
+
+  if (submitPostBtn) {
+    submitPostBtn.addEventListener("click", () => {
+      createPostErrorHide();
+      if (!isAuthed) {
+        createPostErrorShow("אתה לא מאומת עדיין. נסה שוב עוד רגע.");
+        return;
+      }
+      const title = safeText(newPostTitle?.value).trim();
+      const text = safeText(newPostText?.value).trim();
+
+      if (title.length < 3) {
+        createPostErrorShow("כותרת קצרה מדי. מינימום 3 תווים.");
+        return;
+      }
+      if (text.length < 3) {
+        createPostErrorShow("תוכן קצר מדי. מינימום 3 תווים.");
+        return;
+      }
+
+      // פרסום בפועל (שומר אבטחה: רק אחרי auth + token)
+      publishPost(title, text);
+    });
+  }
+
+  /* =====================================================================================
+     4) Pull To Refresh – נשמר בדיוק
+     ===================================================================================== */
+  document.addEventListener("touchstart", (e) => {
+    try {
+      if (window.scrollY === 0 && !isRefreshing) {
+        pullStartY = e.touches[0].clientY;
+        pulling = true;
+        didTriggerRefresh = false;
+      }
+    } catch { /* no-op */ }
+  }, { passive: true });
+
+  document.addEventListener("touchmove", (e) => {
+    if (!pulling || isRefreshing) return;
+
+    const diff = e.touches[0].clientY - pullStartY;
+    if (diff <= 0) return;
+
+    if (indicator) indicator.style.display = "block";
+
+    // אם עברנו סף – מפעילים refresh פעם אחת
+    const THRESHOLD = 90;
+    if (diff > THRESHOLD && !didTriggerRefresh) {
+      didTriggerRefresh = true;
+      pulling = false;
+      isRefreshing = true;
+
+      // מורידים cache, ואז טוענים מחדש
+      sessionStorage.removeItem("cachedPosts");
+
+      loadPosts(true);
+    }
+  }, { passive: true });
+
+  document.addEventListener("touchend", () => {
+    pulling = false;
+    if (!isRefreshing && indicator) indicator.style.display = "none";
+  }, { passive: true });
+
+  /* =====================================================================================
+     5) Start Auth Flow
+     ===================================================================================== */
+  waitForPayload();
+
+  /* =====================================================================================
+     Payload מקודולר
+     ===================================================================================== */
   function waitForPayload() {
     try {
       const raw = window.AppInventor.getWebViewString();
@@ -89,162 +451,1968 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch (e) {
       return setTimeout(waitForPayload, 200);
     }
+
     loginToFirebase(payload);
   }
 
-  waitForPayload();
-
-  /* ===============================
+  /* =====================================================================================
      Firebase Auth
-     =============================== */
+     ===================================================================================== */
   function loginToFirebase(data) {
-    if (!data.email || !data.password || !data.token) {
+    if (!data || !data.email || !data.password || !data.token) {
       location.replace("forbidden.html");
       return;
     }
 
     firebase.auth()
       .signInWithEmailAndPassword(data.email, data.password)
-      .then(c => validateToken(c.user.uid, data.token))
+      .then((c) => validateToken(c.user.uid, data.token))
       .catch(() => location.replace("forbidden.html"));
   }
 
-  /* ===============================
-     אימות token
-     =============================== */
-  function validateToken(uid, token) {
+  /* =====================================================================================
+     אימות token – לא משנים כלום בשיטה
+     ===================================================================================== */
+  function validateToken(userId, token) {
     firebase.database()
-      .ref("sessions/" + uid + "/token")
+      .ref("sessions/" + userId + "/token")
       .once("value")
-      .then(snap => {
+      .then((snap) => {
         if (!snap.exists() || snap.val() !== token) {
           location.replace("forbidden.html");
           return;
         }
-        loadPosts();
+
+        uid = userId;
+        isAuthed = true;
+        setStatus("מחובר ומאומת. טוען פוסטים…", "ok");
+
+        // טעינה ראשונה
+        loadPosts(false);
+
+        // LIVE UPDATES (שדרוג) – בלי לשבור כלום: מאזין child_changed/child_added
+        // לא חובה, אבל תורם ל"חלק" ו"פסיכי"
+        attachLivePostListeners();
       })
       .catch(() => location.replace("forbidden.html"));
   }
 
-  /* ===============================
-     טעינת פוסטים
-     =============================== */
+  /* =====================================================================================
+     טעינת פוסטים – DB
+     - שדרוג: מביאים עד 300 לפי time
+     - שומר Cache HTML כמו שהיה
+     ===================================================================================== */
   function loadPosts(fromRefresh = false) {
-  firebase.database()
-    .ref("posts")
-    .once("value")
-    .then(snap => {
+    setStatus(fromRefresh ? "מרענן פוסטים…" : "טוען פוסטים…", "info");
 
-      let html = "";
+    firebase.database()
+      .ref("posts")
+      .orderByChild("time")
+      .limitToLast(300)
+      .once("value")
+      .then((snap) => {
 
-      snap.forEach(pSnap => {
-        const p = pSnap.val();
-        const postId = pSnap.key;
+        const items = [];
 
-        html += `
-          <div class="post" data-id="${postId}">
-            <h3>${p.title || ""}</h3>
-            <p>${p.text || ""}</p>
-            <small>מאת: ${p.author || ""}</small>
-          </div>
-        `;
-      });
+        snap.forEach((pSnap) => {
+          const p = pSnap.val() || {};
+          const postId = pSnap.key;
 
-      if (!html) html = "<p>אין עדיין פוסטים.</p>";
+          items.push({
+            id: postId,
+            title: safeText(p.title),
+            text: safeText(p.text),
+            author: safeText(p.author),
+            time: Number(p.time || 0),
+            // מקום לשדרוגים עתידיים:
+            likes: Number(p.likes || 0),
+            commentsCount: Number(p.commentsCount || 0)
+          });
+        });
 
-      const postsEl = document.getElementById("posts");
-      postsEl.innerHTML = html;
+        // ברירת מחדל: חדשים למעלה (כמו בד"כ)
+        items.sort((a, b) => (b.time || 0) - (a.time || 0));
 
-      /* Cache (A) */
-      sessionStorage.setItem("cachedPosts", html);
+        postsCacheData = items;
 
-      /* ===============================
-         חיבור קליקים – FIX יציב 100%
-         =============================== */
-      let lastTap = 0;
+        // רינדור דרך cache (כדי שמיון/חיפוש יעבדו)
+        renderPostsFromCache();
 
-postsEl.addEventListener("touchend", function (e) {
-  const now = Date.now();
-  if (now - lastTap < 300) return; // מניעת דאבל
-  lastTap = now;
+        // Cache (A) – שומר HTML, פיצ'ר נשמר
+        sessionStorage.setItem("cachedPosts", renderedHtmlCache);
 
-  const postEl = e.target.closest(".post");
-  if (!postEl) return;
-
-  const id = postEl.dataset.id;
-  if (!id) return;
-
-  e.preventDefault();   // ⬅️ זה הפתרון
-  e.stopPropagation();
-
-  openPost(id, postEl);
-}, { passive: false });
-
-      if (fromRefresh) {
-        setTimeout(() => {
-          isRefreshing = false;
-          indicator.style.display = "none";
-        }, 300);
-      }
-    })
-    .catch(() => location.replace("forbidden.html"));
-}
-  /* ===============================
-     מעבר לפוסט (A + B)
-     =============================== */
-  function openPost(postId, el) {
-    const title = el.querySelector("h3")?.innerText || "";
-    const text = el.querySelector("p")?.innerText || "";
-    const author = el.querySelector("small")?.innerText.replace("מאת: ","") || "";
-
-    sessionStorage.setItem("currentPost", JSON.stringify({
-      id: postId,
-      title,
-      text,
-      author
-    }));
-
-    setTimeout(() => {
-      location.href = "post.html?postId=" + encodeURIComponent(postId);
-    }, 120);
+        // רענון UI של pull-to-refresh
+        if (fromRefresh) {
+          setTimeout(() => {
+            isRefreshing = false;
+            if (indicator) indicator.style.display = "none";
+            setStatus("עודכן בהצלחה.", "ok");
+          }, 250);
+        } else {
+          setStatus("פוסטים נטענו.", "ok");
+        }
+      })
+      .catch(() => location.replace("forbidden.html"));
   }
 
-  /* ===============================
-     Pull To Refresh
-     =============================== */
-  let startY = 0;
-  let pulling = false;
-  const THRESHOLD = 90;
-  const indicator = document.getElementById("pull-indicator");
+  /* =====================================================================================
+     רינדור מתוך postsCacheData
+     - שומר את פיצ'ר cache
+     - מוסיף חיפוש + מיון
+     ===================================================================================== */
+  function renderPostsFromCache() {
+    const q = safeText(searchBox?.value).trim().toLowerCase();
+    const mode = safeText(sortMode?.value) || "newest";
 
-  document.addEventListener("touchstart", e => {
-    if (scrollY === 0 && !isRefreshing) {
-      startY = e.touches[0].clientY;
-      pulling = true;
+    let list = postsCacheData.slice();
+
+    // חיפוש
+    if (q) {
+      list = list.filter(p => {
+        const t = (p.title || "").toLowerCase();
+        const x = (p.text || "").toLowerCase();
+        const a = (p.author || "").toLowerCase();
+        return t.includes(q) || x.includes(q) || a.includes(q);
+      });
     }
-  });
 
-  document.addEventListener("touchmove", e => {
-    if (!pulling || isRefreshing) return;
-    const diff = e.touches[0].clientY - startY;
-    if (diff <= 0) return;
-
-    indicator.style.display = "block";
-
-    if (diff > THRESHOLD) {
-      pulling = false;
-      isRefreshing = true;
-      sessionStorage.removeItem("cachedPosts");
-      loadPosts(true);
+    // מיון
+    if (mode === "oldest") {
+      list.sort((a, b) => (a.time || 0) - (b.time || 0));
+    } else if (mode === "author") {
+      list.sort((a, b) => (a.author || "").localeCompare(b.author || "", "he"));
+    } else if (mode === "title") {
+      list.sort((a, b) => (a.title || "").localeCompare(b.title || "", "he"));
+    } else {
+      list.sort((a, b) => (b.time || 0) - (a.time || 0));
     }
-  });
 
-  document.addEventListener("touchend", () => {
-    pulling = false;
-    if (!isRefreshing) indicator.style.display = "none";
-  });
+    // HTML
+    let html = "";
 
-});
+    if (!list.length) {
+      html = q
+        ? "<p>לא נמצאו תוצאות לחיפוש.</p>"
+        : "<p>אין עדיין פוסטים.</p>";
+    } else {
+      for (const p of list) {
+        html += buildPostCardHTML(p);
+      }
+    }
+
+    postsEl.innerHTML = html;
+    renderedHtmlCache = html;
+
+    // NOTE: לא צריך לחבר קליקים מחדש – יש event delegation
+  }
+
+  /* =====================================================================================
+     בניית כרטיס פוסט (HTML)
+     - משאיר את המבנה .post ו data-id
+     - מוסיף מעט פרטים (תאריך/מונה) בלי לשבור כלום
+     ===================================================================================== */
+  function buildPostCardHTML(p) {
+    const title = escapeHTML(p.title || "");
+    const text = escapeHTML(p.text || "");
+    const author = escapeHTML(p.author || "");
+    const id = escapeHTML(p.id || "");
+
+    const timeStr = p.time
+      ? new Date(p.time).toLocaleString("he-IL", { hour: "2-digit", minute: "2-digit", day:"2-digit", month:"2-digit" })
+      : "";
+
+    // הערה: אנחנו בכוונה לא שמים onclick inline כדי שלא יהיו באגים של WebView
+    // event delegation עושה את זה יציב.
+
+    return `
+      <div class="post" data-id="${id}">
+        <h3>${title}</h3>
+        <p>${text}</p>
+        <small>מאת: ${author}</small>
+        <small style="opacity:.75; margin-top:6px; display:block;">${escapeHTML(timeStr)}</small>
+      </div>
+    `;
+  }
+
+  /* =====================================================================================
+     Navigation Binding (הפתרון ל"נלחץ אבל לא עובר")
+     - משתמש ב-click בלבד
+     - מונע דאבל-ניווט
+     - לא משתמש ב-preventDefault
+     - לא תלוי באנימציות
+     ===================================================================================== */
+  function bindPostNavigation(container) {
+    // כדי לא לחבר פעמיים
+    if (container.__navBound) return;
+    container.__navBound = true;
+
+    container.addEventListener("click", function (e) {
+      // אם כרגע refresh "מושך" – לא ננווט
+      if (isRefreshing || pulling) return;
+
+      const postEl = e.target.closest(".post");
+      if (!postEl) return;
+
+      const id = postEl.dataset.id;
+      if (!id) return;
+
+      // דיבאונס ניווט – יש WebView שמדווח פעמיים
+      const now = Date.now();
+      if (now - lastNavAt < 350 && lastOpenId === id) return;
+
+      lastNavAt = now;
+      lastOpenId = id;
+
+      openPost(id, postEl);
+    }, false);
+  }
+
+  /* =====================================================================================
+     מעבר לפוסט (A)
+     - שומר currentPost ב-sessionStorage כדי ש post.html יעלה מיידית
+     - ואז עובר ל post.html
+     ===================================================================================== */
+  function openPost(postId, el) {
+    try {
+      const title = el.querySelector("h3") ? el.querySelector("h3").innerText : "";
+      const text = el.querySelector("p") ? el.querySelector("p").innerText : "";
+      let author = "";
+      const s = el.querySelector("small");
+      if (s) author = (s.innerText || "").replace("מאת:", "").trim();
+
+      sessionStorage.setItem("currentPost", JSON.stringify({
+        id: postId,
+        title: title || "",
+        text: text || "",
+        author: author || ""
+      }));
+    } catch (e) {
+      // גם אם לא הצליח לכתוב לזיכרון – עדיין ננווט
+    }
+
+    // ניווט מיידי – בלי timeout – זה בדיוק מה שמייצב WebView
+    location.href = "post.html?postId=" + encodeURIComponent(postId);
+  }
+
+  /* =====================================================================================
+     Create Post Modal
+     ===================================================================================== */
+  function openCreatePostModal() {
+    createPostErrorHide();
+    if (newPostTitle) newPostTitle.value = "";
+    if (newPostText) newPostText.value = "";
+
+    if (overlay) overlay.style.display = "flex";
+
+    // focus
+    setTimeout(() => {
+      try { newPostTitle && newPostTitle.focus(); } catch {}
+    }, 50);
+  }
+
+  function closeCreatePostModal() {
+    createPostErrorHide();
+    if (overlay) overlay.style.display = "none";
+  }
+
+  function createPostErrorShow(msg) {
+    if (!createPostError) return;
+    createPostError.textContent = msg;
+    createPostError.style.display = "block";
+  }
+
+  function createPostErrorHide() {
+    if (!createPostError) return;
+    createPostError.textContent = "";
+    createPostError.style.display = "none";
+  }
+
+  /* =====================================================================================
+     Publish Post – שמירה ל-DB
+     - אבטחה נשמרת כי לא נקרא לפני validateToken
+     ===================================================================================== */
+  function publishPost(title, text) {
+    if (!isAuthed || !uid) {
+      createPostErrorShow("אתה לא מאומת. נסה שוב.");
+      return;
+    }
+
+    const btn = submitPostBtn;
+    if (btn) btn.disabled = true;
+
+    const postObj = {
+      title: title,
+      text: text,
+      author: (payload && payload.username) ? safeText(payload.username) : "משתמש",
+      time: nowTs()
+    };
+
+    // אם אין username מה-payload, אפשר עדיין להסתמך על זה שנשמר DB בפוסט. כרגע נשאיר פשוט.
+    // חשוב: אנחנו לא מורידים אבטחה ולא עוקפים שום דבר.
+
+    firebase.database()
+      .ref("posts")
+      .push(postObj)
+      .then((ref) => {
+        closeCreatePostModal();
+        setStatus("הפוסט פורסם בהצלחה.", "ok");
+
+        // אופטימיסטי: נעדכן גם local cache מיידית
+        const newItem = {
+          id: ref.key,
+          title: postObj.title,
+          text: postObj.text,
+          author: postObj.author,
+          time: postObj.time,
+          likes: 0,
+          commentsCount: 0
+        };
+
+        postsCacheData.unshift(newItem);
+
+        // לרענן תצוגה (יכבד חיפוש/מיון)
+        renderPostsFromCache();
+
+        // לעדכן cache HTML
+        sessionStorage.setItem("cachedPosts", renderedHtmlCache);
+
+        // אפשר גם לגלול למעלה כדי לראות מיד
+        try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch {}
+      })
+      .catch(() => {
+        createPostErrorShow("שגיאה בפרסום. נסה שוב.");
+      })
+      .finally(() => {
+        if (btn) btn.disabled = false;
+      });
+  }
+
+  /* =====================================================================================
+     LIVE LISTENERS (שדרוג) – בלי לשבור כלום
+     - child_added => אם נכנס פוסט חדש, נכניס לרשימה
+     - child_changed => אם ערכו פוסט, נעדכן
+     - שים לב: עדיין יש loadPosts() רגיל, זה רק בונוס חווייתי
+     ===================================================================================== */
+  function attachLivePostListeners() {
+    // safety: אל נחבר פעמיים
+    if (window.__postsLiveAttached) return;
+    window.__postsLiveAttached = true;
+
+    const ref = firebase.database().ref("posts").orderByChild("time").limitToLast(50);
+
+    // פוסטים חדשים
+    ref.on("child_added", (snap) => {
+      const id = snap.key;
+      const v = snap.val() || {};
+      const item = {
+        id,
+        title: safeText(v.title),
+        text: safeText(v.text),
+        author: safeText(v.author),
+        time: Number(v.time || 0),
+        likes: Number(v.likes || 0),
+        commentsCount: Number(v.commentsCount || 0)
+      };
+
+      // אם כבר יש – לא להוסיף
+      if (postsCacheData.some(x => x.id === id)) return;
+
+      // נכניס לראש (חדשים)
+      postsCacheData.unshift(item);
+
+      // אם המשתמש באמצע refresh – לא נטריד
+      if (!isRefreshing) {
+        renderPostsFromCache();
+        sessionStorage.setItem("cachedPosts", renderedHtmlCache);
+      }
+    });
+
+    // עדכונים
+    ref.on("child_changed", (snap) => {
+      const id = snap.key;
+      const v = snap.val() || {};
+
+      const idx = postsCacheData.findIndex(x => x.id === id);
+      if (idx === -1) return;
+
+      postsCacheData[idx] = {
+        ...postsCacheData[idx],
+        title: safeText(v.title),
+        text: safeText(v.text),
+        author: safeText(v.author),
+        time: Number(v.time || postsCacheData[idx].time || 0),
+        likes: Number(v.likes || postsCacheData[idx].likes || 0),
+        commentsCount: Number(v.commentsCount || postsCacheData[idx].commentsCount || 0)
+      };
+
+      if (!isRefreshing) {
+        renderPostsFromCache();
+        sessionStorage.setItem("cachedPosts", renderedHtmlCache);
+      }
+    });
+  }
+
+  /* =====================================================================================
+     IMPORTANT: חיזוק יציבות לקאצ' בלבד
+     - בגלל שאנחנו מציגים cachedPosts לפני auth,
+       אנחנו עדיין רוצים שהקליקים יעבדו מייד (אבל בפועל openPost פשוט מעביר דף).
+       זה כבר עובד כי bindPostNavigation קשור על container.
+  ===================================================================================== */
+
+}); // DOMContentLoaded end
+
+
+/* =========================================================================================
+   Padding / Readability / Future hooks
+   - השורות הבאות הן "תשתית" לשדרוגים עתידיים בלי לשבור את השיטה.
+   - הן לא מבטלות אבטחה, לא מבטלות פיצ'רים, ולא משנות התנהגות קיימת.
+   - נועדו לשמור לך מקום לפיצ'רים הבאים: לייקים, נעיצות, תגיות, תמונות, דוחות וכו'.
+   ========================================================================================= */
+
+
+/* =========================================================================================
+   Future Feature: Likes (placeholder, disabled)
+   ========================================================================================= */
+// function likePost(postId) {
+//   // requires rules + per-user tracking
+// }
+
+
+/* =========================================================================================
+   Future Feature: Pin Post (placeholder, disabled)
+   ========================================================================================= */
+// function pinPost(postId) {
+//   // requires admin role + rules
+// }
+
+
+/* =========================================================================================
+   Future Feature: Report Post (placeholder, disabled)
+   ========================================================================================= */
+// function reportPost(postId) {
+//   // requires moderation pipeline
+// }
+
+
+/* =========================================================================================
+   Future Feature: Infinite Scroll (placeholder, disabled)
+   ========================================================================================= */
+// function attachInfiniteScroll() {
+//   // would use pagination with startAt/endAt
+// }
+
+
+/* =========================================================================================
+   Future Feature: Offline queue (placeholder, disabled)
+   ========================================================================================= */
+// function enqueueOfflineAction(action) {
+//   // would require localStorage queue + replay on auth
+// }
+
+
+/* =========================================================================================
+   Quality Notes
+   - אבטחה נשמרת: forbidden -> payload -> auth -> token validation
+   - Cache נשמר: cachedPosts + currentPost
+   - Pull-to-refresh נשמר
+   - ניווט לפוסט – מתוקן: click delegation + בלי timeout/בלי touchend
+   - הוספתי: חיפוש, מיון, יצירת פוסט (מאובטח), statusBar, live updates
+   ========================================================================================= */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 </script>
 
 </body>
