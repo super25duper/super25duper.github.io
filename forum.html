@@ -810,6 +810,33 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
 });
+function uploadPostImage(file, postId, uid) {
+  return new Promise((resolve, reject) => {
+
+    if (!file || !postId || !uid) {
+      reject("missing params");
+      return;
+    }
+
+    const ext = file.name.split(".").pop().toLowerCase();
+    const name = Date.now() + "_" + uid + "." + ext;
+
+    const ref = firebase.storage()
+      .ref("post-images/" + postId + "/" + name);
+
+    const task = ref.put(file);
+
+    task.on("state_changed",
+      null,
+      err => reject(err),
+      () => {
+        task.snapshot.ref.getDownloadURL()
+          .then(url => resolve(url))
+          .catch(reject);
+      }
+    );
+  });
+}
 </script>
 
 </body>
