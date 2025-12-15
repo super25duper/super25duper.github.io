@@ -140,29 +140,40 @@ function renderComment(id, c) {
 }
 
 /* ========= REPLIES ========= */
-window.toggleReplies=(id)=>{
- const box=document.getElementById("replies-"+id);
- if(!box.classList.contains("hidden")){
-  box.classList.add("hidden");return;
- }
- box.classList.remove("hidden");
- box.innerHTML="<div class='loader'></div>";
+window.toggleReplies = (id) => {
+  const box = document.getElementById("replies-" + id);
 
- firebase.database().ref("replies/"+postId+"/"+id)
-  .once("value").then(s=>{
-    let h="";
-    s.forEach(r=>{
-      const t=new Date(r.val().time)
-        .toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
-      h+=`
-       <div class="reply">
-        <b>${r.val().author}</b>
-        <span>${t}</span>
-        <p>${r.val().text}</p>
-       </div>`;
+  if (!box.classList.contains("hidden")) {
+    box.classList.add("hidden");
+    return;
+  }
+
+  box.classList.remove("hidden");
+  box.innerHTML = "<div class='loader'></div>";
+
+  firebase.database()
+    .ref("replies/" + postId + "/" + id)
+    .once("value")
+    .then(snap => {
+      let html = "";
+
+      const count = snap.numChildren();
+      const counter = box.previousElementSibling.querySelector(".reply-count");
+      counter.textContent = `${count} תגובות ▴`;
+
+      snap.forEach(r => {
+        const d = new Date(r.val().time);
+        html += `
+          <div class="reply">
+            <span>${r.val().author}</span>
+            <small>${d.toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})}</small>
+            <p>${r.val().text}</p>
+          </div>
+        `;
+      });
+
+      box.innerHTML = html || "<small>אין תגובות</small>";
     });
-    box.innerHTML=h||"<small>אין תגובות</small>";
- });
 };
 
 /* ========= MAIN COMMENT ========= */
