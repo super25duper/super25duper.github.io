@@ -754,7 +754,7 @@ firebase.database()
     const postObj = {
       title: title,
       text: text,
-      author: (payload && payload.username) ? safeText(payload.username) : "משתמש",
+      author: realUsername,
       time: nowTs()
     };
 
