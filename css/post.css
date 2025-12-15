@@ -290,6 +290,43 @@ select:focus {
     width: 100%;
   }
 }
+.reply-count {
+  font-size: 12px;
+  opacity: 0.75;
+  cursor: pointer;
+  transition: opacity .15s ease;
+}
+
+.reply-count:hover {
+  opacity: 1;
+}.comment-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}/* ===============================
+   Reply button – שדרוג רציני
+   =============================== */
+.btn-reply {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(17,17,87,0.08);
+  color: rgb(17,17,87);
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background .15s ease, box-shadow .15s ease, transform .05s ease;
+}
+
+.btn-reply:hover {
+  background: rgba(17,17,87,0.16);
+  box-shadow: 0 4px 10px rgba(17,17,87,0.25);
+}
+
+.btn-reply:active {
+  transform: scale(0.96);
+}
 
 /* ===============================
    Future hooks – reserved styles
