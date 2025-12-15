@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>צפייה בפוסט</title>
 
   <!-- 🚫 חסימה מיידית לדפדפן רגיל -->
@@ -24,83 +24,280 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script src="firebaseConfig.js"></script>
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="css/forum.css">
-  <link rel="stylesheet" href="css/post.css">
+  <!-- CSS (כמו שיש לך) -->
+  <link rel="stylesheet" href="css/forum.css" />
+  <link rel="stylesheet" href="css/post.css" />
 </head>
 
 <body>
+  <header class="top-bar">
+    <h1>צפייה בפוסט</h1>
+  </header>
 
-<header class="top-bar">
-  <h1>צפייה בפוסט</h1>
-</header>
-
-<main class="forum-container">
-
-  <!-- פוסט -->
-  <div id="post">
-    <div class="loader"></div>
-  </div>
-
-  <!-- קומפוזר תגובה ראשית -->
-  <div id="mainComposer" class="composer hidden">
-    <textarea id="mainText" placeholder="כתוב תגובה..."></textarea>
-    <div class="composer-actions">
-      <button onclick="sendMain()">שלח</button>
-      <button onclick="closeMain()">ביטול</button>
+  <main class="forum-container">
+    <!-- פוסט -->
+    <div id="post">
+      <div class="loader"></div>
     </div>
-  </div>
 
-  <!-- כפתור פתיחת קומפוזר -->
-  <button id="openMain" class="add-comment-btn">
-    הוסף תגובה
-  </button>
-
-  <!-- תגובות -->
-  <section class="comments">
-    <h3>תגובות</h3>
-    <div id="comments"></div>
-  </section>
-
-</main>
-
-<!-- =========================
-     JavaScript (מפוצל)
-     ========================= -->
-
-<script>
-/* =================================================
-   טעינת הפוסט מ-sessionStorage (ללא DB)
-   ================================================= */
-(function loadPostFromSession() {
-  const container = document.getElementById("post");
-  const raw = sessionStorage.getItem("currentPost");
-
-  if (!raw) {
-    location.replace("forbidden.html");
-    return;
-  }
-
-  try {
-    const p = JSON.parse(raw);
-
-    container.innerHTML = `
-      <div class="post">
-        <h3>${escapeHTML(p.title)}</h3>
-        <p>${escapeHTML(p.text)}</p>
-        <small>מאת: ${escapeHTML(p.author)}</small>
+    <!-- קומפוזר תגובה ראשית -->
+    <div id="mainComposer" class="composer hidden">
+      <textarea id="mainText" placeholder="כתוב תגובה..."></textarea>
+      <div class="composer-actions">
+        <button type="button" id="sendMainBtn">שלח</button>
+        <button type="button" id="closeMainBtn">ביטול</button>
       </div>
-    `;
-  } catch (e) {
-    location.replace("forbidden.html");
-  }
-})();
-</script>
+    </div>
 
-<script src="js/auth.js"></script>
-<script src="js/comments.js"></script>
-<script src="js/replies.js"></script>
-<script src="js/composer.js"></script>
+    <!-- כפתור פתיחת קומפוזר -->
+    <button id="openMain" class="add-comment-btn" type="button">הוסף תגובה</button>
 
+    <!-- תגובות -->
+    <section class="comments">
+      <h3>תגובות</h3>
+      <div id="comments">
+        <div class="loader"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /* ===============================
+       Helpers
+       =============================== */
+    function escapeHTML(str = "") {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function userColor(key) {
+      const colors = [
+        "#60a5fa", // כחול
+        "#34d399", // ירוק
+        "#f472b6", // ורוד
+        "#fbbf24", // צהוב
+        "#a78bfa", // סגול
+        "#fb7185", // אדום
+        "#22d3ee"  // טורקיז
+      ];
+      let hash = 0;
+      const s = String(key || "");
+      for (let i = 0; i < s.length; i++) {
+        hash = s.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    }
+
+    function fmtTime(ts) {
+      try {
+        return new Date(ts).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+      } catch {
+        return "";
+      }
+    }
+
+    /* ===============================
+       Main
+       =============================== */
+    document.addEventListener("DOMContentLoaded", function () {
+      const postContainer = document.getElementById("post");
+      const commentsBox = document.getElementById("comments");
+
+      const openMainBtn = document.getElementById("openMain");
+      const mainComposer = document.getElementById("mainComposer");
+      const mainText = document.getElementById("mainText");
+      const sendMainBtn = document.getElementById("sendMainBtn");
+      const closeMainBtn = document.getElementById("closeMainBtn");
+
+      const postId = new URLSearchParams(location.search).get("postId");
+      if (!postId) {
+        location.replace("forbidden.html");
+        return;
+      }
+
+      let payload = null;
+      let uid = null;
+      let username = "משתמש";
+
+      // 1) Wait payload from Kodular (WebViewString)
+      function waitForPayload() {
+        try {
+          const raw = window.AppInventor.getWebViewString();
+          if (!raw) return setTimeout(waitForPayload, 200);
+          payload = JSON.parse(raw);
+        } catch (e) {
+          return setTimeout(waitForPayload, 200);
+        }
+        login();
+      }
+
+      // 2) Auth
+      function login() {
+        if (!payload || !payload.email || !payload.password || !payload.token) {
+          location.replace("forbidden.html");
+          return;
+        }
+
+        firebase.auth()
+          .signInWithEmailAndPassword(payload.email, payload.password)
+          .then((cred) => {
+            uid = cred.user.uid;
+            return validateToken(uid, payload.token);
+          })
+          .then(() => fetchUsername(uid))
+          .then((name) => {
+            username = name || "משתמש";
+            // After full auth+token+username
+            loadPost();
+            loadComments(); // stable (לא live כרגע)
+          })
+          .catch(() => {
+            location.replace("forbidden.html");
+          });
+      }
+
+      // 3) Token validation
+      function validateToken(uid, token) {
+        return firebase.database()
+          .ref("sessions/" + uid + "/token")
+          .once("value")
+          .then((snap) => {
+            if (!snap.exists() || snap.val() !== token) {
+              location.replace("forbidden.html");
+              throw new Error("invalid token");
+            }
+          });
+      }
+
+      // 4) Get real username
+      function fetchUsername(uid) {
+        return firebase.database()
+          .ref("users/" + uid + "/username")
+          .once("value")
+          .then((snap) => snap.val());
+      }
+
+      // 5) Load post
+      function loadPost() {
+        firebase.database()
+          .ref("posts/" + postId)
+          .once("value")
+          .then((snap) => {
+            if (!snap.exists()) {
+              postContainer.innerHTML = "<p>הפוסט לא נמצא.</p>";
+              return;
+            }
+            const p = snap.val();
+            postContainer.innerHTML = `
+              <div class="post">
+                <h3>${escapeHTML(p.title || "")}</h3>
+                <p>${escapeHTML(p.text || "")}</p>
+                <small>מאת: ${escapeHTML(p.author || "")}</small>
+              </div>
+            `;
+          })
+          .catch(() => {
+            postContainer.innerHTML = "<p>שגיאה בטעינת הפוסט.</p>";
+          });
+      }
+
+      // 6) Load comments (newest -> oldest)
+      function loadComments() {
+        commentsBox.innerHTML = "<div class='loader'></div>";
+
+        firebase.database()
+          .ref("comments/" + postId)
+          .orderByChild("time")
+          .limitToLast(200)
+          .once("value")
+          .then((snap) => {
+            const items = [];
+            snap.forEach((cSnap) => {
+              items.push({ id: cSnap.key, ...cSnap.val() });
+            });
+
+            // newest first
+            items.sort((a, b) => (b.time || 0) - (a.time || 0));
+
+            if (items.length === 0) {
+              commentsBox.innerHTML = "<p>אין תגובות עדיין.</p>";
+              return;
+            }
+
+            let html = "";
+            for (const c of items) {
+              const color = userColor(c.author);
+              html += `
+                <div class="comment" style="border-right-color:${color}">
+                  <div class="comment-meta">
+                    <span class="comment-author">${escapeHTML(c.author || "")}</span>
+                    <span class="comment-time">${escapeHTML(fmtTime(c.time))}</span>
+                  </div>
+                  <p>${escapeHTML(c.text || "")}</p>
+                </div>
+              `;
+            }
+
+            commentsBox.innerHTML = html;
+          })
+          .catch(() => {
+            commentsBox.innerHTML = "<p>שגיאה בטעינת תגובות.</p>";
+          });
+      }
+
+      // 7) Composer UI
+      function openMain() {
+        mainComposer.classList.remove("hidden");
+        openMainBtn.style.display = "none";
+        setTimeout(() => {
+          mainText.focus();
+          // גלילה עדינה מעל המקלדת (WebView לפעמים צריך זה פעמיים)
+          mainComposer.scrollIntoView({ behavior: "smooth", block: "center" });
+          setTimeout(() => mainComposer.scrollIntoView({ behavior: "smooth", block: "center" }), 250);
+        }, 150);
+      }
+
+      function closeMain() {
+        mainComposer.classList.add("hidden");
+        openMainBtn.style.display = "block";
+        mainText.value = "";
+      }
+
+      function sendMain() {
+        const text = (mainText.value || "").trim();
+        if (!text) return;
+
+        // UI: disable to prevent double-send
+        sendMainBtn.disabled = true;
+
+        firebase.database()
+          .ref("comments/" + postId)
+          .push({
+            text,
+            author: username,
+            time: Date.now()
+          })
+          .then(() => {
+            closeMain();
+            // reload list to show immediately (stable)
+            loadComments();
+          })
+          .finally(() => {
+            sendMainBtn.disabled = false;
+          });
+      }
+
+      openMainBtn.addEventListener("click", openMain);
+      closeMainBtn.addEventListener("click", closeMain);
+      sendMainBtn.addEventListener("click", sendMain);
+
+      // Start
+      waitForPayload();
+    });
+  </script>
 </body>
 </html>
