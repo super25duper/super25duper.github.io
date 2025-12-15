@@ -133,7 +133,7 @@ if (cached) {
           const postId = pSnap.key;
 
           html += `
-            <div class="post" onclick="openPost('${postId}')">
+            <div class="post" onclick="openPost('${postId}', ${JSON.stringify(p).replace(/</g,"\\u003c").replace(/>/g,"\\u003e")})">
               <h3>${p.title || ""}</h3>
               <p>${p.text || ""}</p>
               <small>מאת: ${p.author || ""}</small>
@@ -176,7 +176,7 @@ sessionStorage.setItem("cachedPosts", html);
     })
   );
 
-  location.href = "post.html?postId=" + postId;
+  location.href = "post.html?postId=" + encodeURIComponent(postId);
 };
 
   /* ===============================
