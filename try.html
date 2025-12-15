@@ -1,267 +1,106 @@
-<!DOCTYPE html>
-<html lang="he">
+<!doctype html>
+<html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8">
   <title>העלאת תמונה ל-Firebase Storage</title>
-
-  <!-- Firebase v8 (כמו אצלך) -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-
-  <!-- הקובץ שלך שמכיל firebase.initializeApp(...) -->
-  <script src="firebaseConfig.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
-    body { font-family: Arial, sans-serif; direction: rtl; padding: 16px; }
-    .box { max-width: 520px; margin: 0 auto; border: 1px solid rgba(0,0,0,.15); border-radius: 14px; padding: 14px; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    button { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,.2); background:#fff; cursor:pointer; font-weight:bold; }
-    button.primary { border:none; background: rgb(17,17,87); color:#fff; }
-    button:disabled { opacity: .6; cursor: not-allowed; }
-    .meta { font-size: 12px; opacity: .75; }
-    .err { margin-top: 10px; padding: 10px; border-radius: 10px; background: rgba(255,0,0,.08); color:#8a0000; display:none; }
-    .ok  { margin-top: 10px; padding: 10px; border-radius: 10px; background: rgba(0,128,0,.08); color:#0b5a0b; display:none; }
-    .progress-wrap { margin-top: 10px; height: 10px; border-radius: 999px; overflow:hidden; border: 1px solid rgba(0,0,0,.15); background: rgba(0,0,0,.04); }
-    .progress-bar { height: 100%; width: 0%; background: rgb(17,17,87); }
-    img { margin-top: 12px; max-width:100%; border-radius: 12px; border: 1px solid rgba(0,0,0,.15); display:none; }
-    a { word-break: break-all; }
-    input[type="file"] { display:none; }
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+    button {
+      padding: 10px 14px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    progress {
+      width: 100%;
+      height: 18px;
+      margin-top: 10px;
+    }
+    .status {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    img {
+      max-width: 100%;
+      margin-top: 15px;
+      border-radius: 10px;
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h2 style="margin:0 0 6px 0;">העלאת תמונה בלבד</h2>
-    <div class="meta">בחר תמונה והעלה ל-Firebase Storage. אין DB, אין פוסטים, כלום.</div>
 
-    <div style="margin-top:12px;" class="row">
-      <button id="chooseBtn" class="primary" type="button">בחר תמונה</button>
-      <button id="uploadBtn" type="button" disabled>העלה</button>
-      <button id="resetBtn" type="button">איפוס</button>
-      <span id="fileInfo" class="meta"></span>
-    </div>
+  <h1>העלאת תמונה</h1>
 
-    <input id="fileInput" type="file" accept="image/*" />
+  <input id="fileInput" type="file" accept="image/*">
+  <br>
+  <button id="uploadBtn" disabled>העלה</button>
 
-    <div class="progress-wrap" id="progressWrap" style="display:none;">
-      <div class="progress-bar" id="progressBar"></div>
-    </div>
-    <div class="meta" id="progressText" style="display:none;">0%</div>
+  <progress id="progress" value="0" max="100" style="display:none;"></progress>
+  <div class="status" id="status"></div>
 
-    <img id="preview" alt="תצוגה מקדימה" />
+  <img id="preview">
 
-    <div id="okBox" class="ok"></div>
-    <div id="errBox" class="err"></div>
-  </div>
+  <script type="module">
+    import { storage } from "./firebaseconfig.js";
+    import {
+      ref,
+      uploadBytesResumable,
+      getDownloadURL
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
 
-  <script>
-    // -------------------------
-    // Helpers
-    // -------------------------
-    function safeText(x){ return (x === undefined || x === null) ? "" : String(x); }
-    function bytesToHuman(n){
-      try{
-        var x = Number(n||0);
-        if (!x) return "0B";
-        if (x < 1024) return x + "B";
-        if (x < 1024*1024) return Math.round(x/1024) + "KB";
-        return (Math.round((x/(1024*1024))*10)/10) + "MB";
-      }catch(e){ return ""; }
-    }
-    function showErr(msg){
-      okBox.style.display="none"; okBox.innerHTML="";
-      errBox.style.display="block"; errBox.textContent = msg;
-    }
-    function showOk(html){
-      errBox.style.display="none"; errBox.textContent="";
-      okBox.style.display="block"; okBox.innerHTML = html;
-    }
-    function setProgress(pct){
-      var p = Math.max(0, Math.min(100, Number(pct||0)));
-      progressWrap.style.display="block";
-      progressText.style.display="block";
-      progressBar.style.width = p + "%";
-      progressText.textContent = p + "%";
-    }
-    function resetUI(){
-      selectedFile = null;
-      fileInput.value = "";
-      fileInfo.textContent = "";
-      uploadBtn.disabled = true;
+    const fileInput = document.getElementById("fileInput");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const progress = document.getElementById("progress");
+    const status = document.getElementById("status");
+    const preview = document.getElementById("preview");
 
-      preview.src = "";
+    let file = null;
+
+    fileInput.addEventListener("change", () => {
+      file = fileInput.files[0];
+      uploadBtn.disabled = !file;
+      status.textContent = "";
       preview.style.display = "none";
-
-      progressWrap.style.display="none";
-      progressText.style.display="none";
-      progressBar.style.width = "0%";
-
-      errBox.style.display="none"; errBox.textContent="";
-      okBox.style.display="none"; okBox.innerHTML="";
-      isUploading = false;
-    }
-
-    // -------------------------
-    // UI refs
-    // -------------------------
-    var chooseBtn = document.getElementById("chooseBtn");
-    var uploadBtn = document.getElementById("uploadBtn");
-    var resetBtn  = document.getElementById("resetBtn");
-    var fileInput = document.getElementById("fileInput");
-    var fileInfo  = document.getElementById("fileInfo");
-    var preview   = document.getElementById("preview");
-    var errBox    = document.getElementById("errBox");
-    var okBox     = document.getElementById("okBox");
-    var progressWrap = document.getElementById("progressWrap");
-    var progressBar  = document.getElementById("progressBar");
-    var progressText = document.getElementById("progressText");
-
-    // -------------------------
-    // State
-    // -------------------------
-    var selectedFile = null;
-    var isUploading = false;
-
-    // -------------------------
-    // Events
-    // -------------------------
-    chooseBtn.addEventListener("click", function(){
-      try { fileInput.click(); } catch(e) {}
     });
 
-    resetBtn.addEventListener("click", function(){
-      // אם יש העלאה פעילה - פשוט מאפס UI (לא חייב cancel)
-      resetUI();
-    });
+    uploadBtn.addEventListener("click", () => {
+      if (!file) return;
 
-    fileInput.addEventListener("change", function(){
-      resetUI(); // חשוב: שלא יתקע אחרי שגיאה קודמת
-      var f = (fileInput.files && fileInput.files[0]) ? fileInput.files[0] : null;
-      if (!f) return;
+      const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+      const path = `uploads/${Date.now()}_${safeName}`;
+      const storageRef = ref(storage, path);
 
-      // ולידציה בסיסית
-      var type = safeText(f.type).toLowerCase();
-      if (type.indexOf("image/") !== 0) {
-        showErr("זה לא קובץ תמונה.");
-        return;
-      }
-      var MAX = 10 * 1024 * 1024; // 10MB (בכוונה פשוט ויותר סלחני)
-      if (Number(f.size||0) > MAX) {
-        showErr("התמונה גדולה מדי: " + bytesToHuman(f.size) + ". מקסימום 10MB.");
-        return;
-      }
+      progress.style.display = "block";
+      progress.value = 0;
+      status.textContent = "מעלה...";
 
-      selectedFile = f;
-      fileInfo.textContent = safeText(f.name) + " (" + bytesToHuman(f.size) + ")";
-      uploadBtn.disabled = false;
-
-      // תצוגה מקדימה דרך FileReader (יציב בוובויו)
-      try{
-        var r = new FileReader();
-        r.onerror = function(){ /* לא קריטי */ };
-        r.onload = function(){
-          var dataUrl = safeText(r.result||"");
-          if (dataUrl && dataUrl.indexOf("data:") === 0){
-            preview.src = dataUrl;
-            preview.style.display = "block";
-          }
-        };
-        r.readAsDataURL(f);
-      }catch(e){}
-    });
-
-    uploadBtn.addEventListener("click", function(){
-      if (!selectedFile) { showErr("לא נבחרה תמונה."); return; }
-      if (isUploading) return;
-      isUploading = true;
-
-      errBox.style.display="none"; errBox.textContent="";
-      okBox.style.display="none"; okBox.innerHTML="";
-      setProgress(1);
-
-      uploadBtn.disabled = true;
-      chooseBtn.disabled = true;
-
-      // נתיב פשוט באחסון
-      var ext = "jpg";
-      try {
-        var n = safeText(selectedFile.name);
-        if (n.indexOf(".") !== -1) ext = n.split(".").pop().toLowerCase();
-      } catch(e){ ext = "jpg"; }
-
-      var fileName = Date.now() + "_" + Math.random().toString(16).slice(2) + "." + ext;
-      var path = "uploads/" + fileName;
-
-      // העלאה רגילה: put(file)
-      var ref = firebase.storage().ref(path);
-      var task = ref.put(selectedFile, { contentType: selectedFile.type || "application/octet-stream" });
-
-      // watchdog נגד "מעלה בלי סוף"
-      var finished = false;
-      var watchdog = setTimeout(function(){
-        if (finished) return;
-        try { if (task && typeof task.cancel === "function") task.cancel(); } catch(e){}
-        showErr("העלאה נתקעה (Timeout). נסה שוב.");
-        resetAfterUploadFail();
-      }, 90000); // 90 שניות
-
-      function resetAfterUploadFail(){
-        finished = true;
-        try { clearTimeout(watchdog); } catch(e){}
-        progressWrap.style.display="none";
-        progressText.style.display="none";
-        progressBar.style.width="0%";
-        chooseBtn.disabled = false;
-        uploadBtn.disabled = !selectedFile;
-        isUploading = false;
-      }
+      const task = uploadBytesResumable(storageRef, file);
 
       task.on("state_changed",
-        function(snap){
-          try{
-            var bt = Number(snap.bytesTransferred||0);
-            var tt = Number(snap.totalBytes||0);
-            if (tt > 0) setProgress(Math.round((bt/tt)*100));
-          }catch(e){}
+        snapshot => {
+          const percent = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          progress.value = percent;
+          status.textContent = `מעלה... ${percent.toFixed(0)}%`;
         },
-        function(err){
-          resetAfterUploadFail();
-          showErr("שגיאה בהעלאה: " + safeText(err && err.message ? err.message : err));
+        error => {
+          status.textContent = "שגיאה: " + error.message;
         },
-        function(){
-          if (finished) return;
-          finished = true;
-          try { clearTimeout(watchdog); } catch(e){}
-
-          task.snapshot.ref.getDownloadURL().then(function(url){
-            setProgress(100);
-            chooseBtn.disabled = false;
-            uploadBtn.disabled = false;
-            isUploading = false;
-
-            showOk(
-              'הועלה בהצלחה.<br>' +
-              '<b>Path:</b> ' + escapeHtml(path) + '<br>' +
-              '<b>URL:</b> <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">פתח קישור</a>'
-            );
-          }).catch(function(e){
-            chooseBtn.disabled = false;
-            uploadBtn.disabled = false;
-            isUploading = false;
-            showErr("הקובץ הועלה אבל נכשל לקבל URL: " + safeText(e && e.message ? e.message : e));
-          });
+        async () => {
+          const url = await getDownloadURL(task.snapshot.ref);
+          status.textContent = "העלאה הושלמה";
+          preview.src = url;
+          preview.style.display = "block";
         }
       );
     });
-
-    function escapeHtml(s){
-      s = safeText(s);
-      return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-    }
-
-    // init
-    resetUI();
   </script>
+
 </body>
 </html>
