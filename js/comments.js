@@ -3,21 +3,39 @@
    תגובות ראשיות (Live)
    =============================== */
 
+/* קונטיינר תגובות */
 const commentsBox = document.getElementById("comments");
+
+/* מניעת רינדור כפול */
+const renderedComments = new Set();
 
 /* מאזין Live לתגובות */
 function listenComments() {
-  if (!postId) return;
+  if (!postId || !commentsBox) return;
+
+  firebase.database()
+    .ref("comments/" + postId)
+    .off(); // ביטחון: לא מאזין כפול
 
   firebase.database()
     .ref("comments/" + postId)
     .on("child_added", snap => {
-      renderComment(snap.key, snap.val());
+      if (!snap.exists()) return;
+
+      const commentId = snap.key;
+
+      // ⛔ לא מרנדרים פעמיים
+      if (renderedComments.has(commentId)) return;
+
+      renderedComments.add(commentId);
+      renderComment(commentId, snap.val());
     });
 }
 
 /* רינדור תגובה בודדת */
 function renderComment(commentId, c) {
+  if (!commentsBox) return;
+
   const time = new Date(c.time).toLocaleTimeString("he-IL", {
     hour: "2-digit",
     minute: "2-digit"
@@ -27,6 +45,7 @@ function renderComment(commentId, c) {
 
   const div = document.createElement("div");
   div.className = "comment";
+  div.dataset.id = commentId;
   div.style.borderRightColor = color;
 
   div.innerHTML = `
@@ -38,7 +57,7 @@ function renderComment(commentId, c) {
     <p>${escapeHTML(c.text)}</p>
 
     <div class="comment-actions-line">
-      <button onclick="openReply('${commentId}')">השב</button>
+      <button type="button" onclick="openReply('${commentId}')">השב</button>
       <span class="reply-count" id="rc-${commentId}">
         טוען תגובות…
       </span>
@@ -58,17 +77,21 @@ function updateReplyCount(commentId) {
     .ref("replies/" + postId + "/" + commentId)
     .once("value")
     .then(snap => {
-      const count = snap.numChildren();
       const el = document.getElementById("rc-" + commentId);
       if (!el) return;
 
-      el.innerHTML =
-        count > 0
-          ? `${count} תגובות <span class="arrow">▾ הצג</span>`
-          : "אין תגובות";
+      const count = snap.numChildren();
 
       if (count > 0) {
+        el.innerHTML = `${count} תגובות <span class="arrow">▾ הצג</span>`;
         el.onclick = () => toggleReplies(commentId);
+      } else {
+        el.textContent = "אין תגובות";
+        el.onclick = null;
       }
+    })
+    .catch(() => {
+      const el = document.getElementById("rc-" + commentId);
+      if (el) el.textContent = "שגיאה";
     });
 }
