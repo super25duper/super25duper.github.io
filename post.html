@@ -43,16 +43,17 @@
     </div>
 
     <!-- כפתור הוספת תגובה -->
-    <button id="openComment" class="add-comment-btn">
+    <button id="openComment" class="add-comment-btn" type="button">
       הוסף תגובה
     </button>
 
     <!-- טופס תגובה -->
     <div id="commentBox" class="comment-box hidden">
       <textarea id="commentText" placeholder="כתוב תגובה..."></textarea>
+
       <div class="comment-actions">
-        <button id="sendComment">שלח</button>
-        <button id="cancelComment">ביטול</button>
+        <button id="sendComment" type="button">שלח</button>
+        <button id="cancelComment" type="button">ביטול</button>
       </div>
     </div>
 
@@ -61,11 +62,13 @@
 </main>
 
 <script>
-/* חסימה מיידית */
+/* ===============================
+   חסימה מיידית – לא WebView
+   =============================== */
 (function () {
   try {
     if (!window.AppInventor) location.replace("forbidden.html");
-  } catch (e) {
+  } catch {
     location.replace("forbidden.html");
   }
 })();
@@ -79,6 +82,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const postId = params.get("postId");
   if (!postId) location.replace("forbidden.html");
 
+  /* ===== payload ===== */
   function waitForPayload() {
     try {
       const raw = window.AppInventor.getWebViewString();
@@ -89,9 +93,9 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     login();
   }
-
   waitForPayload();
 
+  /* ===== auth ===== */
   function login() {
     firebase.auth()
       .signInWithEmailAndPassword(payload.email, payload.password)
@@ -100,41 +104,50 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function validate(uid, token) {
-    firebase.database().ref("sessions/" + uid + "/token")
+    firebase.database()
+      .ref("sessions/" + uid + "/token")
       .once("value")
       .then(snap => {
         if (!snap.exists() || snap.val() !== token)
           location.replace("forbidden.html");
+
         loadPost();
         loadComments();
       });
   }
 
+  /* ===== פוסט ===== */
   function loadPost() {
-    firebase.database().ref("posts/" + postId)
+    firebase.database()
+      .ref("posts/" + postId)
       .once("value")
       .then(snap => {
         const p = snap.val();
         document.getElementById("post").innerHTML = `
           <div class="post">
-            <h3>${p.title}</h3>
-            <p>${p.text}</p>
-            <small>מאת: ${p.author}</small>
+            <h3>${p.title || ""}</h3>
+            <p>${p.text || ""}</p>
+            <small>מאת: ${p.author || ""}</small>
           </div>
         `;
       });
   }
 
+  /* ===== תגובות ===== */
   function loadComments() {
-    firebase.database().ref("comments/" + postId)
+    firebase.database()
+      .ref("comments/" + postId)
       .once("value")
       .then(snap => {
         let html = "";
+
         snap.forEach(cSnap => {
           const c = cSnap.val();
           const d = new Date(c.time);
-          const t = d.getHours().toString().padStart(2,"0") + ":" +
-                    d.getMinutes().toString().padStart(2,"0");
+          const t =
+            d.getHours().toString().padStart(2,"0") + ":" +
+            d.getMinutes().toString().padStart(2,"0");
+
           html += `
             <div class="comment">
               <div class="comment-meta">
@@ -145,12 +158,13 @@ document.addEventListener("DOMContentLoaded", function () {
             </div>
           `;
         });
+
         document.getElementById("comments").innerHTML =
           html || "<p>אין תגובות עדיין.</p>";
       });
   }
 
-  /* פתיחת טופס תגובה */
+  /* ===== פתיחת טופס ===== */
   const openBtn = document.getElementById("openComment");
   const box = document.getElementById("commentBox");
   const textarea = document.getElementById("commentText");
@@ -158,10 +172,11 @@ document.addEventListener("DOMContentLoaded", function () {
   openBtn.onclick = () => {
     box.classList.remove("hidden");
     openBtn.style.display = "none";
+
     setTimeout(() => {
       textarea.focus();
       textarea.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 300);
+    }, 250);
   };
 
   document.getElementById("cancelComment").onclick = () => {
@@ -170,21 +185,62 @@ document.addEventListener("DOMContentLoaded", function () {
     textarea.value = "";
   };
 
+  /* ===== שליחת תגובה ===== */
   document.getElementById("sendComment").onclick = () => {
     const text = textarea.value.trim();
     if (!text) return;
 
-    firebase.database().ref("comments/" + postId).push({
-      text,
-      author: payload.username,
-      time: Date.now()
-    }).then(() => {
-      textarea.value = "";
-      box.classList.add("hidden");
-      openBtn.style.display = "block";
-      loadComments();
-    });
+    firebase.database()
+      .ref("comments/" + postId)
+      .push({
+        text,
+        author: payload.username,
+        time: Date.now()
+      })
+      .then(() => {
+        textarea.value = "";
+        box.classList.add("hidden");
+        openBtn.style.display = "block";
+        loadComments();
+      });
   };
+
+  /* ===== Pull To Refresh ===== */
+  let startY = 0;
+  let pulling = false;
+  const THRESHOLD = 90;
+  const indicator = document.getElementById("pull-indicator");
+
+  document.addEventListener("touchstart", e => {
+    if (window.scrollY === 0 && !isRefreshing) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  });
+
+  document.addEventListener("touchmove", e => {
+    if (!pulling || isRefreshing) return;
+    const diff = e.touches[0].clientY - startY;
+    if (diff <= 0) return;
+
+    indicator.style.display = "block";
+
+    if (diff > THRESHOLD) {
+      pulling = false;
+      isRefreshing = true;
+      loadPost();
+      loadComments();
+      setTimeout(() => {
+        isRefreshing = false;
+        indicator.style.display = "none";
+      }, 400);
+    }
+  });
+
+  document.addEventListener("touchend", () => {
+    pulling = false;
+    if (!isRefreshing) indicator.style.display = "none";
+  });
 
 });
 </script>
