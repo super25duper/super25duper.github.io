@@ -9,10 +9,8 @@
   <script>
     (function () {
       try {
-        if (!window.AppInventor) {
-          location.replace("forbidden.html");
-        }
-      } catch (e) {
+        if (!window.AppInventor) location.replace("forbidden.html");
+      } catch {
         location.replace("forbidden.html");
       }
     })();
@@ -24,9 +22,8 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script src="firebaseConfig.js"></script>
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="css/forum.css" />
-  <link rel="stylesheet" href="css/post.css" />
+  <link rel="stylesheet" href="css/forum.css">
+  <link rel="stylesheet" href="css/post.css">
 </head>
 
 <body>
@@ -37,29 +34,21 @@
 
 <main class="forum-container">
 
-  <!-- פוסט -->
   <div id="post"></div>
 
-  <!-- קומפוזר תגובה ראשית -->
+  <button id="openMain" class="add-comment-btn">הוסף תגובה</button>
+
   <div id="mainComposer" class="composer hidden">
     <textarea id="mainText" placeholder="כתוב תגובה..."></textarea>
     <div class="composer-actions">
-      <button type="button" id="sendMainBtn">שלח</button>
-      <button type="button" id="closeMainBtn">ביטול</button>
+      <button id="sendMain">שלח</button>
+      <button id="closeMain">ביטול</button>
     </div>
   </div>
 
-  <!-- כפתור פתיחת קומפוזר -->
-  <button id="openMain" class="add-comment-btn" type="button">
-    הוסף תגובה
-  </button>
-
-  <!-- תגובות -->
   <section class="comments">
     <h3>תגובות</h3>
-    <div id="comments">
-      <div class="loader"></div>
-    </div>
+    <div id="comments"></div>
   </section>
 
 </main>
@@ -68,279 +57,186 @@
 /* ===============================
    Helpers
    =============================== */
-function escapeHTML(str = "") {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+function escapeHTML(s=""){return s.replace(/[&<>"']/g,m=>({
+"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+}[m]))}
 
-function userColor(key) {
-  const colors = [
-    "#60a5fa",
-    "#34d399",
-    "#f472b6",
-    "#fbbf24",
-    "#a78bfa",
-    "#fb7185",
-    "#22d3ee"
-  ];
-  let hash = 0;
-  const s = String(key || "");
-  for (let i = 0; i < s.length; i++) {
-    hash = s.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
-
-function fmtTime(ts) {
-  try {
-    return new Date(ts).toLocaleTimeString("he-IL", {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  } catch {
-    return "";
-  }
+function userColor(key){
+  const c=["#60a5fa","#34d399","#f472b6","#fbbf24","#a78bfa","#fb7185","#22d3ee"];
+  let h=0;for(let i=0;i<key.length;i++)h=key.charCodeAt(i)+((h<<5)-h);
+  return c[Math.abs(h)%c.length];
 }
 
 /* ===============================
-   הצגת פוסט מה־sessionStorage (אם קיים)
+   Auth + Init
    =============================== */
-const cachedPost = sessionStorage.getItem("currentPost");
+let payload, uid, username="משתמש";
+const postId=new URLSearchParams(location.search).get("postId");
+if(!postId) location.replace("forbidden.html");
 
-if (cachedPost) {
-  try {
-    const p = JSON.parse(cachedPost);
-    document.getElementById("post").innerHTML = `
+function waitPayload(){
+  try{
+    const raw=window.AppInventor.getWebViewString();
+    if(!raw) return setTimeout(waitPayload,200);
+    payload=JSON.parse(raw);
+  }catch{return setTimeout(waitPayload,200)}
+  login();
+}
+waitPayload();
+
+function login(){
+  firebase.auth().signInWithEmailAndPassword(payload.email,payload.password)
+  .then(c=>{
+    uid=c.user.uid;
+    return firebase.database().ref("sessions/"+uid+"/token").once("value");
+  })
+  .then(s=>{
+    if(!s.exists()||s.val()!==payload.token) throw 0;
+    return firebase.database().ref("users/"+uid+"/username").once("value");
+  })
+  .then(s=>{
+    username=s.val()||"משתמש";
+    loadPost();
+    loadComments();
+  })
+  .catch(()=>location.replace("forbidden.html"));
+}
+
+/* ===============================
+   Post
+   =============================== */
+function loadPost(){
+  const cached=sessionStorage.getItem("currentPost");
+  if(cached){
+    const p=JSON.parse(cached);
+    document.getElementById("post").innerHTML=`
       <div class="post">
         <h3>${escapeHTML(p.title)}</h3>
         <p>${escapeHTML(p.text)}</p>
         <small>מאת: ${escapeHTML(p.author)}</small>
-      </div>
-    `;
-  } catch (e) {
-    sessionStorage.removeItem("currentPost");
+      </div>`;
+    return;
   }
+  firebase.database().ref("posts/"+postId).once("value").then(s=>{
+    const p=s.val();
+    document.getElementById("post").innerHTML=`
+      <div class="post">
+        <h3>${escapeHTML(p.title)}</h3>
+        <p>${escapeHTML(p.text)}</p>
+        <small>מאת: ${escapeHTML(p.author)}</small>
+      </div>`;
+  });
 }
 
 /* ===============================
-   Main
+   Comments
    =============================== */
-document.addEventListener("DOMContentLoaded", function () {
+const commentsBox=document.getElementById("comments");
 
-  const postContainer = document.getElementById("post");
-  const commentsBox = document.getElementById("comments");
+function loadComments(){
+  firebase.database().ref("comments/"+postId).once("value").then(s=>{
+    commentsBox.innerHTML="";
+    s.forEach(cs=>{
+      renderComment(cs.key,cs.val());
+    });
+  });
+}
 
-  const openMainBtn = document.getElementById("openMain");
-  const mainComposer = document.getElementById("mainComposer");
-  const mainText = document.getElementById("mainText");
-  const sendMainBtn = document.getElementById("sendMainBtn");
-  const closeMainBtn = document.getElementById("closeMainBtn");
+function renderComment(id,c){
+  const div=document.createElement("div");
+  div.className="comment";
+  div.style.borderRightColor=userColor(c.author);
 
-  const postId = new URLSearchParams(location.search).get("postId");
-  if (!postId) {
-    location.replace("forbidden.html");
-    return;
+  div.innerHTML=`
+    <div class="comment-meta">
+      <b>${escapeHTML(c.author)}</b>
+      <small>${new Date(c.time).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})}</small>
+    </div>
+    <p>${escapeHTML(c.text)}</p>
+    <div class="comment-actions">
+      <button onclick="openReply('${id}')">השב</button>
+      <span id="count-${id}" onclick="toggleReplies('${id}')">טוען תגובות…</span>
+    </div>
+    <div class="replies hidden" id="replies-${id}"></div>
+  `;
+  commentsBox.appendChild(div);
+  updateReplyCount(id);
+}
+
+/* ===============================
+   Replies
+   =============================== */
+function updateReplyCount(id){
+  firebase.database().ref("replies/"+postId+"/"+id).once("value").then(s=>{
+    const c=s.numChildren();
+    const el=document.getElementById("count-"+id);
+    el.textContent=c?`${c} תגובות ▾`:"אין תגובות";
+  });
+}
+
+function toggleReplies(id){
+  const box=document.getElementById("replies-"+id);
+  if(!box.classList.contains("hidden")){
+    box.classList.add("hidden"); return;
   }
+  box.classList.remove("hidden");
+  box.innerHTML="";
+  firebase.database().ref("replies/"+postId+"/"+id).once("value").then(s=>{
+    s.forEach(r=>{
+      const d=r.val();
+      box.innerHTML+=`
+        <div class="reply">
+          <b>${escapeHTML(d.author)}</b>
+          <small>${new Date(d.time).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})}</small>
+          <p>${escapeHTML(d.text)}</p>
+        </div>`;
+    });
+  });
+}
 
-  let payload = null;
-  let uid = null;
-  let username = "משתמש";
+function openReply(id){
+  const box=document.getElementById("replies-"+id);
+  box.classList.remove("hidden");
+  box.innerHTML=`
+    <textarea id="rt-${id}" placeholder="כתוב תגובה..."></textarea>
+    <button onclick="sendReply('${id}')">שלח</button>`;
+}
 
-  /* ===============================
-     1️⃣ קבלת payload מקודולר
-     =============================== */
-  function waitForPayload() {
-    try {
-      const raw = window.AppInventor.getWebViewString();
-      if (!raw) return setTimeout(waitForPayload, 200);
-      payload = JSON.parse(raw);
-    } catch (e) {
-      return setTimeout(waitForPayload, 200);
-    }
-    login();
-  }
+function sendReply(id){
+  const ta=document.getElementById("rt-"+id);
+  if(!ta.value.trim()) return;
+  firebase.database().ref("replies/"+postId+"/"+id).push({
+    text:ta.value,
+    author:username,
+    time:Date.now()
+  }).then(()=>{
+    updateReplyCount(id);
+    toggleReplies(id);
+  });
+}
 
-  /* ===============================
-     2️⃣ התחברות
-     =============================== */
-  function login() {
-    if (!payload || !payload.email || !payload.password || !payload.token) {
-      location.replace("forbidden.html");
-      return;
-    }
-
-    firebase.auth()
-      .signInWithEmailAndPassword(payload.email, payload.password)
-      .then((cred) => {
-        uid = cred.user.uid;
-        return validateToken(uid, payload.token);
-      })
-      .then(() => fetchUsername(uid))
-      .then((name) => {
-        username = name || "משתמש";
-
-        /* ⬅️ טוענים פוסט רק אם לא הגיע מהזיכרון */
-        if (!sessionStorage.getItem("currentPost")) {
-          loadPost();
-        }
-
-        loadComments();
-      })
-      .catch(() => {
-        location.replace("forbidden.html");
-      });
-  }
-
-  /* ===============================
-     3️⃣ אימות token
-     =============================== */
-  function validateToken(uid, token) {
-    return firebase.database()
-      .ref("sessions/" + uid + "/token")
-      .once("value")
-      .then((snap) => {
-        if (!snap.exists() || snap.val() !== token) {
-          location.replace("forbidden.html");
-          throw new Error("invalid token");
-        }
-      });
-  }
-
-  /* ===============================
-     4️⃣ שליפת שם משתמש
-     =============================== */
-  function fetchUsername(uid) {
-    return firebase.database()
-      .ref("users/" + uid + "/username")
-      .once("value")
-      .then((snap) => snap.val());
-  }
-
-  /* ===============================
-     5️⃣ טעינת פוסט מ־DB (fallback)
-     =============================== */
-  function loadPost() {
-    firebase.database()
-      .ref("posts/" + postId)
-      .once("value")
-      .then((snap) => {
-        if (!snap.exists()) {
-          postContainer.innerHTML = "<p>הפוסט לא נמצא.</p>";
-          return;
-        }
-        const p = snap.val();
-        postContainer.innerHTML = `
-          <div class="post">
-            <h3>${escapeHTML(p.title || "")}</h3>
-            <p>${escapeHTML(p.text || "")}</p>
-            <small>מאת: ${escapeHTML(p.author || "")}</small>
-          </div>
-        `;
-      })
-      .catch(() => {
-        postContainer.innerHTML = "<p>שגיאה בטעינת הפוסט.</p>";
-      });
-  }
-
-  /* ===============================
-     6️⃣ טעינת תגובות
-     =============================== */
-  function loadComments() {
-    commentsBox.innerHTML = "<div class='loader'></div>";
-
-    firebase.database()
-      .ref("comments/" + postId)
-      .orderByChild("time")
-      .limitToLast(200)
-      .once("value")
-      .then((snap) => {
-        const items = [];
-        snap.forEach((cSnap) => {
-          items.push({ id: cSnap.key, ...cSnap.val() });
-        });
-
-        items.sort((a, b) => (b.time || 0) - (a.time || 0));
-
-        if (items.length === 0) {
-          commentsBox.innerHTML = "<p>אין תגובות עדיין.</p>";
-          return;
-        }
-
-        let html = "";
-        for (const c of items) {
-          const color = userColor(c.author);
-          html += `
-            <div class="comment" style="border-right-color:${color}">
-              <div class="comment-meta">
-                <span class="comment-author">${escapeHTML(c.author || "")}</span>
-                <span class="comment-time">${escapeHTML(fmtTime(c.time))}</span>
-              </div>
-              <p>${escapeHTML(c.text || "")}</p>
-            </div>
-          `;
-        }
-
-        commentsBox.innerHTML = html;
-      })
-      .catch(() => {
-        commentsBox.innerHTML = "<p>שגיאה בטעינת תגובות.</p>";
-      });
-  }
-
-  /* ===============================
-     7️⃣ קומפוזר
-     =============================== */
-  function openMain() {
-    mainComposer.classList.remove("hidden");
-    openMainBtn.style.display = "none";
-    setTimeout(() => {
-      mainText.focus();
-      mainComposer.scrollIntoView({ behavior: "smooth", block: "center" });
-      setTimeout(() => {
-        mainComposer.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 250);
-    }, 150);
-  }
-
-  function closeMain() {
-    mainComposer.classList.add("hidden");
-    openMainBtn.style.display = "block";
-    mainText.value = "";
-  }
-
-  function sendMain() {
-    const text = (mainText.value || "").trim();
-    if (!text) return;
-
-    sendMainBtn.disabled = true;
-
-    firebase.database()
-      .ref("comments/" + postId)
-      .push({
-        text,
-        author: username,
-        time: Date.now()
-      })
-      .then(() => {
-        closeMain();
-        loadComments();
-      })
-      .finally(() => {
-        sendMainBtn.disabled = false;
-      });
-  }
-
-  openMainBtn.addEventListener("click", openMain);
-  closeMainBtn.addEventListener("click", closeMain);
-  sendMainBtn.addEventListener("click", sendMain);
-
-  /* ▶️ התחלה */
-  waitForPayload();
-});
+/* ===============================
+   Main composer
+   =============================== */
+openMain.onclick=()=>{
+  mainComposer.classList.remove("hidden");
+  mainText.focus();
+};
+closeMain.onclick=()=>{
+  mainComposer.classList.add("hidden");
+  mainText.value="";
+};
+sendMain.onclick=()=>{
+  if(!mainText.value.trim())return;
+  firebase.database().ref("comments/"+postId).push({
+    text:mainText.value,
+    author:username,
+    time:Date.now()
+  }).then(()=>{
+    closeMain.onclick();
+    loadComments();
+  });
+};
 </script>
 
 </body>
