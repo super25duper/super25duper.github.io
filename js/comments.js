@@ -3,19 +3,25 @@
    תגובות ראשיות (Live)
    =============================== */
 
-/* קונטיינר תגובות */
-const commentsBox = document.getElementById("comments");
+let commentsBox = null;
 
 /* מניעת רינדור כפול */
 const renderedComments = new Set();
 
-/* מאזין Live לתגובות ראשיות */
+/* אתחול אחרי שה־DOM מוכן */
+document.addEventListener("DOMContentLoaded", () => {
+  commentsBox = document.getElementById("comments");
+});
+
+/* מאזין Live לתגובות */
 function listenComments() {
-  if (!postId || !commentsBox) return;
+  if (!postId || !commentsBox) {
+    console.warn("commentsBox not ready");
+    return;
+  }
 
   const ref = firebase.database().ref("comments/" + postId);
-
-  ref.off(); // ביטחון – אין מאזינים כפולים
+  ref.off();
 
   ref
     .orderByChild("time")
@@ -30,7 +36,7 @@ function listenComments() {
     });
 }
 
-/* רינדור תגובה בודדת */
+/* רינדור תגובה */
 function renderComment(commentId, c) {
   if (!commentsBox) return;
 
@@ -43,7 +49,6 @@ function renderComment(commentId, c) {
 
   const div = document.createElement("div");
   div.className = "comment";
-  div.dataset.id = commentId;
   div.style.borderRightColor = color;
 
   div.innerHTML = `
@@ -65,19 +70,15 @@ function renderComment(commentId, c) {
   `;
 
   commentsBox.appendChild(div);
-
   listenReplyCount(commentId);
 }
 
-/* ===============================
-   ספירת replies – Live
-   =============================== */
+/* ספירת replies */
 function listenReplyCount(commentId) {
   const ref = firebase.database()
     .ref("replies/" + postId + "/" + commentId);
 
   ref.off();
-
   ref.on("value", snap => {
     const el = document.getElementById("rc-" + commentId);
     if (!el) return;
