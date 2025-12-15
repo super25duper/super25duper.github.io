@@ -564,85 +564,85 @@ function prepareImageForUpload(file, warnEl) {
         return;  
       }  
   
-      // FileReader -> Image -> Canvas  
-      var reader = new FileReader();  
-      reader.onerror = function () {  
-        resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-      };  
-      reader.onload = function () {  
+      // ObjectURL -> Image -> Canvas  
+      var img = new Image();  
+      var objUrl = "";  
+  
+      img.onload = function () {  
         try {  
-          var img = new Image();  
-          img.onload = function () {  
-            try {  
-              var maxDim = 1280;  
-              var w = img.width || 0;  
-              var h = img.height || 0;  
+          try { if (objUrl) URL.revokeObjectURL(objUrl); } catch (eR) { }  
   
-              if (!w || !h) {  
-                resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-                return;  
-              }  
+          var maxDim = 1280;  
+          var w = img.width || 0;  
+          var h = img.height || 0;  
   
-              var scale = 1;  
-              if (w > maxDim || h > maxDim) {  
-                scale = Math.min(maxDim / w, maxDim / h);  
-              }  
-  
-              var nw = Math.max(1, Math.round(w * scale));  
-              var nh = Math.max(1, Math.round(h * scale));  
-  
-              var canvas = document.createElement("canvas");  
-              canvas.width = nw;  
-              canvas.height = nh;  
-  
-              var ctx = canvas.getContext("2d");  
-              if (!ctx) {  
-                resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-                return;  
-              }  
-  
-              ctx.drawImage(img, 0, 0, nw, nh);  
-  
-              // נייצא ל-JPEG כדי לחסוך (גם אם מקור PNG). אם מקור WebP ויש תמיכה - אפשר גם webp.  
-              var outType = "image/jpeg";  
-              var quality = 0.85;  
-  
-              // אם המקור webp ונראה שיש תמיכה - ננסה webp  
-              if (type === "image/webp") outType = "image/webp";  
-  
-              canvas.toBlob(function (blob) {  
-                if (!blob) {  
-                  resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-                  return;  
-                }  
-  
-                // הודעה עדינה על כיווץ (לא חובה)  
-                try {  
-                  if (warnEl) {  
-                    warnEl.style.display = "block";  
-                    warnEl.textContent = "בוצעה אופטימיזציה לתמונה כדי להאיץ טעינה.";  
-                  }  
-                } catch (eWarn) { }  
-  
-                var outExt = "jpg";  
-                if (outType === "image/webp") outExt = "webp";  
-                resolve({ blob: blob, contentType: outType, ext: outExt });  
-              }, outType, quality);  
-  
-            } catch (e2) {  
-              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-            }  
-          };  
-          img.onerror = function () {  
+          if (!w || !h) {  
             resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-          };  
-          img.src = reader.result;  
-        } catch (e1) {  
+            return;  
+          }  
+  
+          var scale = 1;  
+          if (w > maxDim || h > maxDim) {  
+            scale = Math.min(maxDim / w, maxDim / h);  
+          }  
+  
+          var nw = Math.max(1, Math.round(w * scale));  
+          var nh = Math.max(1, Math.round(h * scale));  
+  
+          var canvas = document.createElement("canvas");  
+          canvas.width = nw;  
+          canvas.height = nh;  
+  
+          var ctx = canvas.getContext("2d");  
+          if (!ctx) {  
+            resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+            return;  
+          }  
+  
+          ctx.drawImage(img, 0, 0, nw, nh);  
+  
+          // נייצא ל-JPEG כדי לחסוך (גם אם מקור PNG). אם מקור WebP ויש תמיכה - אפשר גם webp.  
+          var outType = "image/jpeg";  
+          var quality = 0.85;  
+  
+          // אם המקור webp ונראה שיש תמיכה - ננסה webp  
+          if (type === "image/webp") outType = "image/webp";  
+  
+          canvas.toBlob(function (blob) {  
+            if (!blob) {  
+              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+              return;  
+            }  
+  
+            // הודעה עדינה על כיווץ (לא חובה)  
+            try {  
+              if (warnEl) {  
+                warnEl.style.display = "block";  
+                warnEl.textContent = "בוצעה אופטימיזציה לתמונה כדי להאיץ טעינה.";  
+              }  
+            } catch (eWarn) { }  
+  
+            var outExt = "jpg";  
+            if (outType === "image/webp") outExt = "webp";  
+            resolve({ blob: blob, contentType: outType, ext: outExt });  
+          }, outType, quality);  
+  
+        } catch (e2) {  
           resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
         }  
       };  
   
-      reader.readAsDataURL(file);  
+      img.onerror = function () {  
+        try { if (objUrl) URL.revokeObjectURL(objUrl); } catch (eR2) { }  
+        resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+      };  
+  
+      try {  
+        objUrl = URL.createObjectURL(file);  
+        img.src = objUrl;  
+      } catch (e0u) {  
+        resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+      }  
   
     } catch (e0) {  
       resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: "jpg" });  
@@ -797,7 +797,10 @@ document.addEventListener("DOMContentLoaded", function () {
      ===================================================================================== */  
   if (chooseImageBtn && newPostImage) {  
     chooseImageBtn.addEventListener("click", function () {  
-      try { newPostImage.click(); } catch (eImg0) { }  
+      try {  
+        newPostImage.value = "";  
+        newPostImage.click();  
+      } catch (eImg0) { }  
     });  
   }  
   
@@ -831,35 +834,46 @@ document.addEventListener("DOMContentLoaded", function () {
         // accept  
         selectedImageFile = f;  
         selectedImagePrepared = null;  
-        selectedImagePreviewUrl = "";  
         if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
   
-        // preview  
-        var reader = new FileReader();  
-        reader.onerror = function () {  
+        // preview (ObjectURL)  
+        try {  
+          if (selectedImagePreviewUrl) {  
+            try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv0) { }  
+          }  
+        } catch (eRv1) { }  
+        selectedImagePreviewUrl = "";  
+  
+        try {  
+          selectedImagePreviewUrl = URL.createObjectURL(f);  
+        } catch (eObj) {  
           createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב.");  
           clearSelectedImage(true);  
-        };  
-        reader.onload = function () {  
+          return;  
+        }  
+  
+        try {  
+          if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);  
+          if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
+          if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
+          if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
+          // update meta line  
           try {  
-            selectedImagePreviewUrl = safeText(reader.result || "");  
-            if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);  
-            if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
-            if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
-            if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
-            // update meta line  
-            try {  
-              if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
-            } catch (eM) { }  
-          } catch (eImg1) { }  
-        };  
-        reader.readAsDataURL(f);  
+            if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
+          } catch (eM) { }  
+        } catch (eImg1) { }  
   
       } catch (eImg2) { }  
     });  
   }  
   
   function clearSelectedImage(resetInput) {  
+    try {  
+      if (selectedImagePreviewUrl) {  
+        try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv2) { }  
+      }  
+    } catch (eRv3) { }  
+  
     selectedImageFile = null;  
     selectedImagePreviewUrl = "";  
     selectedImagePrepared = null;  
