@@ -487,12 +487,19 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
 
-        uid = userId;
-        isAuthed = true;
-        setStatus("מחובר ומאומת. טוען פוסטים…", "ok");
+      uid = userId;
+isAuthed = true;
 
-        // טעינה ראשונה
-        loadPosts(false);
+firebase.database()
+  .ref("users/" + uid + "/username")
+  .once("value")
+  .then(snap => {
+    realUsername = snap.val() || "משתמש";
+    setStatus("מחובר כ־" + realUsername, "ok");
+
+    loadPosts(false);
+    attachLivePostListeners();
+  });
 
         // LIVE UPDATES (שדרוג) – בלי לשבור כלום: מאזין child_changed/child_added
         // לא חובה, אבל תורם ל"חלק" ו"פסיכי"
