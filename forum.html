@@ -734,19 +734,7 @@ document.addEventListener("DOMContentLoaded", function () {
         closeCreatePostModal();
         setStatus("הפוסט פורסם בהצלחה.", "ok");
 
-        var newItem = {
-          id: ref.key,
-          title: postObj.title,
-          text: postObj.text,
-          author: postObj.author,
-          time: postObj.time,
-          likes: 0,
-          commentsCount: 0
-        };
-
-        postsCacheData.unshift(newItem);
-
-        renderPostsFromCache();
+        
 
         try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }
 
