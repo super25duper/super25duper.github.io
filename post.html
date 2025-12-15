@@ -61,6 +61,19 @@
   </main>
 
   <script>
+const cachedPost = sessionStorage.getItem("currentPost");
+
+if (cachedPost) {
+  const p = JSON.parse(cachedPost);
+
+  document.getElementById("post").innerHTML = `
+    <div class="post">
+      <h3>${escapeHTML(p.title)}</h3>
+      <p>${escapeHTML(p.text)}</p>
+      <small>מאת: ${escapeHTML(p.author)}</small>
+    </div>
+  `;
+}
     /* ===============================
        Helpers
        =============================== */
