@@ -51,10 +51,11 @@
 })();
 
 document.addEventListener("DOMContentLoaded", function () {
-const cached = sessionStorage.getItem("cachedPosts");
-if (cached) {
-  document.getElementById("posts").innerHTML = cached;
-}
+
+  const cached = sessionStorage.getItem("cachedPosts");
+  if (cached) {
+    document.getElementById("posts").innerHTML = cached;
+  }
 
   let payload = null;
   let isRefreshing = false;
@@ -133,7 +134,12 @@ if (cached) {
           const postId = pSnap.key;
 
           html += `
-            <div class="post" onclick="openPost('${postId}', ${JSON.stringify(p).replace(/</g,"\\u003c").replace(/>/g,"\\u003e")})">
+            <div class="post"
+                 data-id="${postId}"
+                 data-title="${(p.title || "").replace(/"/g, "&quot;")}"
+                 data-text="${(p.text || "").replace(/"/g, "&quot;")}"
+                 data-author="${(p.author || "").replace(/"/g, "&quot;")}"
+                 onclick="openPost(this)">
               <h3>${p.title || ""}</h3>
               <p>${p.text || ""}</p>
               <small>מאת: ${p.author || ""}</small>
@@ -147,8 +153,8 @@ if (cached) {
 
         document.getElementById("posts").innerHTML = html;
 
-// ⭐ שמירה בזיכרון
-sessionStorage.setItem("cachedPosts", html);
+        // ⭐ שמירה בזיכרון
+        sessionStorage.setItem("cachedPosts", html);
 
         if (fromRefresh) {
           setTimeout(function () {
@@ -163,21 +169,23 @@ sessionStorage.setItem("cachedPosts", html);
   }
 
   /* ===============================
-     מעבר לפוסט בודד
+     מעבר לפוסט בודד (✔️ מתוקן)
      =============================== */
-  window.openPost = function(postId, p) {
-  sessionStorage.setItem(
-    "currentPost",
-    JSON.stringify({
-      id: postId,
-      title: p.title,
-      text: p.text,
-      author: p.author
-    })
-  );
+  window.openPost = function (el) {
+    const postId = el.dataset.id;
 
-  location.href = "post.html?postId=" + encodeURIComponent(postId);
-};
+    sessionStorage.setItem(
+      "currentPost",
+      JSON.stringify({
+        id: postId,
+        title: el.dataset.title,
+        text: el.dataset.text,
+        author: el.dataset.author
+      })
+    );
+
+    location.href = "post.html?postId=" + encodeURIComponent(postId);
+  };
 
   /* ===============================
      Pull To Refresh
@@ -205,7 +213,7 @@ sessionStorage.setItem("cachedPosts", html);
     if (diff > THRESHOLD) {
       pulling = false;
       isRefreshing = true;
-sessionStorage.removeItem("cachedPosts");
+      sessionStorage.removeItem("cachedPosts");
       loadPosts(true);
     }
   });
