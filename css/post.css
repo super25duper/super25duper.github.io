@@ -261,3 +261,62 @@ body {
 .hidden {
   display: none !important;
 }
+/* ===============================
+   קומפוזר תגובת־בן
+   =============================== */
+
+.reply-composer {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  margin-top: 8px;
+}
+
+.reply-composer textarea {
+  width: 100%;
+  min-height: 70px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  resize: none;
+  outline: none;
+  font-size: 14px;
+}
+
+.reply-composer textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+}
+
+.reply-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.reply-actions button {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.reply-actions button:first-child {
+  background: #10b981;
+  color: #fff;
+}
+
+.reply-actions button:last-child {
+  background: #e5e7eb;
+}
+
+/* ===============================
+   ביטול כתם כחול בלחיצה
+   =============================== */
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
