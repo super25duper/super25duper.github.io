@@ -207,15 +207,23 @@ window.openReply=(id)=>{
   <button onclick="sendReply('${id}')">שלח</button>`;
 };
 
-window.sendReply=(id)=>{
- const t=document.getElementById("r-"+id).value.trim();
- if(!t) return;
- firebase.database().ref("replies/"+postId+"/"+id).push({
-  text:t,author:username,time:Date.now()
- });
- firebase.database().ref("comments/"+postId+"/"+id+"/replyCount")
-  .transaction(n=>(n||0)+1);
- toggleReplies(id);
+window.openReply = (id) => {
+  const box = document.getElementById("replies-" + id);
+  box.classList.remove("hidden");
+
+  box.innerHTML = `
+    <div class="reply-composer">
+      <textarea id="reply-text-${id}" placeholder="כתוב תגובה..."></textarea>
+      <div class="reply-actions">
+        <button onclick="sendReply('${id}')">שלח</button>
+        <button onclick="toggleReplies('${id}')">ביטול</button>
+      </div>
+    </div>
+  `;
+
+  setTimeout(() => {
+    document.getElementById("reply-text-" + id).focus();
+  }, 200);
 };
 
 });
