@@ -63,3 +63,16 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+.post,
+button {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}* * {
+  -webkit-tap-highlight-color: transparent;
+}.post {
+  cursor: pointer;
+}
+
+.post * {
+  pointer-events: none;
+}
