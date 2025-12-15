@@ -161,15 +161,24 @@ document.addEventListener("DOMContentLoaded", function () {
       /* ===============================
          חיבור קליקים – FIX יציב 100%
          =============================== */
-      postsEl.onclick = function (e) {
-        const postEl = e.target.closest(".post");
-        if (!postEl) return;
+      let lastTap = 0;
 
-        const id = postEl.dataset.id;
-        if (!id) return;
+postsEl.addEventListener("touchend", function (e) {
+  const now = Date.now();
+  if (now - lastTap < 300) return; // מניעת דאבל
+  lastTap = now;
 
-        openPost(id, postEl);
-      };
+  const postEl = e.target.closest(".post");
+  if (!postEl) return;
+
+  const id = postEl.dataset.id;
+  if (!id) return;
+
+  e.preventDefault();   // ⬅️ זה הפתרון
+  e.stopPropagation();
+
+  openPost(id, postEl);
+}, { passive: false });
 
       if (fromRefresh) {
         setTimeout(() => {
