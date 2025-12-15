@@ -28,14 +28,18 @@
     <div class="loader"></div>
   </div>
 
-  <!-- קומפוזר תגובה (קבוע מעל התגובות) -->
+  <!-- קומפוזר תגובה -->
   <div id="commentComposer" class="comment-composer hidden">
     <textarea id="commentText" placeholder="כתוב תגובה..."></textarea>
     <div class="comment-actions">
-      <button id="sendComment" type="button">שלח</button>
-      <button id="cancelComment" type="button">ביטול</button>
+      <button id="sendComment">שלח</button>
+      <button id="cancelComment">ביטול</button>
     </div>
   </div>
+
+  <button id="openComment" class="add-comment-btn">
+    הוסף תגובה
+  </button>
 
   <!-- תגובות -->
   <section class="comments">
@@ -43,16 +47,12 @@
     <div id="comments">
       <div class="loader"></div>
     </div>
-
-    <button id="openComment" class="add-comment-btn">
-      הוסף תגובה
-    </button>
   </section>
 
 </main>
 
 <script>
-/* חסימה מיידית – לא WebView */
+/* חסימה מיידית */
 (function () {
   try {
     if (!window.AppInventor) location.replace("forbidden.html");
@@ -64,7 +64,6 @@
 document.addEventListener("DOMContentLoaded", function () {
 
   let payload = null;
-  let currentUid = "";
   let currentUserName = "";
   let replyTo = null;
 
@@ -72,7 +71,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const postId = params.get("postId");
   if (!postId) location.replace("forbidden.html");
 
-  /* קבלת payload מהאפליקציה */
   function waitForPayload() {
     try {
       const raw = window.AppInventor.getWebViewString();
@@ -83,20 +81,16 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     login();
   }
+
   waitForPayload();
 
-  /* Firebase Auth */
   function login() {
     firebase.auth()
       .signInWithEmailAndPassword(payload.email, payload.password)
-      .then(c => {
-        currentUid = c.user.uid;
-        validate(currentUid, payload.token);
-      })
+      .then(c => validate(c.user.uid, payload.token))
       .catch(() => location.replace("forbidden.html"));
   }
 
-  /* אימות token + שליפת שם משתמש */
   function validate(uid, token) {
     firebase.database().ref("sessions/" + uid + "/token")
       .once("value")
@@ -104,19 +98,15 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!snap.exists() || snap.val() !== token)
           location.replace("forbidden.html");
 
-        return firebase.database()
-          .ref("users/" + uid + "/username")
-          .once("value");
+        return firebase.database().ref("users/" + uid + "/username").once("value");
       })
       .then(snap => {
         currentUserName = snap.val() || "משתמש";
         loadPost();
         loadComments();
-      })
-      .catch(() => location.replace("forbidden.html"));
+      });
   }
 
-  /* טעינת פוסט */
   function loadPost() {
     firebase.database().ref("posts/" + postId)
       .once("value")
@@ -132,26 +122,34 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  /* טעינת תגובות (חדש → ישן) */
   function loadComments() {
     firebase.database().ref("comments/" + postId)
       .once("value")
       .then(snap => {
-
-        const list = [];
-        snap.forEach(cSnap => {
-          list.push({ id: cSnap.key, ...cSnap.val() });
-        });
-
-        list.reverse(); // חדש למעלה
+        let arr = [];
+        snap.forEach(s => arr.push({ id: s.key, ...s.val() }));
+        arr.sort((a,b) => b.time - a.time);
 
         let html = "";
 
-        list.forEach(c => {
-          const d = new Date(c.time);
-          const t =
-            d.getHours().toString().padStart(2,"0") + ":" +
-            d.getMinutes().toString().padStart(2,"0");
+        arr.forEach(c => {
+          const t = new Date(c.time).toLocaleTimeString("he-IL",{hour:'2-digit',minute:'2-digit'});
+
+          let repliesHtml = "";
+          if (c.replies) {
+            Object.values(c.replies).forEach(r => {
+              const rt = new Date(r.time).toLocaleTimeString("he-IL",{hour:'2-digit',minute:'2-digit'});
+              repliesHtml += `
+                <div class="reply">
+                  <div class="comment-meta">
+                    <span>${r.author}</span>
+                    <span>${rt}</span>
+                  </div>
+                  <p>${r.text}</p>
+                </div>
+              `;
+            });
+          }
 
           html += `
             <div class="comment">
@@ -160,76 +158,67 @@ document.addEventListener("DOMContentLoaded", function () {
                 <span class="comment-time">${t}</span>
               </div>
               <p>${c.text}</p>
-              <button class="reply-btn" data-id="${c.id}">השב</button>
-              <div class="replies" id="replies-${c.id}"></div>
+              <button class="reply-btn" onclick="reply('${c.id}')">השב</button>
+              ${repliesHtml ? `<div class="replies">${repliesHtml}</div>` : ""}
             </div>
           `;
         });
 
         document.getElementById("comments").innerHTML =
           html || "<p>אין תגובות עדיין.</p>";
-
-        attachReplyHandlers();
       });
   }
 
-  /* כפתור הוספת תגובה */
+  /* קומפוזר */
   const openBtn = document.getElementById("openComment");
-  const composer = document.getElementById("commentComposer");
+  const box = document.getElementById("commentComposer");
   const textarea = document.getElementById("commentText");
+
+  window.reply = function(id) {
+    replyTo = id;
+    openComposer();
+  };
+
+  function openComposer() {
+    box.classList.remove("hidden");
+    openBtn.style.display = "none";
+    textarea.focus();
+  }
 
   openBtn.onclick = () => {
     replyTo = null;
-    composer.classList.remove("hidden");
-    openBtn.style.display = "none";
-    textarea.focus();
+    openComposer();
   };
 
   document.getElementById("cancelComment").onclick = () => {
-    composer.classList.add("hidden");
+    box.classList.add("hidden");
     openBtn.style.display = "block";
     textarea.value = "";
     replyTo = null;
   };
 
-  /* שליחה */
   document.getElementById("sendComment").onclick = () => {
     const text = textarea.value.trim();
     if (!text) return;
 
-    let ref;
-    if (replyTo) {
-      ref = firebase.database()
-        .ref(`comments/${postId}/${replyTo}/replies`);
-    } else {
-      ref = firebase.database()
-        .ref(`comments/${postId}`);
-    }
-
-    ref.push({
+    const data = {
       text,
       author: currentUserName,
       time: Date.now()
-    }).then(() => {
+    };
+
+    const ref = replyTo
+      ? firebase.database().ref(`comments/${postId}/${replyTo}/replies`)
+      : firebase.database().ref(`comments/${postId}`);
+
+    ref.push(data).then(() => {
       textarea.value = "";
-      composer.classList.add("hidden");
+      box.classList.add("hidden");
       openBtn.style.display = "block";
       replyTo = null;
       loadComments();
     });
   };
-
-  /* Reply handlers */
-  function attachReplyHandlers() {
-    document.querySelectorAll(".reply-btn").forEach(btn => {
-      btn.onclick = () => {
-        replyTo = btn.dataset.id;
-        composer.classList.remove("hidden");
-        openBtn.style.display = "none";
-        textarea.focus();
-      };
-    });
-  }
 
 });
 </script>
