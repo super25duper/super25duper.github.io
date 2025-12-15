@@ -72,7 +72,3 @@ button {
 }.post {
   cursor: pointer;
 }
-
-.post * {
-  pointer-events: none;
-}
