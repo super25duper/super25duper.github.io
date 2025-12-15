@@ -2,33 +2,38 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <title>Firebase Upload DEBUG</title>
+  <title>Firebase Storage Upload DEBUG (v8)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
     body {
       font-family: monospace;
-      max-width: 700px;
+      max-width: 800px;
       margin: 20px auto;
       padding: 10px;
     }
     button {
-      padding: 10px 14px;
+      padding: 10px 16px;
       margin-top: 10px;
     }
     pre {
       background: #111;
       color: #0f0;
       padding: 10px;
-      height: 260px;
-      overflow: auto;
+      height: 300px;
+      overflow-y: auto;
       font-size: 12px;
     }
   </style>
+
+  <!-- Firebase v8 SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body>
 
-<h2>Firebase Storage Upload – DEBUG</h2>
+<h2>Firebase Storage Upload – DEBUG (v8)</h2>
 
 <input id="fileInput" type="file" accept="image/*"><br>
 <button id="uploadBtn" disabled>UPLOAD</button>
@@ -38,7 +43,7 @@
 <h3>LOG OUTPUT</h3>
 <pre id="log"></pre>
 
-<script type="module">
+<script>
   const logBox = document.getElementById("log");
   const status = document.getElementById("status");
 
@@ -52,23 +57,48 @@
 
   log("=== SCRIPT START ===");
 
-  import { storage } from "./firebaseconfig.js";
-  import {
-    ref,
-    uploadBytesResumable,
-    getDownloadURL
-  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+  /* ==============================
+     Firebase CONFIG (ללא לוגים)
+     ============================== */
+  const firebaseConfig = {
+    apiKey: "AIzaSyAb6crKn7LDVhYtFMUtErtZNKEL6lfW5pA",
+    authDomain: "bigone-86490.firebaseapp.com",
+    databaseURL: "https://bigone-86490-default-rtdb.firebaseio.com",
+    projectId: "bigone-86490",
+    storageBucket: "bigone-86490.appspot.com",
+    messagingSenderId: "543555505186",
+    appId: "1:543555505186:web:46f992f414561830b50e7b",
+    measurementId: "G-GVPSS1D63D"
+  };
 
-  log("[main] Imports loaded");
-  log("[main] Storage object:", storage);
+  try {
+    firebase.initializeApp(firebaseConfig);
+    log("[Firebase] initializeApp OK");
+  } catch (e) {
+    log("[Firebase] initializeApp FAILED");
+    log(e);
+  }
 
+  let storage = null;
+
+  try {
+    storage = firebase.storage();
+    log("[Firebase] storage() OK", storage);
+  } catch (e) {
+    log("[Firebase] storage() FAILED");
+    log(e);
+  }
+
+  /* ==============================
+     UI + UPLOAD DEBUG
+     ============================== */
   const fileInput = document.getElementById("fileInput");
   const uploadBtn = document.getElementById("uploadBtn");
 
   let file = null;
 
   fileInput.addEventListener("change", () => {
-    log("[UI] file input changed");
+    log("[UI] file input change event");
 
     file = fileInput.files[0] || null;
 
@@ -92,7 +122,12 @@
     log("[UI] Upload button clicked");
 
     if (!file) {
-      log("[ERROR] upload clicked but file is null");
+      log("[ERROR] Clicked upload but file is null");
+      return;
+    }
+
+    if (!storage) {
+      log("[ERROR] storage is null");
       return;
     }
 
@@ -104,36 +139,38 @@
 
       log("[UPLOAD] Path:", path);
 
-      const storageRef = ref(storage, path);
-      log("[UPLOAD] Storage ref created:", storageRef);
+      const storageRef = storage.ref(path);
+      log("[UPLOAD] storage.ref created:", storageRef);
 
-      const task = uploadBytesResumable(storageRef, file);
-      log("[UPLOAD] uploadBytesResumable called");
+      const uploadTask = storageRef.put(file);
+      log("[UPLOAD] put() called");
 
-      task.on(
+      uploadTask.on(
         "state_changed",
-        snap => {
-          const p = (snap.bytesTransferred / snap.totalBytes) * 100;
+        snapshot => {
+          const p = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           log(`[UPLOAD] progress ${p.toFixed(1)}%`, {
-            bytesTransferred: snap.bytesTransferred,
-            totalBytes: snap.totalBytes,
-            state: snap.state
+            bytesTransferred: snapshot.bytesTransferred,
+            totalBytes: snapshot.totalBytes,
+            state: snapshot.state
           });
         },
-        err => {
+        error => {
           log("[UPLOAD] ERROR callback fired");
-          log(err);
-          status.textContent = "שגיאה: " + err.message;
+          log(error);
+          status.textContent = "שגיאה: " + error.message;
         },
         async () => {
           log("[UPLOAD] COMPLETE callback fired");
-          const url = await getDownloadURL(task.snapshot.ref);
+
+          const url = await uploadTask.snapshot.ref.getDownloadURL();
           log("[UPLOAD] Download URL:", url);
+
           status.textContent = "העלאה הושלמה";
         }
       );
     } catch (e) {
-      log("[FATAL] Exception thrown");
+      log("[FATAL] Exception during upload");
       log(e);
     }
   });
