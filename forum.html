@@ -209,7 +209,10 @@
    =============================== */
 (function () {
   try {
-    if (!window.AppInventor) {
+    if (
+      !window.AppInventor ||
+      typeof window.AppInventor.getWebViewString !== "function"
+    ) {
       location.replace("forbidden.html");
     }
   } catch (e) {
