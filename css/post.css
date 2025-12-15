@@ -24,7 +24,7 @@ body {
 }
 
 /* ===============================
-   תגובה בודדת
+   תגובה ראשית
    =============================== */
 
 .comment {
@@ -35,6 +35,10 @@ body {
   margin-bottom: 12px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
+
+/* ===============================
+   מטא של תגובה
+   =============================== */
 
 .comment-meta {
   display: flex;
@@ -55,6 +59,10 @@ body {
   white-space: nowrap;
 }
 
+/* ===============================
+   טקסט תגובה
+   =============================== */
+
 .comment p {
   margin: 0;
   font-size: 14px;
@@ -64,34 +72,71 @@ body {
 }
 
 /* ===============================
-   כפתור הוספת תגובה
+   כפתור השב
    =============================== */
 
-.add-comment-btn {
-  width: 100%;
-  margin-top: 14px;
-  padding: 12px;
-  border-radius: 10px;
+.reply-btn {
+  margin-top: 8px;
+  background: transparent;
   border: none;
-  background: #3b82f6;
-  color: #ffffff;
-  font-size: 15px;
+  color: #2563eb;
+  font-size: 13px;
   cursor: pointer;
+  padding: 0;
 }
 
-.add-comment-btn:active {
-  transform: scale(0.98);
+.reply-btn:hover {
+  text-decoration: underline;
 }
 
 /* ===============================
-   תיבת כתיבת תגובה
+   ענף תגובות (תגובה על תגובה)
    =============================== */
 
-.comment-box {
-  margin-top: 14px;
+.replies {
+  margin-top: 10px;
+  margin-right: 18px; /* הזחה פנימה (RTL) */
+  padding-right: 12px;
+  border-right: 2px solid #c7d2fe;
 }
 
-.comment-box textarea {
+/* תגובת ענף */
+.replies .comment {
+  background: #eef2ff;
+  border-right-color: #6366f1;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+/* טקסט קטן יותר בענף */
+.replies .comment p {
+  font-size: 13px;
+}
+
+/* מטא קטן יותר בענף */
+.replies .comment-meta {
+  font-size: 11px;
+}
+
+/* אין כפתור השב בתוך ענף */
+.replies .reply-btn {
+  display: none;
+}
+
+/* ===============================
+   קומפוזר תגובה (אינפוט)
+   =============================== */
+
+.comment-composer {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 10;
+}
+
+.comment-composer textarea {
   width: 100%;
   min-height: 90px;
   padding: 12px;
@@ -104,8 +149,7 @@ body {
   color: #111827;
 }
 
-/* ביטול בורדר כתום */
-.comment-box textarea:focus {
+.comment-composer textarea:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
 }
@@ -140,6 +184,26 @@ body {
 }
 
 /* ===============================
+   כפתור הוסף תגובה
+   =============================== */
+
+.add-comment-btn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.add-comment-btn:active {
+  transform: scale(0.98);
+}
+
+/* ===============================
    Loader
    =============================== */
 
@@ -160,35 +224,9 @@ body {
 }
 
 /* ===============================
-   Pull indicator
-   =============================== */
-
-#pull-indicator {
-  display: none;
-  padding: 8px;
-  text-align: center;
-  background: transparent;
-}
-
-/* ===============================
    עזר
    =============================== */
 
 .hidden {
   display: none !important;
-}
-.comment-box {
-  position: relative;
-  scroll-margin-bottom: 120px;
-}
-.replies {
-  margin-right: 16px;
-  margin-top: 8px;
-  border-right: 2px solid #c7d2fe;
-  padding-right: 10px;
-}
-
-.replies .comment {
-  background: #eef2ff;
-  border-right-color: #6366f1;
 }
