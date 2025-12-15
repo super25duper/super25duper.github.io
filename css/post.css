@@ -1,19 +1,45 @@
-/* תגובות */
-.comments {
-  margin-top: 24px;
+/* ===============================
+   כללי
+   =============================== */
+
+* {
+  box-sizing: border-box;
 }
+
+body {
+  overflow-x: hidden;
+}
+
+/* ===============================
+   תגובות – קונטיינר
+   =============================== */
+
+.comments {
+  margin-top: 28px;
+}
+
+.comments h3 {
+  margin-bottom: 12px;
+  color: #111827;
+}
+
+/* ===============================
+   תגובה בודדת
+   =============================== */
 
 .comment {
   background: #f8fafc;
   border-right: 4px solid #93c5fd;
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 12px 14px;
   margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 
 .comment-meta {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 12px;
   color: #6b7280;
   margin-bottom: 6px;
@@ -21,62 +47,133 @@
 
 .comment-author {
   font-weight: bold;
+  color: #1f2937;
 }
 
 .comment-time {
   opacity: 0.8;
+  white-space: nowrap;
 }
 
-/* הוספת תגובה */
+.comment p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+  word-wrap: break-word;
+}
+
+/* ===============================
+   כפתור הוספת תגובה
+   =============================== */
+
 .add-comment-btn {
   width: 100%;
-  margin-top: 12px;
-  padding: 10px;
-  border-radius: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 10px;
   border: none;
   background: #3b82f6;
-  color: #fff;
+  color: #ffffff;
   font-size: 15px;
+  cursor: pointer;
 }
 
+.add-comment-btn:active {
+  transform: scale(0.98);
+}
+
+/* ===============================
+   תיבת כתיבת תגובה
+   =============================== */
+
 .comment-box {
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .comment-box textarea {
   width: 100%;
-  min-height: 80px;
-  padding: 10px;
-  border-radius: 8px;
+  min-height: 90px;
+  padding: 12px;
+  border-radius: 10px;
   border: 1px solid #d1d5db;
-  resize: none;
   font-size: 14px;
+  resize: none;
+  outline: none;
+  background: #ffffff;
+  color: #111827;
 }
+
+/* ביטול בורדר כתום */
+.comment-box textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+}
+
+/* ===============================
+   כפתורי שליחה / ביטול
+   =============================== */
 
 .comment-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .comment-actions button {
   flex: 1;
-  padding: 8px;
-  border-radius: 8px;
+  padding: 10px;
+  border-radius: 10px;
   border: none;
   font-size: 14px;
+  cursor: pointer;
 }
 
 .comment-actions button:first-child {
   background: #10b981;
-  color: #fff;
+  color: #ffffff;
 }
 
 .comment-actions button:last-child {
   background: #e5e7eb;
+  color: #111827;
 }
 
-/* עזר */
-.hidden {
+/* ===============================
+   Loader
+   =============================== */
+
+.loader {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  margin: 16px auto;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===============================
+   Pull indicator
+   =============================== */
+
+#pull-indicator {
   display: none;
+  padding: 8px;
+  text-align: center;
+  background: transparent;
+}
+
+/* ===============================
+   עזר
+   =============================== */
+
+.hidden {
+  display: none !important;
 }
