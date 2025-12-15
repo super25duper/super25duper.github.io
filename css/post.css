@@ -181,3 +181,14 @@ body {
   position: relative;
   scroll-margin-bottom: 120px;
 }
+.replies {
+  margin-right: 16px;
+  margin-top: 8px;
+  border-right: 2px solid #c7d2fe;
+  padding-right: 10px;
+}
+
+.replies .comment {
+  background: #eef2ff;
+  border-right-color: #6366f1;
+}
