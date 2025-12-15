@@ -130,52 +130,56 @@ document.addEventListener("DOMContentLoaded", function () {
      טעינת פוסטים
      =============================== */
   function loadPosts(fromRefresh = false) {
-    firebase.database()
-      .ref("posts")
-      .once("value")
-      .then(snap => {
+  firebase.database()
+    .ref("posts")
+    .once("value")
+    .then(snap => {
 
-        let html = "";
+      let html = "";
 
-        snap.forEach(pSnap => {
-          const p = pSnap.val();
-          const postId = pSnap.key;
+      snap.forEach(pSnap => {
+        const p = pSnap.val();
+        const postId = pSnap.key;
 
-          html += `
-            <div class="post" data-id="${postId}">
-              <h3>${p.title || ""}</h3>
-              <p>${p.text || ""}</p>
-              <small>מאת: ${p.author || ""}</small>
-            </div>
-          `;
-        });
+        html += `
+          <div class="post" data-id="${postId}">
+            <h3>${p.title || ""}</h3>
+            <p>${p.text || ""}</p>
+            <small>מאת: ${p.author || ""}</small>
+          </div>
+        `;
+      });
 
-        if (!html) html = "<p>אין עדיין פוסטים.</p>";
+      if (!html) html = "<p>אין עדיין פוסטים.</p>";
 
-        const postsEl = document.getElementById("posts");
-        postsEl.innerHTML = html;
+      const postsEl = document.getElementById("posts");
+      postsEl.innerHTML = html;
 
-        /* Cache (A) */
-        sessionStorage.setItem("cachedPosts", html);
+      /* Cache (A) */
+      sessionStorage.setItem("cachedPosts", html);
 
-        /* חיבור קליקים – FIX עיקרי */
-        postsEl.querySelectorAll(".post").forEach(el => {
-          el.addEventListener("click", () => {
-            const id = el.dataset.id;
-            openPost(id, el);
-          });
-        });
+      /* ===============================
+         חיבור קליקים – FIX יציב 100%
+         =============================== */
+      postsEl.onclick = function (e) {
+        const postEl = e.target.closest(".post");
+        if (!postEl) return;
 
-        if (fromRefresh) {
-          setTimeout(() => {
-            isRefreshing = false;
-            indicator.style.display = "none";
-          }, 300);
-        }
-      })
-      .catch(() => location.replace("forbidden.html"));
-  }
+        const id = postEl.dataset.id;
+        if (!id) return;
 
+        openPost(id, postEl);
+      };
+
+      if (fromRefresh) {
+        setTimeout(() => {
+          isRefreshing = false;
+          indicator.style.display = "none";
+        }, 300);
+      }
+    })
+    .catch(() => location.replace("forbidden.html"));
+}
   /* ===============================
      מעבר לפוסט (A + B)
      =============================== */
