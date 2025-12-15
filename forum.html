@@ -776,6 +776,7 @@ var selectedImageFile = null;
 var selectedImagePreviewUrl = "";  
 var selectedImagePreviewCanRevoke = false;  
 var selectedImagePrepared = null; // { blob, contentType, ext }  
+var selectedImageDataUrl = ""; // FIX: יציב ב-WebView (DataURL)  
 var isPublishingNow = false;  
 
 /* =========================================================================================            
@@ -896,9 +897,10 @@ document.addEventListener("DOMContentLoaded", function () {
         // accept  
         selectedImageFile = f;  
         selectedImagePrepared = null;  
+        selectedImageDataUrl = "";  
         if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
 
-        // preview (ObjectURL with fallback)  
+        // preview (FIX: DataURL בלבד - יציב ב-WebView, בלי ObjectURL)  
         try {  
           if (selectedImagePreviewUrl && selectedImagePreviewCanRevoke) {  
             try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv0) { }  
@@ -907,27 +909,40 @@ document.addEventListener("DOMContentLoaded", function () {
         selectedImagePreviewUrl = "";  
         selectedImagePreviewCanRevoke = false;  
 
-        getPreviewUrlForFile(f, function (prevUrl, canRevoke) {  
-          if (!prevUrl) {  
+        try {  
+          var reader = new FileReader();  
+          reader.onerror = function () {  
             createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב.");  
             clearSelectedImage(true);  
-            return;  
-          }  
-
-          selectedImagePreviewUrl = prevUrl;  
-          selectedImagePreviewCanRevoke = !!canRevoke;  
-
-          try {  
-            if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);  
-            if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
-            if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
-            if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
-            // update meta line  
+          };  
+          reader.onload = function () {  
             try {  
-              if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
-            } catch (eM) { }  
-          } catch (eImg1) { }  
-        });  
+              var dataUrl = safeText(reader.result || "");  
+              if (!dataUrl || dataUrl.indexOf("data:") !== 0) {  
+                createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב.");  
+                clearSelectedImage(true);  
+                return;  
+              }  
+
+              selectedImageDataUrl = dataUrl;  
+              selectedImagePreviewUrl = dataUrl;  
+              selectedImagePreviewCanRevoke = false;  
+
+              if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);  
+              if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
+              if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
+              if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
+              try {  
+                if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
+              } catch (eM) { }  
+            } catch (eImg1) { }  
+          };  
+          reader.readAsDataURL(f);  
+        } catch (eFR) {  
+          createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב.");  
+          clearSelectedImage(true);  
+          return;  
+        }  
 
       } catch (eImg2) { }  
     });  
@@ -944,6 +959,7 @@ document.addEventListener("DOMContentLoaded", function () {
     selectedImagePreviewUrl = "";  
     selectedImagePreviewCanRevoke = false;  
     selectedImagePrepared = null;  
+    selectedImageDataUrl = "";  
 
     try {  
       if (imagePreview) imagePreview.setAttribute("src", "");  
@@ -1406,7 +1422,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // שדרוג: פרסום עם תמונה  
     // 1) יוצרים postId מראש  
-    // 2) אם יש תמונה - מכינים (אופטימיזציה) -> מעלים ל-Storage -> מקבלים URL  
+    // 2) אם יש תמונה - מעלים ל-Storage -> מקבלים URL  
     // 3) שומרים ב-DB את postObj עם image url  
     var postsRef = firebase.database().ref("posts");  
     var newRef = postsRef.push();  
@@ -1435,20 +1451,37 @@ document.addEventListener("DOMContentLoaded", function () {
       return;  
     }  
 
-    // יש תמונה: תהליך העלאה  
+    // יש תמונה: תהליך העלאה (FIX: DataURL + watchdog נגד תקיעה)  
     setStatus("מעלה תמונה…", "info");  
     setUploadProgress(1);  
 
-    // prepare (optional resize/compress)  
-    prepareImageForUpload(selectedImageFile, imageWarn)  
-      .then(function (prepared) {  
-        selectedImagePrepared = prepared || null;  
+    var ext0 = "jpg";  
+    try {  
+      var n0 = safeText(selectedImageFile.name || "");  
+      if (n0.indexOf(".") !== -1) ext0 = n0.split(".").pop().toLowerCase();  
+    } catch (eExt) { ext0 = "jpg"; }  
 
-        var blob = prepared && prepared.blob ? prepared.blob : selectedImageFile;  
-        var contentType = prepared && prepared.contentType ? prepared.contentType : (selectedImageFile.type || "application/octet-stream");  
-        var ext = prepared && prepared.ext ? prepared.ext : "jpg";  
+    var ensureDataUrl = function () {  
+      return new Promise(function (resolve, reject) {  
+        try {  
+          if (selectedImageDataUrl && selectedImageDataUrl.indexOf("data:") === 0) {  
+            resolve(selectedImageDataUrl);  
+            return;  
+          }  
+          var r = new FileReader();  
+          r.onerror = function () { reject("read_failed"); };  
+          r.onload = function () { resolve(safeText(r.result || "")); };  
+          r.readAsDataURL(selectedImageFile);  
+        } catch (e) { reject(e); }  
+      });  
+    };  
 
-        return uploadPostImageEx(blob, contentType, ext, postId, uid, function (pct) {  
+    ensureDataUrl()  
+      .then(function (dataUrl) {  
+        selectedImageDataUrl = safeText(dataUrl || "");  
+        if (!selectedImageDataUrl || selectedImageDataUrl.indexOf("data:") !== 0) throw "read_failed";  
+
+        return uploadPostImageDataUrlEx(selectedImageDataUrl, ext0, postId, uid, function (pct) {  
           setUploadProgress(pct);  
         });  
       })  
@@ -1468,13 +1501,17 @@ document.addEventListener("DOMContentLoaded", function () {
         try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }            
         try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }            
       })  
-      .catch(function () {  
+      .catch(function (err) {  
         // אם קרתה שגיאה - נסיר את הפוסט החצי-מוכן (כדי לא להשאיר ריק)  
         try {  
           if (postId) firebase.database().ref("posts/" + postId).remove();  
         } catch (eRm) { }  
 
-        createPostErrorShow("שגיאה בהעלאת תמונה/פרסום. נסה שוב.");  
+        var msg = "שגיאה בהעלאת תמונה/פרסום. נסה שוב.";  
+        if (safeText(err) === "upload_timeout") msg = "העלאת תמונה נתקעה (Timeout). נסה שוב.";  
+        if (safeText(err) === "read_failed") msg = "שגיאה בקריאת התמונה. בחר תמונה מחדש.";  
+
+        createPostErrorShow(msg);  
         setStatus("שגיאה בפרסום.", "error");  
       })  
       .finally(function () {  
@@ -1548,6 +1585,81 @@ document.addEventListener("DOMContentLoaded", function () {
   }            
 
 });            
+
+/* =========================================================================================  
+   FIX: Upload DataURL (stable in WebView) + progress + timeout  
+   ========================================================================================= */  
+function uploadPostImageDataUrlEx(dataUrl, ext, postId, uid, onProgress) {  
+  return new Promise(function (resolve, reject) {  
+    try {  
+      if (!dataUrl || !postId || !uid) {  
+        reject("missing params");  
+        return;  
+      }  
+
+      var safeExt = safeText(ext || "").toLowerCase();  
+      if (!safeExt) safeExt = "jpg";  
+      if (safeExt.length > 8) safeExt = "jpg";  
+
+      var name = Date.now() + "_" + uid + "." + safeExt;  
+      var ref = firebase.storage().ref("post-images/" + postId + "/" + name);  
+
+      var finished = false;  
+      var task = ref.putString(dataUrl, "data_url");  
+
+      var timer = setTimeout(function () {  
+        if (finished) return;  
+        finished = true;  
+        try { if (task && typeof task.cancel === "function") task.cancel(); } catch (eC) { }  
+        reject("upload_timeout");  
+      }, 90000); // 90s watchdog  
+
+      task.on("state_changed",  
+        function (snap) {  
+          try {  
+            if (!snap) return;  
+            var bytes = Number(snap.bytesTransferred || 0);  
+            var total = Number(snap.totalBytes || 0);  
+            if (total > 0) {  
+              var pct = Math.round((bytes / total) * 100);  
+              if (typeof onProgress === "function") onProgress(pct);  
+            }  
+          } catch (eP) { }  
+        },  
+        function (err) {  
+          if (finished) return;  
+          finished = true;  
+          try { clearTimeout(timer); } catch (eT) { }  
+          reject(err);  
+        },  
+        function () {  
+          try {  
+            task.snapshot.ref.getDownloadURL()  
+              .then(function (url) {  
+                if (finished) return;  
+                finished = true;  
+                try { clearTimeout(timer); } catch (eT2) { }  
+                resolve(url);  
+              })  
+              .catch(function (eU) {  
+                if (finished) return;  
+                finished = true;  
+                try { clearTimeout(timer); } catch (eT3) { }  
+                reject(eU);  
+              });  
+          } catch (eU2) {  
+            if (finished) return;  
+            finished = true;  
+            try { clearTimeout(timer); } catch (eT4) { }  
+            reject(eU2);  
+          }  
+        }  
+      );  
+    } catch (e0) {  
+      reject(e0);  
+    }  
+  });  
+}  
 
 /* =========================================================================================  
    Image upload (extended with progress) - keeps your original uploadPostImage untouched  
