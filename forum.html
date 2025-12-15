@@ -165,10 +165,19 @@ sessionStorage.setItem("cachedPosts", html);
   /* ===============================
      מעבר לפוסט בודד
      =============================== */
-  window.openPost = function (postId) {
-    window.location.href =
-      "post.html?postId=" + encodeURIComponent(postId);
-  };
+  window.openPost = function(postId, p) {
+  sessionStorage.setItem(
+    "currentPost",
+    JSON.stringify({
+      id: postId,
+      title: p.title,
+      text: p.text,
+      author: p.author
+    })
+  );
+
+  location.href = "post.html?postId=" + postId;
+};
 
   /* ===============================
      Pull To Refresh
