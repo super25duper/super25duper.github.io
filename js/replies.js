@@ -3,6 +3,9 @@
    תגובות על תגובות (Live)
    =============================== */
 
+/* מניעת רינדור כפול */
+const renderedReplies = {};
+
 /* פתיחה / סגירה של replies */
 window.toggleReplies = function (commentId) {
   const box = document.getElementById("replies-" + commentId);
@@ -19,34 +22,51 @@ window.toggleReplies = function (commentId) {
 
   /* פתיחה */
   box.classList.remove("hidden");
-  box.innerHTML = "<div class='loader'></div>";
   counter.innerHTML = counter.innerHTML.replace("▾", "▴");
+
+  // מבנה פנימי קבוע
+  box.innerHTML = `
+    <div class="replies-list" id="replies-list-${commentId}"></div>
+    <div class="reply-composer hidden" id="reply-composer-${commentId}">
+      <textarea id="reply-text-${commentId}" placeholder="כתוב תגובה..."></textarea>
+      <div class="reply-actions">
+        <button onclick="sendReply('${commentId}')">שלח</button>
+        <button onclick="closeReply('${commentId}')">ביטול</button>
+      </div>
+    </div>
+  `;
 
   listenReplies(commentId);
 };
 
 /* מאזין Live ל־replies */
 function listenReplies(commentId) {
-  const box = document.getElementById("replies-" + commentId);
-  if (!box) return;
+  const list = document.getElementById("replies-list-" + commentId);
+  if (!list) return;
 
-  box.innerHTML = "";
+  renderedReplies[commentId] = new Set();
+  list.innerHTML = "<div class='loader'></div>";
 
-  firebase.database()
-    .ref("replies/" + postId + "/" + commentId)
-    .off();
+  const ref = firebase.database()
+    .ref("replies/" + postId + "/" + commentId);
 
-  firebase.database()
-    .ref("replies/" + postId + "/" + commentId)
-    .on("child_added", snap => {
-      renderReply(commentId, snap.val());
-    });
+  ref.off();
+  list.innerHTML = "";
+
+  ref.on("child_added", snap => {
+    if (!snap.exists()) return;
+
+    if (renderedReplies[commentId].has(snap.key)) return;
+    renderedReplies[commentId].add(snap.key);
+
+    renderReply(commentId, snap.val());
+  });
 }
 
 /* רינדור reply */
 function renderReply(commentId, r) {
-  const box = document.getElementById("replies-" + commentId);
-  if (!box) return;
+  const list = document.getElementById("replies-list-" + commentId);
+  if (!list) return;
 
   const time = new Date(r.time).toLocaleTimeString("he-IL", {
     hour: "2-digit",
@@ -64,30 +84,32 @@ function renderReply(commentId, r) {
     <p>${escapeHTML(r.text)}</p>
   `;
 
-  box.appendChild(div);
+  list.appendChild(div);
 }
 
 /* פתיחת קומפוזר reply */
 window.openReply = function (commentId) {
-  const box = document.getElementById("replies-" + commentId);
-  if (!box) return;
+  const composer = document.getElementById("reply-composer-" + commentId);
+  if (!composer) return;
 
-  box.classList.remove("hidden");
-
-  box.innerHTML = `
-    <div class="reply-composer">
-      <textarea id="reply-text-${commentId}" placeholder="כתוב תגובה..."></textarea>
-      <div class="reply-actions">
-        <button onclick="sendReply('${commentId}')">שלח</button>
-        <button onclick="toggleReplies('${commentId}')">ביטול</button>
-      </div>
-    </div>
-  `;
+  composer.classList.remove("hidden");
 
   setTimeout(() => {
     const ta = document.getElementById("reply-text-" + commentId);
-    if (ta) ta.focus();
-  }, 200);
+    if (ta) {
+      ta.focus();
+      composer.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, 150);
+};
+
+/* סגירת קומפוזר reply */
+window.closeReply = function (commentId) {
+  const composer = document.getElementById("reply-composer-" + commentId);
+  const ta = document.getElementById("reply-text-" + commentId);
+
+  if (composer) composer.classList.add("hidden");
+  if (ta) ta.value = "";
 };
 
 /* שליחת reply */
@@ -107,7 +129,7 @@ window.sendReply = function (commentId) {
     })
     .then(() => {
       ta.value = "";
+      closeReply(commentId);
       updateReplyCount(commentId);
-      listenReplies(commentId);
     });
 };
