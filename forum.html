@@ -5,35 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>פורום מאובטח</title>
 
-  <!-- ===============================
-       Firebase SDKs
-       =============================== -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script src="firebaseConfig.js"></script>
 
-  <!-- ===============================
-       Base CSS
-       =============================== -->
   <link rel="stylesheet" href="css/forum.css">
 
   <style>
-    /* =========================================================
-       NOTE:
-       לפי דרישה מפורשת:
-       ❌ אין אנימציות לחיצה
-       ❌ אין scale / opacity / active effects
-       ========================================================= */
-
-    .post {
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    button {
-      -webkit-tap-highlight-color: transparent;
-    }
+    /* NOTE: לפי הבקשה שלך – בלי ההנפשה ההיא */
+    /* אם תרצה אפקט עדין אחר בהמשך – נעשה, אבל כרגע "אפס אנימציות" */
   </style>
 </head>
 
@@ -43,9 +25,7 @@
   <h1>פורום הבניידים!</h1>
 </header>
 
-<!-- =========================================================
-     Pull To Refresh Indicator
-     ========================================================= -->
+<!-- Pull To Refresh indicator -->
 <div id="pull-indicator" style="
   display:none;
   text-align:center;
@@ -55,13 +35,11 @@
   <div class="loader"></div>
 </div>
 
-<!-- =========================================================
-     Top Actions: Create / Search / Sort
-     ========================================================= -->
+<!-- ======= TOP ACTIONS (New Post + Search + Sort) ======= -->
 <div id="top-actions" style="
   max-width:900px;
   margin:auto;
-  padding:10px 20px 0 20px;
+  padding: 10px 20px 0 20px;
   box-sizing:border-box;
 ">
   <div style="
@@ -71,18 +49,15 @@
     justify-content:space-between;
     flex-wrap:wrap;
   ">
-    <button id="openCreatePost" type="button"
-      style="
-        padding:10px 12px;
-        border-radius:10px;
-        border:none;
-        background:rgb(17,17,87);
-        color:#fff;
-        cursor:pointer;
-        font-weight:bold;
-      ">
-      ➕ צור פוסט
-    </button>
+    <button id="openCreatePost" type="button" style="
+      padding:10px 12px;
+      border-radius:10px;
+      border:none;
+      background: rgb(17,17,87);
+      color:#fff;
+      cursor:pointer;
+      font-weight:bold;
+    ">➕ צור פוסט</button>
 
     <input id="searchBox" type="search" placeholder="חיפוש בפוסטים..."
       style="
@@ -96,51 +71,43 @@
       "
     />
 
-    <select id="sortMode"
-      style="
-        padding:10px 12px;
-        border-radius:10px;
-        border:1px solid rgba(0,0,0,0.15);
-        outline:none;
-        background:#fff;
-        cursor:pointer;
-      ">
-      <option value="newest">חדשים למעלה</option>
-      <option value="oldest">ישנים למעלה</option>
-      <option value="author">לפי מחבר</option>
-      <option value="title">לפי כותרת</option>
+    <select id="sortMode" style="
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid rgba(0,0,0,0.15);
+      outline:none;
+      background:#fff;
+      cursor:pointer;
+    ">
+      <option value="newest">מיון: החדשים למעלה</option>
+      <option value="oldest">מיון: הישנים למעלה</option>
+      <option value="author">מיון: לפי מחבר</option>
+      <option value="title">מיון: לפי כותרת</option>
     </select>
   </div>
 
-  <div id="statusBar"
-    style="
-      margin-top:10px;
-      padding:8px 10px;
-      border-radius:10px;
-      background:rgba(0,0,0,0.04);
-      color:#111;
-      font-size:13px;
-      display:none;
-    ">
-  </div>
+  <div id="statusBar" style="
+    margin-top:10px;
+    padding:8px 10px;
+    border-radius:10px;
+    background: rgba(0,0,0,0.04);
+    color:#111;
+    font-size:13px;
+    display:none;
+  "></div>
 </div>
 
-<!-- =========================================================
-     Posts Container
-     ========================================================= -->
 <main class="forum-container">
   <div id="posts">
     <div class="loader"></div>
   </div>
 </main>
 
-<!-- =========================================================
-     Create Post Modal
-     ========================================================= -->
+<!-- ======= CREATE POST MODAL (UI ONLY, AUTH STILL REQUIRED) ======= -->
 <div id="createPostOverlay" style="
   position:fixed;
   inset:0;
-  background:rgba(0,0,0,0.45);
+  background: rgba(0,0,0,0.45);
   display:none;
   align-items:center;
   justify-content:center;
@@ -148,168 +115,373 @@
   box-sizing:border-box;
   z-index:9999;
 ">
-  <div style="
-    width:min(720px,100%);
+  <div id="createPostModal" style="
+    width:min(720px, 100%);
     background:#fff;
     border-radius:16px;
     padding:16px;
     box-sizing:border-box;
   ">
-
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <strong>יצירת פוסט חדש</strong>
-      <button id="closeCreatePost" type="button">✕</button>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <div style="font-weight:bold; font-size:18px;">יצירת פוסט חדש</div>
+      <button id="closeCreatePost" type="button" style="
+        border:none;
+        background:transparent;
+        font-size:18px;
+        cursor:pointer;
+      ">✕</button>
     </div>
 
-    <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
-      <input id="newPostTitle" placeholder="כותרת" maxlength="80">
-      <textarea id="newPostText" placeholder="תוכן הפוסט..." rows="6" maxlength="2000"></textarea>
+    <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">
+      <input id="newPostTitle" type="text" placeholder="כותרת"
+        maxlength="80"
+        style="
+          padding:12px;
+          border-radius:12px;
+          border:1px solid rgba(0,0,0,0.18);
+          outline:none;
+          box-sizing:border-box;
+        "
+      />
 
-      <div style="display:flex;justify-content:space-between;">
-        <button id="submitPost">פרסם</button>
-        <button id="cancelPost">ביטול</button>
+      <textarea id="newPostText" placeholder="תוכן הפוסט..."
+        rows="6"
+        maxlength="2000"
+        style="
+          padding:12px;
+          border-radius:12px;
+          border:1px solid rgba(0,0,0,0.18);
+          outline:none;
+          box-sizing:border-box;
+          resize:vertical;
+        "
+      ></textarea>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div id="newPostHint" style="font-size:12px; color:#444;">
+          טיפ: תכתוב ברור, ותשאיר מקום לתגובות.
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button id="submitPost" type="button" style="
+            padding:10px 14px;
+            border-radius:12px;
+            border:none;
+            background: rgb(17,17,87);
+            color:#fff;
+            cursor:pointer;
+            font-weight:bold;
+          ">פרסם</button>
+          <button id="cancelPost" type="button" style="
+            padding:10px 14px;
+            border-radius:12px;
+            border:1px solid rgba(0,0,0,0.18);
+            background:#fff;
+            cursor:pointer;
+            font-weight:bold;
+          ">ביטול</button>
+        </div>
       </div>
 
-      <div id="createPostError" style="display:none;color:#8a0000;"></div>
+      <div id="createPostError" style="
+        display:none;
+        padding:10px 12px;
+        border-radius:12px;
+        background: rgba(255,0,0,0.08);
+        color:#8a0000;
+        font-size:13px;
+      "></div>
     </div>
-
   </div>
 </div>
 
 <script>
 /* =========================================================================================
-   🔒 SECURITY GUARD – CRITICAL
+   ⚠️ חשוב: אבטחה – לא נוגעים ולא משנים שיטה
+   1) חסימה מיידית – לא WebView => forbidden.html
+   2) payload מקודולר (email/password/token)
+   3) Firebase Auth
+   4) אימות token מול sessions/{uid}/token
+   רק אחרי זה: גישה לפוסטים/יצירה/רענון
    ========================================================================================= */
+
+/* ===============================
+   חסימה מיידית – לא WebView
+   =============================== */
 (function () {
   try {
-    if (
-      !window.AppInventor ||
-      typeof window.AppInventor.getWebViewString !== "function"
-    ) {
+    if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {
       location.replace("forbidden.html");
-      throw new Error("Not WebView");
+      return;
     }
   } catch (e) {
     location.replace("forbidden.html");
-    throw e;
+    return;
   }
 })();
 
 /* =========================================================================================
+   Cache (A) – תצוגה מיידית
+   ========================================================================================= */
+var cached = null;
+try {
+  cached = sessionStorage.getItem("cachedPosts");
+} catch (e1) {
+  cached = null;
+}
+if (cached) {
+  var postsHost = document.getElementById("posts");
+  if (postsHost) postsHost.innerHTML = cached;
+}
+
+/* =========================================================================================
    Utilities
    ========================================================================================= */
-function escapeHTML(str="") {
+function escapeHTML(str) {
+  if (str === undefined || str === null) str = "";
   return String(str)
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
-function nowTs(){ return Date.now(); }
+
+function safeText(str) {
+  if (str === undefined || str === null) str = "";
+  return String(str);
+}
+
+function nowTs() {
+  return Date.now();
+}
+
+function setStatus(msg, type) {
+  if (type === undefined || type === null) type = "info";
+  var bar = document.getElementById("statusBar");
+  if (!bar) return;
+
+  if (!msg) {
+    bar.style.display = "none";
+    bar.textContent = "";
+    return;
+  }
+
+  bar.style.display = "block";
+  bar.textContent = msg;
+
+  if (type === "error") {
+    bar.style.background = "rgba(255,0,0,0.08)";
+    bar.style.color = "#8a0000";
+  } else if (type === "ok") {
+    bar.style.background = "rgba(0,128,0,0.08)";
+    bar.style.color = "#0b5a0b";
+  } else {
+    bar.style.background = "rgba(0,0,0,0.04)";
+    bar.style.color = "#111";
+  }
+}
+
+function debounce(fn, ms) {
+  var t = null;
+  return function () {
+    var args = arguments;
+    clearTimeout(t);
+    t = setTimeout(function () {
+      fn.apply(null, args);
+    }, ms);
+  };
+}
 
 /* =========================================================================================
    Global State
    ========================================================================================= */
-let payload = null;
-let uid = null;
-let realUsername = "משתמש";
-let isAuthed = false;
-let isRefreshing = false;
-let postsCache = [];
-let renderedHtml = "";
-let lastNavAt = 0;
-let lastPostId = "";
+var payload = null;
+var uid = null;
+var isRefreshing = false;
+var isAuthed = false;
 
-/* =========================================================================================
-   Cache Preview (UI only)
-   ========================================================================================= */
-const cached = sessionStorage.getItem("cachedPosts");
-if (cached) {
-  const host = document.getElementById("posts");
-  if (host) host.innerHTML = cached;
-}
+var postsCacheData = [];
+var renderedHtmlCache = "";
+var lastNavAt = 0;
+var lastOpenId = "";
+var pullStartY = 0;
+var pulling = false;
+var didTriggerRefresh = false;
+var realUsername = "משתמש";
 
 /* =========================================================================================
    DOM Ready
    ========================================================================================= */
 document.addEventListener("DOMContentLoaded", function () {
 
-  const postsEl = document.getElementById("posts");
-  const statusBar = document.getElementById("statusBar");
+  /* ===============================
+     Elements
+     =============================== */
+  var postsEl = document.getElementById("posts");
+  var indicator = document.getElementById("pull-indicator");
 
-  /* ---------------- Status Helper ---------------- */
-  function setStatus(msg, type="info") {
-    if (!msg) {
-      statusBar.style.display="none";
-      return;
-    }
-    statusBar.style.display="block";
-    statusBar.textContent=msg;
+  var searchBox = document.getElementById("searchBox");
+  var sortMode = document.getElementById("sortMode");
+
+  var openCreatePostBtn = document.getElementById("openCreatePost");
+  var overlay = document.getElementById("createPostOverlay");
+  var closeCreatePostBtn = document.getElementById("closeCreatePost");
+  var cancelPostBtn = document.getElementById("cancelPost");
+  var submitPostBtn = document.getElementById("submitPost");
+  var newPostTitle = document.getElementById("newPostTitle");
+  var newPostText = document.getElementById("newPostText");
+  var createPostError = document.getElementById("createPostError");
+
+  if (!postsEl) {
+    location.replace("forbidden.html");
+    return;
   }
 
-  /* ---------------- Navigation ---------------- */
-  postsEl.addEventListener("click", function(e){
-    const post = e.target.closest(".post");
-    if (!post) return;
+  bindPostNavigation(postsEl);
 
-    const id = post.dataset.id;
-    if (!id) return;
+  if (searchBox) {
+    searchBox.addEventListener("input", debounce(function () {
+      renderPostsFromCache();
+    }, 120));
+  }
 
-    const now = Date.now();
-    if (now - lastNavAt < 400 && lastPostId === id) return;
+  if (sortMode) {
+    sortMode.addEventListener("change", function () {
+      renderPostsFromCache();
+    });
+  }
 
-    lastNavAt = now;
-    lastPostId = id;
+  if (openCreatePostBtn) {
+    openCreatePostBtn.addEventListener("click", function () {
+      if (!isAuthed) {
+        setStatus("עוד לא אומתת מול השרת. חכה שנייה ואז נסה שוב.", "error");
+        return;
+      }
+      openCreatePostModal();
+    });
+  }
 
-    sessionStorage.setItem("currentPost", JSON.stringify({
-      id,
-      title: post.querySelector("h3")?.innerText || "",
-      text: post.querySelector("p")?.innerText || "",
-      author: post.querySelector("small")?.innerText.replace("מאת:","").trim() || ""
-    }));
+  if (closeCreatePostBtn) closeCreatePostBtn.addEventListener("click", closeCreatePostModal);
+  if (cancelPostBtn) cancelPostBtn.addEventListener("click", closeCreatePostModal);
 
-    location.href = "post.html?postId=" + encodeURIComponent(id);
-  });
+  if (overlay) {
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) closeCreatePostModal();
+    });
+  }
+
+  if (submitPostBtn) {
+    submitPostBtn.addEventListener("click", function () {
+      createPostErrorHide();
+
+      if (!isAuthed) {
+        createPostErrorShow("אתה לא מאומת עדיין. נסה שוב עוד רגע.");
+        return;
+      }
+
+      var t1 = "";
+      var t2 = "";
+      if (newPostTitle && typeof newPostTitle.value === "string") t1 = newPostTitle.value;
+      if (newPostText && typeof newPostText.value === "string") t2 = newPostText.value;
+
+      var title = safeText(t1).trim();
+      var text = safeText(t2).trim();
+
+      if (title.length < 3) {
+        createPostErrorShow("כותרת קצרה מדי. מינימום 3 תווים.");
+        return;
+      }
+      if (text.length < 3) {
+        createPostErrorShow("תוכן קצר מדי. מינימום 3 תווים.");
+        return;
+      }
+
+      publishPost(title, text);
+    });
+  }
 
   /* =====================================================================================
-     Payload Wait (Fail-Safe)
+     4) Pull To Refresh – נשמר בדיוק
      ===================================================================================== */
-  let payloadAttempts = 0;
-  const MAX_ATTEMPTS = 50;
+  document.addEventListener("touchstart", function (e) {
+    try {
+      if (window.scrollY === 0 && !isRefreshing) {
+        pullStartY = e.touches[0].clientY;
+        pulling = true;
+        didTriggerRefresh = false;
+      }
+    } catch (err1) { }
+  }, { passive: true });
+
+  document.addEventListener("touchmove", function (e) {
+    if (!pulling || isRefreshing) return;
+
+    var diff = e.touches[0].clientY - pullStartY;
+    if (diff <= 0) return;
+
+    if (indicator) indicator.style.display = "block";
+
+    var THRESHOLD = 90;
+    if (diff > THRESHOLD && !didTriggerRefresh) {
+      didTriggerRefresh = true;
+      pulling = false;
+      isRefreshing = true;
+
+      try { sessionStorage.removeItem("cachedPosts"); } catch (err2) { }
+
+      loadPosts(true);
+    }
+  }, { passive: true });
+
+  document.addEventListener("touchend", function () {
+    pulling = false;
+    if (!isRefreshing && indicator) indicator.style.display = "none";
+  }, { passive: true });
+
+  /* =====================================================================================
+     5) Start Auth Flow
+     ===================================================================================== */
+  waitForPayload();
 
   function waitForPayload() {
-    payloadAttempts++;
-    if (payloadAttempts > MAX_ATTEMPTS) {
+    var raw = "";
+    try {
+      raw = window.AppInventor.getWebViewString();
+      if (!raw) {
+        setTimeout(waitForPayload, 200);
+        return;
+      }
+      payload = JSON.parse(raw);
+    } catch (e) {
+      setTimeout(waitForPayload, 200);
+      return;
+    }
+
+    loginToFirebase(payload);
+  }
+
+  function loginToFirebase(data) {
+    if (!data || !data.email || !data.password || !data.token) {
       location.replace("forbidden.html");
       return;
     }
 
-    try {
-      const raw = window.AppInventor.getWebViewString();
-      if (!raw) return setTimeout(waitForPayload,200);
-      payload = JSON.parse(raw);
-    } catch {
-      return setTimeout(waitForPayload,200);
-    }
-
-    login(payload);
-  }
-
-  /* =====================================================================================
-     Firebase Auth + Token Validation
-     ===================================================================================== */
-  function login(data) {
     firebase.auth()
       .signInWithEmailAndPassword(data.email, data.password)
-      .then(c => validateToken(c.user.uid, data.token))
-      .catch(()=>location.replace("forbidden.html"));
+      .then(function (c) {
+        validateToken(c.user.uid, data.token);
+      })
+      .catch(function () {
+        location.replace("forbidden.html");
+      });
   }
 
   function validateToken(userId, token) {
-    firebase.database().ref("sessions/"+userId+"/token").once("value")
-      .then(s=>{
-        if (!s.exists() || s.val()!==token) {
+    firebase.database()
+      .ref("sessions/" + userId + "/token")
+      .once("value")
+      .then(function (snap) {
+        if (!snap.exists() || snap.val() !== token) {
           location.replace("forbidden.html");
           return;
         }
@@ -317,91 +489,337 @@ document.addEventListener("DOMContentLoaded", function () {
         uid = userId;
         isAuthed = true;
 
-        return firebase.database()
-          .ref("users/"+uid+"/username")
-          .once("value");
+        firebase.database()
+          .ref("users/" + uid + "/username")
+          .once("value")
+          .then(function (uSnap) {
+            realUsername = uSnap.val() || "משתמש";
+            setStatus("מחובר כ־" + realUsername, "ok");
+
+            loadPosts(false);
+            attachLivePostListeners();
+          })
+          .catch(function () {
+            realUsername = "משתמש";
+            setStatus("מחובר", "ok");
+            loadPosts(false);
+            attachLivePostListeners();
+          });
       })
-      .then(snap=>{
-        realUsername = snap.val() || "משתמש";
-        setStatus("מחובר כ־"+realUsername,"ok");
-        loadPosts();
-        attachLive();
-      })
-      .catch(()=>location.replace("forbidden.html"));
+      .catch(function () {
+        location.replace("forbidden.html");
+      });
   }
 
-  /* =====================================================================================
-     Load Posts
-     ===================================================================================== */
-  function loadPosts() {
-    setStatus("טוען פוסטים…");
+  function loadPosts(fromRefresh) {
+    if (fromRefresh === undefined || fromRefresh === null) fromRefresh = false;
+    setStatus(fromRefresh ? "מרענן פוסטים…" : "טוען פוסטים…", "info");
 
-    firebase.database().ref("posts")
+    firebase.database()
+      .ref("posts")
       .orderByChild("time")
       .limitToLast(300)
       .once("value")
-      .then(snap=>{
-        const list=[];
-        snap.forEach(p=>{
-          const v=p.val()||{};
-          list.push({
-            id:p.key,
-            title:v.title||"",
-            text:v.text||"",
-            author:v.author||"",
-            time:v.time||0
+      .then(function (snap) {
+        var items = [];
+
+        snap.forEach(function (pSnap) {
+          var p = pSnap.val() || {};
+          var postId = pSnap.key;
+
+          items.push({
+            id: postId,
+            title: safeText(p.title),
+            text: safeText(p.text),
+            author: safeText(p.author),
+            time: Number(p.time || 0),
+            likes: Number(p.likes || 0),
+            commentsCount: Number(p.commentsCount || 0)
           });
         });
 
-        list.sort((a,b)=>b.time-a.time);
-        postsCache=list;
-        renderPosts();
-        sessionStorage.setItem("cachedPosts",renderedHtml);
-        setStatus("פוסטים נטענו","ok");
+        items.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });
+
+        postsCacheData = items;
+
+        renderPostsFromCache();
+
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e2) { }
+
+        if (fromRefresh) {
+          setTimeout(function () {
+            isRefreshing = false;
+            if (indicator) indicator.style.display = "none";
+            setStatus("עודכן בהצלחה.", "ok");
+          }, 250);
+        } else {
+          setStatus("פוסטים נטענו.", "ok");
+        }
+      })
+      .catch(function () {
+        location.replace("forbidden.html");
       });
   }
 
-  function renderPosts(){
-    let html="";
-    for(const p of postsCache){
-      html+=`
-        <div class="post" data-id="${escapeHTML(p.id)}">
-          <h3>${escapeHTML(p.title)}</h3>
-          <p>${escapeHTML(p.text)}</p>
-          <small>מאת: ${escapeHTML(p.author)}</small>
-        </div>
-      `;
+  function renderPostsFromCache() {
+    var q = "";
+    var mode = "newest";
+
+    if (searchBox && typeof searchBox.value === "string") q = searchBox.value;
+    q = safeText(q).trim().toLowerCase();
+
+    if (sortMode && typeof sortMode.value === "string") mode = sortMode.value;
+    mode = safeText(mode) || "newest";
+
+    var list = postsCacheData.slice();
+
+    if (q) {
+      list = list.filter(function (p) {
+        var t = (p.title || "").toLowerCase();
+        var x = (p.text || "").toLowerCase();
+        var a = (p.author || "").toLowerCase();
+        return t.indexOf(q) !== -1 || x.indexOf(q) !== -1 || a.indexOf(q) !== -1;
+      });
     }
-    postsEl.innerHTML=html||"<p>אין פוסטים.</p>";
-    renderedHtml=html;
+
+    if (mode === "oldest") {
+      list.sort(function (a, b) { return (a.time || 0) - (b.time || 0); });
+    } else if (mode === "author") {
+      list.sort(function (a, b) { return (a.author || "").localeCompare(b.author || "", "he"); });
+    } else if (mode === "title") {
+      list.sort(function (a, b) { return (a.title || "").localeCompare(b.title || "", "he"); });
+    } else {
+      list.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });
+    }
+
+    var html = "";
+
+    if (!list.length) {
+      html = q ? "<p>לא נמצאו תוצאות לחיפוש.</p>" : "<p>אין עדיין פוסטים.</p>";
+    } else {
+      for (var i = 0; i < list.length; i++) {
+        html += buildPostCardHTML(list[i]);
+      }
+    }
+
+    postsEl.innerHTML = html;
+    renderedHtmlCache = html;
   }
 
-  /* =====================================================================================
-     Live Updates
-     ===================================================================================== */
-  function attachLive(){
-    if (window.__liveAttached) return;
-    window.__liveAttached=true;
+  function buildPostCardHTML(p) {
+    var title = escapeHTML(p.title || "");
+    var text = escapeHTML(p.text || "");
+    var author = escapeHTML(p.author || "");
+    var id = escapeHTML(p.id || "");
 
-    firebase.database().ref("posts").limitToLast(50)
-      .on("child_added",snap=>{
-        if(postsCache.some(p=>p.id===snap.key)) return;
-        const v=snap.val()||{};
-        postsCache.unshift({
-          id:snap.key,
-          title:v.title||"",
-          text:v.text||"",
-          author:v.author||"",
-          time:v.time||0
+    var timeStr = "";
+    if (p.time) {
+      try {
+        timeStr = new Date(p.time).toLocaleString("he-IL", {
+          hour: "2-digit",
+          minute: "2-digit",
+          day: "2-digit",
+          month: "2-digit"
         });
-        renderPosts();
+      } catch (e) {
+        timeStr = "";
+      }
+    }
+
+    return (
+      '\n      <div class="post" data-id="' + id + '">' +
+      '\n        <h3>' + title + '</h3>' +
+      '\n        <p>' + text + '</p>' +
+      '\n        <small>מאת: ' + author + '</small>' +
+      '\n        <small style="opacity:.75; margin-top:6px; display:block;">' + escapeHTML(timeStr) + '</small>' +
+      '\n      </div>\n    '
+    );
+  }
+
+  function bindPostNavigation(container) {
+    if (container.__navBound) return;
+    container.__navBound = true;
+
+    container.addEventListener("click", function (e) {
+      if (isRefreshing || pulling) return;
+
+      var postEl = null;
+      try { postEl = e.target.closest(".post"); } catch (err) { postEl = null; }
+      if (!postEl) return;
+
+      var id = postEl.getAttribute("data-id");
+      if (!id) return;
+
+      var now = Date.now();
+      if (now - lastNavAt < 350 && lastOpenId === id) return;
+
+      lastNavAt = now;
+      lastOpenId = id;
+
+      openPost(id, postEl);
+    }, false);
+  }
+
+  function openPost(postId, el) {
+    try {
+      var h3 = el.querySelector("h3");
+      var p = el.querySelector("p");
+      var s = el.querySelector("small");
+
+      var title = h3 ? (h3.innerText || "") : "";
+      var text = p ? (p.innerText || "") : "";
+      var author = "";
+      if (s) author = (s.innerText || "").replace("מאת:", "").trim();
+
+      sessionStorage.setItem("currentPost", JSON.stringify({
+        id: postId,
+        title: title || "",
+        text: text || "",
+        author: author || ""
+      }));
+    } catch (e) { }
+
+    location.href = "post.html?postId=" + encodeURIComponent(postId);
+  }
+
+  function openCreatePostModal() {
+    createPostErrorHide();
+    if (newPostTitle) newPostTitle.value = "";
+    if (newPostText) newPostText.value = "";
+
+    if (overlay) overlay.style.display = "flex";
+
+    setTimeout(function () {
+      try { if (newPostTitle) newPostTitle.focus(); } catch (e) { }
+    }, 50);
+  }
+
+  function closeCreatePostModal() {
+    createPostErrorHide();
+    if (overlay) overlay.style.display = "none";
+  }
+
+  function createPostErrorShow(msg) {
+    if (!createPostError) return;
+    createPostError.textContent = msg;
+    createPostError.style.display = "block";
+  }
+
+  function createPostErrorHide() {
+    if (!createPostError) return;
+    createPostError.textContent = "";
+    createPostError.style.display = "none";
+  }
+
+  function publishPost(title, text) {
+    if (!isAuthed || !uid) {
+      createPostErrorShow("אתה לא מאומת. נסה שוב.");
+      return;
+    }
+
+    var btn = submitPostBtn;
+    if (btn) btn.disabled = true;
+
+    var postObj = {
+      title: title,
+      text: text,
+      author: realUsername,
+      time: nowTs()
+    };
+
+    firebase.database()
+      .ref("posts")
+      .push(postObj)
+      .then(function (ref) {
+        closeCreatePostModal();
+        setStatus("הפוסט פורסם בהצלחה.", "ok");
+
+        var newItem = {
+          id: ref.key,
+          title: postObj.title,
+          text: postObj.text,
+          author: postObj.author,
+          time: postObj.time,
+          likes: 0,
+          commentsCount: 0
+        };
+
+        postsCacheData.unshift(newItem);
+
+        renderPostsFromCache();
+
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }
+
+        try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }
+      })
+      .catch(function () {
+        createPostErrorShow("שגיאה בפרסום. נסה שוב.");
+      })
+      .finally(function () {
+        if (btn) btn.disabled = false;
       });
   }
 
-  /* =====================================================================================
-     Start
-     ===================================================================================== */
-  waitForPayload();
+  function attachLivePostListeners() {
+    if (window.__postsLiveAttached) return;
+    window.__postsLiveAttached = true;
+
+    var ref = firebase.database().ref("posts").orderByChild("time").limitToLast(50);
+
+    ref.on("child_added", function (snap) {
+      var id = snap.key;
+      var v = snap.val() || {};
+
+      var item = {
+        id: id,
+        title: safeText(v.title),
+        text: safeText(v.text),
+        author: safeText(v.author),
+        time: Number(v.time || 0),
+        likes: Number(v.likes || 0),
+        commentsCount: Number(v.commentsCount || 0)
+      };
+
+      for (var i = 0; i < postsCacheData.length; i++) {
+        if (postsCacheData[i] && postsCacheData[i].id === id) return;
+      }
+
+      postsCacheData.unshift(item);
+
+      if (!isRefreshing) {
+        renderPostsFromCache();
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e5) { }
+      }
+    });
+
+    ref.on("child_changed", function (snap) {
+      var id = snap.key;
+      var v = snap.val() || {};
+
+      var idx = -1;
+      for (var i = 0; i < postsCacheData.length; i++) {
+        if (postsCacheData[i] && postsCacheData[i].id === id) { idx = i; break; }
+      }
+      if (idx === -1) return;
+
+      var prev = postsCacheData[idx] || {};
+
+      postsCacheData[idx] = {
+        id: id,
+        title: safeText(v.title),
+        text: safeText(v.text),
+        author: safeText(v.author),
+        time: Number(v.time || prev.time || 0),
+        likes: Number(v.likes || prev.likes || 0),
+        commentsCount: Number(v.commentsCount || prev.commentsCount || 0)
+      };
+
+      if (!isRefreshing) {
+        renderPostsFromCache();
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e6) { }
+      }
+    });
+  }
 
 });
 </script>
