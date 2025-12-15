@@ -9,22 +9,20 @@ const commentsBox = document.getElementById("comments");
 /* מניעת רינדור כפול */
 const renderedComments = new Set();
 
-/* מאזין Live לתגובות */
+/* מאזין Live לתגובות ראשיות */
 function listenComments() {
   if (!postId || !commentsBox) return;
 
-  firebase.database()
-    .ref("comments/" + postId)
-    .off(); // ביטחון: לא מאזין כפול
+  const ref = firebase.database().ref("comments/" + postId);
 
-  firebase.database()
-    .ref("comments/" + postId)
+  ref.off(); // ביטחון – אין מאזינים כפולים
+
+  ref
+    .orderByChild("time")
     .on("child_added", snap => {
       if (!snap.exists()) return;
 
       const commentId = snap.key;
-
-      // ⛔ לא מרנדרים פעמיים
       if (renderedComments.has(commentId)) return;
 
       renderedComments.add(commentId);
@@ -68,30 +66,30 @@ function renderComment(commentId, c) {
 
   commentsBox.appendChild(div);
 
-  updateReplyCount(commentId);
+  listenReplyCount(commentId);
 }
 
-/* ספירת תגובות (replies) */
-function updateReplyCount(commentId) {
-  firebase.database()
-    .ref("replies/" + postId + "/" + commentId)
-    .once("value")
-    .then(snap => {
-      const el = document.getElementById("rc-" + commentId);
-      if (!el) return;
+/* ===============================
+   ספירת replies – Live
+   =============================== */
+function listenReplyCount(commentId) {
+  const ref = firebase.database()
+    .ref("replies/" + postId + "/" + commentId);
 
-      const count = snap.numChildren();
+  ref.off();
 
-      if (count > 0) {
-        el.innerHTML = `${count} תגובות <span class="arrow">▾ הצג</span>`;
-        el.onclick = () => toggleReplies(commentId);
-      } else {
-        el.textContent = "אין תגובות";
-        el.onclick = null;
-      }
-    })
-    .catch(() => {
-      const el = document.getElementById("rc-" + commentId);
-      if (el) el.textContent = "שגיאה";
-    });
+  ref.on("value", snap => {
+    const el = document.getElementById("rc-" + commentId);
+    if (!el) return;
+
+    const count = snap.numChildren();
+
+    if (count > 0) {
+      el.innerHTML = `${count} תגובות <span class="arrow">▾ הצג</span>`;
+      el.onclick = () => toggleReplies(commentId);
+    } else {
+      el.textContent = "אין תגובות";
+      el.onclick = null;
+    }
+  });
 }
