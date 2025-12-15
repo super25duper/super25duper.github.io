@@ -112,24 +112,31 @@ function listenComments(){
   });
 }
 
-function renderComment(id,c){
- const time=new Date(c.time).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
- const div=document.createElement("div");
- div.className="comment";
- div.innerHTML=`
-  <div class="comment-meta">
-    <b>${c.author}</b><span>${time}</span>
-  </div>
-  <p>${c.text}</p>
-  <div class="comment-actions-line">
-    <button onclick="openReply('${id}')">השב</button>
-    <span class="reply-count" onclick="toggleReplies('${id}')">
-      ${(c.replyCount||0)} תגובות ▾
-    </span>
-  </div>
-  <div class="replies hidden" id="replies-${id}"></div>
- `;
- commentsBox.appendChild(div);
+function renderComment(id, c) {
+  const time = new Date(c.time).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
+
+  const div = document.createElement("div");
+  div.className = "comment";
+
+  div.innerHTML = `
+    <div class="comment-meta">
+      <span class="comment-author">${c.author}</span>
+      <span class="comment-time">${time}</span>
+    </div>
+
+    <p>${c.text}</p>
+
+    <div class="comment-actions-line">
+      <button onclick="openReply('${id}')">השב</button>
+      <span class="reply-count" onclick="toggleReplies('${id}')">
+        הצג תגובות ▾
+      </span>
+    </div>
+
+    <div class="replies hidden" id="replies-${id}"></div>
+  `;
+
+  commentsBox.appendChild(div);
 }
 
 /* ========= REPLIES ========= */
