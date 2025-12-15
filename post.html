@@ -1,18 +1,27 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>צפייה בפוסט</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>צפייה בפוסט</title>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="firebaseConfig.js"></script>
+<!-- 🚫 חסימה מיידית לדפדפן -->
+<script>
+(function(){
+  try{
+    if(!window.AppInventor){location.replace("forbidden.html")}
+  }catch(e){location.replace("forbidden.html")}
+})();
+</script>
 
-  <link rel="stylesheet" href="css/forum.css">
-  <link rel="stylesheet" href="css/post.css">
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="firebaseConfig.js"></script>
+
+<link rel="stylesheet" href="css/forum.css">
+<link rel="stylesheet" href="css/post.css">
 </head>
 
 <body>
@@ -28,188 +37,168 @@
     <div class="loader"></div>
   </div>
 
-  <!-- קומפוזר תגובה (מעל התגובות) -->
-  <div class="comment-composer hidden" id="composer">
-    <textarea id="commentText" placeholder="כתוב תגובה..."></textarea>
+  <!-- קומפוזר ראשי -->
+  <div id="mainComposer" class="composer hidden">
+    <textarea id="mainText" placeholder="כתוב תגובה..."></textarea>
     <div class="composer-actions">
-      <button id="sendComment">שלח</button>
-      <button id="cancelComment">ביטול</button>
+      <button onclick="sendMain()">שלח</button>
+      <button onclick="closeMain()">ביטול</button>
     </div>
   </div>
 
-  <button id="openComposer" class="add-comment-btn">
-    הוסף תגובה
-  </button>
+  <button id="openMain" class="add-comment-btn">הוסף תגובה</button>
 
   <!-- תגובות -->
   <section class="comments">
     <h3>תגובות</h3>
-    <div id="comments">
-      <div class="loader"></div>
-    </div>
+    <div id="comments"></div>
   </section>
 
 </main>
 
 <script>
-/* חסימה מיידית */
-(function () {
-  try {
-    if (!window.AppInventor) location.replace("forbidden.html");
-  } catch {
-    location.replace("forbidden.html");
-  }
-})();
+document.addEventListener("DOMContentLoaded",()=>{
 
-document.addEventListener("DOMContentLoaded", () => {
+let payload, uid, username;
+const postId = new URLSearchParams(location.search).get("postId");
+if(!postId) location.replace("forbidden.html");
 
-  let payload, currentUid, currentUserName;
-  const params = new URLSearchParams(location.search);
-  const postId = params.get("postId");
-  if (!postId) location.replace("forbidden.html");
+/* ========= AUTH ========= */
+function waitPayload(){
+  try{
+    const raw = window.AppInventor.getWebViewString();
+    if(!raw) return setTimeout(waitPayload,200);
+    payload = JSON.parse(raw);
+  }catch{return setTimeout(waitPayload,200)}
 
-  /* ========= AUTH ========= */
-  function waitForPayload() {
-    try {
-      const raw = window.AppInventor.getWebViewString();
-      if (!raw) return setTimeout(waitForPayload, 200);
-      payload = JSON.parse(raw);
-    } catch {
-      return setTimeout(waitForPayload, 200);
-    }
-
-    firebase.auth()
-      .signInWithEmailAndPassword(payload.email, payload.password)
-      .then(c => {
-        currentUid = c.user.uid;
-        return firebase.database().ref("sessions/"+currentUid+"/token").once("value");
-      })
-      .then(snap => {
-        if (!snap.exists() || snap.val() !== payload.token)
-          location.replace("forbidden.html");
-
-        return firebase.database().ref("users/"+currentUid+"/username").once("value");
-      })
-      .then(snap => {
-        currentUserName = snap.val() || "משתמש";
-        loadPost();
-        loadComments();
-        liveComments();
-      })
-      .catch(() => location.replace("forbidden.html"));
-  }
-
-  waitForPayload();
-
-  /* ========= POST ========= */
-  function loadPost() {
-    firebase.database().ref("posts/"+postId).once("value").then(snap => {
-      const p = snap.val();
-      document.getElementById("post").innerHTML = `
-        <div class="post">
-          <h3>${p.title}</h3>
-          <p>${p.text}</p>
-          <small>מאת: ${p.author}</small>
-        </div>`;
+  firebase.auth()
+    .signInWithEmailAndPassword(payload.email,payload.password)
+    .then(c=>{
+      uid=c.user.uid;
+      return firebase.database().ref("sessions/"+uid+"/token").once("value");
+    })
+    .then(s=>{
+      if(!s.exists()||s.val()!==payload.token) location.replace("forbidden.html");
+      return firebase.database().ref("users/"+uid+"/username").once("value");
+    })
+    .then(s=>{
+      username=s.val()||"משתמש";
+      loadPost();
+      listenComments();
     });
-  }
+}
+waitPayload();
 
-  /* ========= COMMENTS ========= */
-  const commentsEl = document.getElementById("comments");
-  const loaded = new Set();
+/* ========= POST ========= */
+function loadPost(){
+ firebase.database().ref("posts/"+postId).once("value").then(s=>{
+  const p=s.val();
+  post.innerHTML=`
+   <div class="post">
+    <h3>${p.title}</h3>
+    <p>${p.text}</p>
+    <small>מאת: ${p.author}</small>
+   </div>`;
+ });
+}
 
-  function loadComments() {
-    firebase.database().ref("comments/"+postId).once("value").then(snap => {
-      commentsEl.innerHTML = "";
-      snap.forEach(cSnap => renderComment(cSnap.key, cSnap.val()));
+/* ========= COMMENTS ========= */
+const commentsBox=document.getElementById("comments");
+
+function listenComments(){
+ firebase.database().ref("comments/"+postId)
+  .on("child_added",snap=>{
+    renderComment(snap.key,snap.val());
+  });
+}
+
+function renderComment(id,c){
+ const time=new Date(c.time).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
+ const div=document.createElement("div");
+ div.className="comment";
+ div.innerHTML=`
+  <div class="comment-meta">
+    <b>${c.author}</b><span>${time}</span>
+  </div>
+  <p>${c.text}</p>
+  <div class="comment-actions-line">
+    <button onclick="openReply('${id}')">השב</button>
+    <span class="reply-count" onclick="toggleReplies('${id}')">
+      ${(c.replyCount||0)} תגובות ▾
+    </span>
+  </div>
+  <div class="replies hidden" id="replies-${id}"></div>
+ `;
+ commentsBox.appendChild(div);
+}
+
+/* ========= REPLIES ========= */
+window.toggleReplies=(id)=>{
+ const box=document.getElementById("replies-"+id);
+ if(!box.classList.contains("hidden")){
+  box.classList.add("hidden");return;
+ }
+ box.classList.remove("hidden");
+ box.innerHTML="<div class='loader'></div>";
+
+ firebase.database().ref("replies/"+postId+"/"+id)
+  .once("value").then(s=>{
+    let h="";
+    s.forEach(r=>{
+      const t=new Date(r.val().time)
+        .toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
+      h+=`
+       <div class="reply">
+        <b>${r.val().author}</b>
+        <span>${t}</span>
+        <p>${r.val().text}</p>
+       </div>`;
     });
-  }
+    box.innerHTML=h||"<small>אין תגובות</small>";
+ });
+};
 
-  function liveComments() {
-    firebase.database()
-      .ref("comments/"+postId)
-      .limitToLast(1)
-      .on("child_added", snap => {
-        if (loaded.has(snap.key)) return;
-        renderComment(snap.key, snap.val(), true);
-      });
-  }
+/* ========= MAIN COMMENT ========= */
+openMain.onclick=()=>{
+ mainComposer.classList.remove("hidden");
+ setTimeout(()=>{
+  mainText.focus();
+  mainComposer.scrollIntoView({block:"center"});
+ },300);
+};
 
-  function renderComment(id, c, append=false) {
-    loaded.add(id);
+window.closeMain=()=>{
+ mainComposer.classList.add("hidden");
+ mainText.value="";
+};
 
-    const time = new Date(c.time).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
-    const div = document.createElement("div");
-    div.className = "comment";
-    div.innerHTML = `
-      <div class="comment-meta">
-        <span class="comment-author">${c.author}</span>
-        <span class="comment-time">${time}</span>
-      </div>
-      <p>${c.text}</p>
-      <div class="reply-toggle" onclick="toggleReplies('${id}')">
-        ${(c.replyCount||0)} תגובות ▾
-      </div>
-      <div class="replies hidden" id="replies-${id}"></div>
-    `;
-    append ? commentsEl.appendChild(div) : commentsEl.prepend(div);
-  }
+window.sendMain=()=>{
+ const text=mainText.value.trim();
+ if(!text) return;
+ firebase.database().ref("comments/"+postId).push({
+  text,author:username,time:Date.now(),replyCount:0
+ }).then(closeMain);
+};
 
-  window.toggleReplies = (id) => {
-    const box = document.getElementById("replies-"+id);
-    if (!box.classList.contains("hidden")) {
-      box.classList.add("hidden");
-      return;
-    }
-    box.classList.remove("hidden");
-    box.innerHTML = "<div class='loader'></div>";
+/* ========= REPLY ========= */
+window.openReply=(id)=>{
+ const box=document.getElementById("replies-"+id);
+ box.classList.remove("hidden");
+ box.innerHTML=`
+  <textarea id="r-${id}" placeholder="כתוב תגובה..."></textarea>
+  <button onclick="sendReply('${id}')">שלח</button>`;
+};
 
-    firebase.database().ref("comments/"+postId+"/"+id+"/replies")
-      .once("value")
-      .then(snap => {
-        let html = "";
-        snap.forEach(r => {
-          const d = new Date(r.val().time);
-          html += `
-            <div class="reply">
-              <span>${r.val().author}</span>
-              <small>${d.toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})}</small>
-              <p>${r.val().text}</p>
-            </div>`;
-        });
-        box.innerHTML = html || "<small>אין תגובות</small>";
-      });
-  };
-
-  /* ========= COMPOSER ========= */
-  const composer = document.getElementById("composer");
-  const textarea = document.getElementById("commentText");
-
-  document.getElementById("openComposer").onclick = () => {
-    composer.classList.remove("hidden");
-    textarea.focus();
-    setTimeout(()=>composer.scrollIntoView({block:"center"}),300);
-  };
-
-  document.getElementById("cancelComment").onclick = () => {
-    composer.classList.add("hidden");
-    textarea.value="";
-  };
-
-  document.getElementById("sendComment").onclick = () => {
-    const text = textarea.value.trim();
-    if (!text) return;
-
-    firebase.database().ref("comments/"+postId).push({
-      text,
-      author: currentUserName,
-      time: Date.now(),
-      replyCount: 0
-    }).then(()=>{
-      textarea.value="";
-      composer.classList.add("hidden");
-    });
-  };
+window.sendReply=(id)=>{
+ const t=document.getElementById("r-"+id).value.trim();
+ if(!t) return;
+ firebase.database().ref("replies/"+postId+"/"+id).push({
+  text:t,author:username,time:Date.now()
+ });
+ firebase.database().ref("comments/"+postId+"/"+id+"/replyCount")
+  .transaction(n=>(n||0)+1);
+ toggleReplies(id);
+};
 
 });
 </script>
