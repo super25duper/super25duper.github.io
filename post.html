@@ -158,10 +158,22 @@ document.addEventListener("DOMContentLoaded", function () {
   const textarea = document.getElementById("commentText");
 
   openBtn.onclick = () => {
-    box.classList.remove("hidden");
-    openBtn.style.display = "none";
-    setTimeout(() => textarea.focus(), 300);
-  };
+  box.classList.remove("hidden");
+  openBtn.style.display = "none";
+
+  setTimeout(() => {
+    textarea.focus();
+
+    // גלילה חכמה מעל המקלדת
+    setTimeout(() => {
+      textarea.scrollIntoView({
+        behavior: "smooth",
+        block: "end"
+      });
+    }, 300);
+
+  }, 200);
+};
 
   document.getElementById("cancelComment").onclick = () => {
     box.classList.add("hidden");
