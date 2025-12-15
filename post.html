@@ -131,10 +131,19 @@ function listenComments(){
 }
 
 function renderComment(id, c) {
-  const time = new Date(c.time).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
+  const time = new Date(c.time).toLocaleTimeString("he-IL", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  // ⬅️ כאן מחשבים צבע לפי המשתמש
+  const color = userColor(c.author);
 
   const div = document.createElement("div");
   div.className = "comment";
+
+  // ⬅️ כאן מזריקים את הצבע לקו הימני
+  div.style.borderRightColor = color;
 
   div.innerHTML = `
     <div class="comment-meta">
@@ -146,8 +155,8 @@ function renderComment(id, c) {
 
     <div class="comment-actions-line">
       <button onclick="openReply('${id}')">השב</button>
-      <span class="reply-count" onclick="toggleReplies('${id}')">
-        הצג תגובות ▾
+      <span class="reply-count" id="rc-${id}" onclick="toggleReplies('${id}')">
+        טוען תגובות…
       </span>
     </div>
 
@@ -155,8 +164,21 @@ function renderComment(id, c) {
   `;
 
   commentsBox.appendChild(div);
-}
 
+  // ⬅️ ספירת תגובות (לתיקון "0 תגובות")
+  firebase.database()
+    .ref("replies/" + postId + "/" + id)
+    .once("value")
+    .then(snap => {
+      const count = snap.numChildren();
+      const el = document.getElementById("rc-" + id);
+      if (!el) return;
+
+      el.innerHTML = count > 0
+        ? `${count} תגובות <span class="arrow">▾ הצג</span>`
+        : `אין תגובות`;
+    });
+}
 /* ========= REPLIES ========= */
 window.toggleReplies = (id) => {
   const box = document.getElementById("replies-" + id);
