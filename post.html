@@ -183,7 +183,6 @@ document.addEventListener("DOMContentLoaded", function () {
       .then((name) => {
         username = name || "משתמש";
 
-        /* ⬅️ טוענים פוסט רק אם לא הגיע מהזיכרון */
         if (!sessionStorage.getItem("currentPost")) {
           loadPost();
         }
@@ -195,9 +194,6 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  /* ===============================
-     3️⃣ אימות token
-     =============================== */
   function validateToken(uid, token) {
     return firebase.database()
       .ref("sessions/" + uid + "/token")
@@ -210,9 +206,6 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  /* ===============================
-     4️⃣ שליפת שם משתמש
-     =============================== */
   function fetchUsername(uid) {
     return firebase.database()
       .ref("users/" + uid + "/username")
@@ -220,9 +213,6 @@ document.addEventListener("DOMContentLoaded", function () {
       .then((snap) => snap.val());
   }
 
-  /* ===============================
-     5️⃣ טעינת פוסט מ־DB (fallback)
-     =============================== */
   function loadPost() {
     firebase.database()
       .ref("posts/" + postId)
@@ -240,15 +230,9 @@ document.addEventListener("DOMContentLoaded", function () {
             <small>מאת: ${escapeHTML(p.author || "")}</small>
           </div>
         `;
-      })
-      .catch(() => {
-        postContainer.innerHTML = "<p>שגיאה בטעינת הפוסט.</p>";
       });
   }
 
-  /* ===============================
-     6️⃣ טעינת תגובות
-     =============================== */
   function loadComments() {
     commentsBox.innerHTML = "<div class='loader'></div>";
 
@@ -265,45 +249,116 @@ document.addEventListener("DOMContentLoaded", function () {
 
         items.sort((a, b) => (b.time || 0) - (a.time || 0));
 
-        if (items.length === 0) {
-          commentsBox.innerHTML = "<p>אין תגובות עדיין.</p>";
-          return;
-        }
+        commentsBox.innerHTML = "";
 
-        let html = "";
-        for (const c of items) {
-          const color = userColor(c.author);
-          html += `
-            <div class="comment" style="border-right-color:${color}">
-              <div class="comment-meta">
-                <span class="comment-author">${escapeHTML(c.author || "")}</span>
-                <span class="comment-time">${escapeHTML(fmtTime(c.time))}</span>
-              </div>
-              <p>${escapeHTML(c.text || "")}</p>
-            </div>
-          `;
-        }
-
-        commentsBox.innerHTML = html;
-      })
-      .catch(() => {
-        commentsBox.innerHTML = "<p>שגיאה בטעינת תגובות.</p>";
+        items.forEach(c => renderComment(c.id, c));
       });
   }
 
-  /* ===============================
-     7️⃣ קומפוזר
-     =============================== */
+  function renderComment(id, c) {
+    const color = userColor(c.author);
+
+    const div = document.createElement("div");
+    div.className = "comment";
+    div.style.borderRightColor = color;
+
+    div.innerHTML = `
+      <div class="comment-meta">
+        <span class="comment-author">${escapeHTML(c.author)}</span>
+        <span class="comment-time">${fmtTime(c.time)}</span>
+      </div>
+      <p>${escapeHTML(c.text)}</p>
+
+      <!-- === START replies feature === -->
+      <div class="comment-actions">
+        <button onclick="openReply('${id}')">השב</button>
+        <span id="reply-count-${id}" onclick="toggleReplies('${id}')">טוען תגובות…</span>
+      </div>
+      <div class="replies hidden" id="replies-${id}"></div>
+      <!-- === END replies feature === -->
+    `;
+
+    commentsBox.appendChild(div);
+
+    updateReplyCount(id);
+  }
+
+  /* === START replies feature === */
+
+  window.updateReplyCount = function (id) {
+    firebase.database()
+      .ref("replies/" + postId + "/" + id)
+      .once("value")
+      .then(s => {
+        const el = document.getElementById("reply-count-" + id);
+        const count = s.numChildren();
+        el.textContent = count ? `${count} תגובות ▾` : "אין תגובות";
+      });
+  };
+
+  window.toggleReplies = function (id) {
+    const box = document.getElementById("replies-" + id);
+    if (!box.classList.contains("hidden")) {
+      box.classList.add("hidden");
+      return;
+    }
+
+    box.classList.remove("hidden");
+    box.innerHTML = "";
+
+    firebase.database()
+      .ref("replies/" + postId + "/" + id)
+      .once("value")
+      .then(s => {
+        s.forEach(r => {
+          const d = r.val();
+          box.innerHTML += `
+            <div class="reply">
+              <b>${escapeHTML(d.author)}</b>
+              <small>${fmtTime(d.time)}</small>
+              <p>${escapeHTML(d.text)}</p>
+            </div>
+          `;
+        });
+      });
+  };
+
+  window.openReply = function (id) {
+    const box = document.getElementById("replies-" + id);
+    box.classList.remove("hidden");
+    box.innerHTML = `
+      <textarea id="reply-text-${id}" placeholder="כתוב תגובה..."></textarea>
+      <button onclick="sendReply('${id}')">שלח</button>
+    `;
+  };
+
+  window.sendReply = function (id) {
+    const ta = document.getElementById("reply-text-" + id);
+    if (!ta.value.trim()) return;
+
+    firebase.database()
+      .ref("replies/" + postId + "/" + id)
+      .push({
+        text: ta.value,
+        author: username,
+        time: Date.now()
+      })
+      .then(() => {
+        updateReplyCount(id);
+        toggleReplies(id);
+      });
+  };
+
+  /* === END replies feature === */
+
+  openMainBtn.addEventListener("click", openMain);
+  closeMainBtn.addEventListener("click", closeMain);
+  sendMainBtn.addEventListener("click", sendMain);
+
   function openMain() {
     mainComposer.classList.remove("hidden");
     openMainBtn.style.display = "none";
-    setTimeout(() => {
-      mainText.focus();
-      mainComposer.scrollIntoView({ behavior: "smooth", block: "center" });
-      setTimeout(() => {
-        mainComposer.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 250);
-    }, 150);
+    mainText.focus();
   }
 
   function closeMain() {
@@ -313,32 +368,21 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function sendMain() {
-    const text = (mainText.value || "").trim();
-    if (!text) return;
-
-    sendMainBtn.disabled = true;
+    if (!mainText.value.trim()) return;
 
     firebase.database()
       .ref("comments/" + postId)
       .push({
-        text,
+        text: mainText.value,
         author: username,
         time: Date.now()
       })
       .then(() => {
         closeMain();
         loadComments();
-      })
-      .finally(() => {
-        sendMainBtn.disabled = false;
       });
   }
 
-  openMainBtn.addEventListener("click", openMain);
-  closeMainBtn.addEventListener("click", closeMain);
-  sendMainBtn.addEventListener("click", sendMain);
-
-  /* ▶️ התחלה */
   waitForPayload();
 });
 </script>
