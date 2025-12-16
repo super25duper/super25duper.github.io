@@ -3,27 +3,29 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Firebase Storage Upload (v12) - Deep Debug</title>
+  <title>Firebase Storage Upload (v12) - Full Deep Debug</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 920px; margin: 40px auto; padding: 0 16px; }
+    body { font-family: Arial, sans-serif; max-width: 980px; margin: 40px auto; padding: 0 16px; }
     button { padding: 10px 14px; cursor: pointer; margin-inline-end: 8px; margin-top: 8px; }
     button:disabled { opacity: .55; cursor: not-allowed; }
     progress { width: 100%; height: 18px; margin-top: 12px; display:none; }
-    .log { font-family: monospace; background:#111; color:#0f0; padding:10px; border-radius:10px; height: 320px; overflow:auto; white-space: pre-wrap; }
+    .log { font-family: monospace; background:#111; color:#0f0; padding:10px; border-radius:10px; height: 360px; overflow:auto; white-space: pre-wrap; }
     img { max-width: 100%; border-radius: 12px; margin-top: 12px; display:none; }
     a { word-break: break-all; }
     .muted { opacity:.8; font-size: 12px; }
     .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     label { user-select:none; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#eee; margin-inline-start:6px; font-size:12px; }
   </style>
 </head>
 <body>
 
-<h2>Firebase Storage (v12) — Deep Debug</h2>
+<h2>Firebase Storage (v12) — Full Deep Debug</h2>
 
 <div class="muted">
   <div><b>URL:</b> <span id="url"></span></div>
   <div><b>Origin:</b> <span id="origin"></span></div>
+  <div><b>protocol:</b> <span id="protocol"></span></div>
   <div><b>online:</b> <span id="online"></span></div>
 </div>
 
@@ -38,7 +40,8 @@
 
 <div class="row">
   <label><input type="checkbox" id="forceNonResumable"> לכפות העלאה לא-Resumable (uploadBytes)</label>
-  <label><input type="checkbox" id="traceNet" checked> להפעיל Network Trace (XHR)</label>
+  <label><input type="checkbox" id="traceNet" checked> Network Trace (XHR)</label>
+  <span class="pill" id="netTraceState">trace: on</span>
 </div>
 
 <progress id="progress" value="0" max="100"></progress>
@@ -68,6 +71,7 @@
   // ===== UI =====
   const urlEl = document.getElementById("url");
   const originEl = document.getElementById("origin");
+  const protocolEl = document.getElementById("protocol");
   const onlineEl = document.getElementById("online");
   const logEl = document.getElementById("log");
   const statusEl = document.getElementById("status");
@@ -83,9 +87,11 @@
   const previewEl = document.getElementById("preview");
   const forceNonResumableEl = document.getElementById("forceNonResumable");
   const traceNetEl = document.getElementById("traceNet");
+  const netTraceStateEl = document.getElementById("netTraceState");
 
   urlEl.textContent = location.href;
   originEl.textContent = location.origin;
+  protocolEl.textContent = location.protocol;
 
   function setOnlineText() { onlineEl.textContent = navigator.onLine ? "true" : "false"; }
   setOnlineText();
@@ -105,13 +111,13 @@
       code: e?.code,
       message: e?.message,
       customData: e?.customData || null,
-      stack: e?.stack ? String(e.stack).slice(0, 500) : null
+      stack: e?.stack ? String(e.stack).slice(0, 700) : null
     });
   }
 
-  // ===== XHR Trace (to catch "pending forever") =====
+  // ===== XHR Trace (catch status=0 / blocked) =====
   let xhrTraced = false;
-  function enableXHRTrace() {
+  function enableXHRTraceOnce() {
     if (xhrTraced) return;
     xhrTraced = true;
 
@@ -126,18 +132,18 @@
       const origOpen = xhr.open;
       xhr.open = function(method, url, ...rest) {
         _method = method;
-        _url = url;
+        _url = String(url);
         _start = Date.now();
 
-        if (traceNetEl.checked && (String(url).includes("firebasestorage") || String(url).includes("googleapis.com"))) {
-          log(`[NET] open ${method} ${url}`);
+        if (traceNetEl.checked && (_url.includes("firebasestorage") || _url.includes("googleapis.com"))) {
+          log(`[NET] open ${method} ${_url}`);
         }
         return origOpen.call(this, method, url, ...rest);
       };
 
       const origSend = xhr.send;
       xhr.send = function(body) {
-        // Give stuck requests a timeout so we get an event + log
+        // Force a timeout so we actually get an event instead of infinite pending
         try { xhr.timeout = 45000; } catch {}
 
         if (traceNetEl.checked && (_url.includes("firebasestorage") || _url.includes("googleapis.com"))) {
@@ -145,11 +151,31 @@
           log(`[NET] send ${_method} ${_url}` + (bodySize ? ` (bodySize=${bodySize})` : ""));
         }
 
+        const dumpResponseBits = (tag) => {
+          if (!traceNetEl.checked) return;
+          if (!(_url.includes("firebasestorage") || _url.includes("googleapis.com"))) return;
+          try {
+            const rt = xhr.responseText;
+            if (rt) log(`[NET] ${tag} responseText:`, rt.slice(0, 500));
+            else log(`[NET] ${tag} responseText: (empty)`);
+          } catch (e) {
+            log(`[NET] ${tag} responseText: (unavailable)`);
+          }
+          try {
+            const h = xhr.getAllResponseHeaders();
+            if (h) log(`[NET] ${tag} headers:`, h);
+            else log(`[NET] ${tag} headers: (none)`);
+          } catch (e) {
+            log(`[NET] ${tag} headers: (unavailable)`);
+          }
+        };
+
         xhr.addEventListener("load", () => {
           if (!traceNetEl.checked) return;
           if (!(_url.includes("firebasestorage") || _url.includes("googleapis.com"))) return;
           const ms = Date.now() - _start;
           log(`[NET] load status=${xhr.status} (${ms}ms) url=${_url}`);
+          dumpResponseBits("load");
         });
 
         xhr.addEventListener("error", () => {
@@ -157,7 +183,8 @@
           if (!(_url.includes("firebasestorage") || _url.includes("googleapis.com"))) return;
           const ms = Date.now() - _start;
           log(`[NET] error status=${xhr.status} (${ms}ms) url=${_url}`);
-          log(`[NET] hint: אם status=0 לרוב זה חסימת רשת/תוסף/Proxy/VPN או CORS/Blocked.`);
+          log(`[NET] hint: status=0 => הדפדפן לא קיבל תשובת HTTP (חסימת תוסף/Proxy/VPN/AV או CORS/Blocked).`);
+          dumpResponseBits("error");
         });
 
         xhr.addEventListener("timeout", () => {
@@ -165,6 +192,7 @@
           if (!(_url.includes("firebasestorage") || _url.includes("googleapis.com"))) return;
           const ms = Date.now() - _start;
           log(`[NET] timeout (${ms}ms) url=${_url}`);
+          dumpResponseBits("timeout");
         });
 
         xhr.addEventListener("abort", () => {
@@ -172,6 +200,7 @@
           if (!(_url.includes("firebasestorage") || _url.includes("googleapis.com"))) return;
           const ms = Date.now() - _start;
           log(`[NET] abort (${ms}ms) url=${_url}`);
+          dumpResponseBits("abort");
         });
 
         return origSend.call(this, body);
@@ -181,8 +210,12 @@
     };
   }
 
+  traceNetEl.addEventListener("change", () => {
+    netTraceStateEl.textContent = "trace: " + (traceNetEl.checked ? "on" : "off");
+    log("TRACE TOGGLED:", traceNetEl.checked);
+  });
+
   // ===== Firebase config =====
-  // (bucket format PROJECT_ID.firebasestorage.app is normal for new projects) 1
   const firebaseConfig = {
     apiKey: "AIzaSyBf-12UCoHpIMg81MWaer7DmtfVla95X9M",
     authDomain: "try-a-69b75.firebaseapp.com",
@@ -196,9 +229,11 @@
   // ===== Init =====
   log("START");
   log("protocol:", location.protocol);
-  if (location.protocol === "file:") log("WARNING: file:// + type=module עלול להיכשל. מומלץ https/http.");
+  if (location.protocol === "file:") {
+    log("WARNING: file:// + type=module עלול להיכשל. מומלץ https/http.");
+  }
 
-  enableXHRTrace();
+  enableXHRTraceOnce();
 
   const app = initializeApp(firebaseConfig);
   log("initializeApp OK");
@@ -214,6 +249,7 @@
   let file = null;
   let activeTask = null;
 
+  // Stall monitor (for "0% forever")
   let stallTimer = null;
   let lastProgressTs = Date.now();
 
@@ -227,7 +263,7 @@
     lastProgressTs = Date.now();
     stallTimer = setInterval(() => {
       const diff = Date.now() - lastProgressTs;
-      if (diff > 20000) { // 20s to reduce false positives
+      if (diff > 20000) {
         stopStallMonitor();
         onStall?.(diff);
       }
@@ -250,7 +286,7 @@
     writeProbeBtn.disabled = isBusy;
   }
 
-  // ===== Connectivity (READ) =====
+  // ===== READ checks =====
   async function runConnectivityChecks() {
     log("=== CONNECTIVITY CHECKS START ===");
 
@@ -280,7 +316,7 @@
     log("=== CONNECTIVITY CHECKS END ===");
   }
 
-  // ===== WRITE PROBE =====
+  // ===== WRITE probe (non-resumable) =====
   async function runWriteProbe() {
     log("=== WRITE PROBE START ===");
     setBusy(true);
@@ -293,7 +329,6 @@
     const path = `__probe__/write_${Date.now()}.txt`;
 
     try {
-      // use non-resumable for probe to isolate resumable path
       await uploadBytes(ref(storage, path), blob, { contentType: "text/plain" });
       log("WRITE PROBE RESULT: SUCCESS");
       statusEl.textContent = "בדיקת כתיבה הצליחה";
@@ -308,22 +343,25 @@
     }
   }
 
-  // ===== Upload helpers =====
-  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  // ===== Upload strategies =====
+  function uploadNonResumable(realFile, path) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        log("Non-resumable uploadBytes() to:", path);
+        statusEl.textContent = "מעלה (לא-Resumable)...";
+        progressEl.style.display = "block";
+        progressEl.value = 0;
 
-  async function uploadNonResumable(realFile, path) {
-    log("Non-resumable uploadBytes() to:", path);
-    statusEl.textContent = "מעלה (לא-Resumable)...";
-    progressEl.style.display = "block";
-    progressEl.value = 0;
+        const res = await uploadBytes(ref(storage, path), realFile, {
+          contentType: realFile.type || "application/octet-stream"
+        });
 
-    // no progress events in uploadBytes, so we just keep UI alive
-    const t0 = Date.now();
-    const res = await uploadBytes(ref(storage, path), realFile, { contentType: realFile.type || "application/octet-stream" });
-    log(`uploadBytes DONE (${Date.now() - t0}ms)`, { fullPath: res.ref.fullPath });
-
-    const url = await getDownloadURL(res.ref);
-    return url;
+        const url = await getDownloadURL(res.ref);
+        resolve(url);
+      } catch (e) {
+        reject(e);
+      }
+    });
   }
 
   function uploadResumableWithStall(realFile, path) {
@@ -370,26 +408,25 @@
     });
   }
 
-  async function uploadWithStrategy(realFile) {
+  async function uploadWithFallback(realFile) {
     setBusy(true);
     resetUI();
 
     const safeName = realFile.name.replace(/[^\w.\-]+/g, "_");
-    const basePath = `uploads/${Date.now()}_${safeName}`;
+    const path = `uploads/${Date.now()}_${safeName}`;
 
     try {
       let url;
 
       if (forceNonResumableEl.checked) {
-        url = await uploadNonResumable(realFile, basePath);
+        url = await uploadNonResumable(realFile, path);
       } else {
-        // Try resumable first, then fallback to non-resumable if it stalls
         try {
-          url = await uploadResumableWithStall(realFile, basePath);
+          url = await uploadResumableWithStall(realFile, path);
         } catch (e) {
           logError("Resumable failed:", e);
           log("FALLBACK: trying uploadBytes() (non-resumable)...");
-          url = await uploadNonResumable(realFile, basePath);
+          url = await uploadNonResumable(realFile, path);
         }
       }
 
@@ -439,9 +476,10 @@
 
   uploadBtn.addEventListener("click", async () => {
     if (!file) return;
-    await uploadWithStrategy(file);
+    await uploadWithFallback(file);
   });
 </script>
 
 </body>
 </html>
+```0
