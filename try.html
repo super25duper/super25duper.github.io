@@ -3,345 +3,383 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Firebase Storage Upload (v12) - Debug + Resilience</title>
+  <title>Firebase Storage Upload (v12) - Debug + Retry</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 820px; margin: 40px auto; padding: 0 16px; }
-    button { padding: 10px 14px; cursor: pointer; margin-inline-end: 8px; }
+    body { font-family: Arial, sans-serif; max-width: 880px; margin: 40px auto; padding: 0 16px; }
+    button { padding: 10px 14px; cursor: pointer; margin-inline-end: 8px; margin-top: 8px; }
     button:disabled { opacity: .55; cursor: not-allowed; }
-    progress { width: 100%; height: 18px; margin-top: 12px; }
-    .log { font-family: monospace; background:#111; color:#0f0; padding:10px; border-radius:10px; height: 260px; overflow:auto; white-space: pre-wrap; }
+    progress { width: 100%; height: 18px; margin-top: 12px; display:none; }
+    .log { font-family: monospace; background:#111; color:#0f0; padding:10px; border-radius:10px; height: 280px; overflow:auto; white-space: pre-wrap; }
     img { max-width: 100%; border-radius: 12px; margin-top: 12px; display:none; }
     a { word-break: break-all; }
-    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .muted { opacity:.8; font-size: 12px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   </style>
 </head>
 <body>
 
-  <h2>העלאת תמונה ל-Firebase Storage</h2>
+<h2>העלאת תמונה ל-Firebase Storage (v12) — Debug + Retry</h2>
 
-  <div class="muted">
-    <div><b>URL:</b> <span id="url"></span></div>
-    <div><b>Origin:</b> <span id="origin"></span></div>
-  </div>
+<div class="muted">
+  <div><b>URL:</b> <span id="url"></span></div>
+  <div><b>Origin:</b> <span id="origin"></span></div>
+  <div><b>online:</b> <span id="online"></span></div>
+</div>
 
-  <div class="row" style="margin-top:12px;">
-    <input id="fileInput" type="file" accept="image/*" />
-    <button id="uploadBtn" disabled>העלה</button>
-    <button id="cancelBtn" disabled>בטל</button>
-    <button id="checksBtn">בדיקת חיבור (Connectivity)</button>
-    <button id="clearBtn">נקה לוג</button>
-  </div>
+<div class="row" style="margin-top:12px;">
+  <input id="fileInput" type="file" accept="image/*" />
+  <button id="uploadBtn" disabled>העלה</button>
+  <button id="cancelBtn" disabled>בטל</button>
+  <button id="checksBtn">בדיקת חיבור (READ)</button>
+  <button id="writeProbeBtn">בדיקת כתיבה (WRITE)</button>
+  <button id="clearBtn">נקה לוג</button>
+</div>
 
-  <progress id="progress" value="0" max="100" style="display:none;"></progress>
-  <p id="status"></p>
+<progress id="progress" value="0" max="100"></progress>
+<p id="status"></p>
 
-  <p id="linkWrap" style="display:none;">
-    <b>קישור לתמונה:</b> <a id="fileUrl" href="#" target="_blank" rel="noopener">—</a>
-  </p>
+<p id="linkWrap" style="display:none;">
+  <b>קישור לתמונה:</b> <a id="fileUrl" href="#" target="_blank" rel="noopener">—</a>
+</p>
 
-  <img id="preview" alt="preview" />
+<img id="preview" alt="preview" />
 
-  <h3>לוגים</h3>
-  <div class="log" id="log"></div>
+<h3>לוגים</h3>
+<div class="log" id="log"></div>
 
-  <script type="module">
-    // ===== Firebase v12 imports =====
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
-    import {
-      getStorage,
-      ref,
-      uploadBytesResumable,
-      getDownloadURL,
-      listAll
-    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+  import {
+    getStorage,
+    ref,
+    uploadBytesResumable,
+    getDownloadURL,
+    listAll
+  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
 
-    // ===== UI =====
-    const urlEl = document.getElementById("url");
-    const originEl = document.getElementById("origin");
-    const logEl = document.getElementById("log");
-    const statusEl = document.getElementById("status");
-    const fileInput = document.getElementById("fileInput");
-    const uploadBtn = document.getElementById("uploadBtn");
-    const cancelBtn = document.getElementById("cancelBtn");
-    const checksBtn = document.getElementById("checksBtn");
-    const clearBtn = document.getElementById("clearBtn");
-    const progressEl = document.getElementById("progress");
-    const linkWrap = document.getElementById("linkWrap");
-    const fileUrlEl = document.getElementById("fileUrl");
-    const previewEl = document.getElementById("preview");
+  // ===== UI =====
+  const urlEl = document.getElementById("url");
+  const originEl = document.getElementById("origin");
+  const onlineEl = document.getElementById("online");
+  const logEl = document.getElementById("log");
+  const statusEl = document.getElementById("status");
+  const fileInput = document.getElementById("fileInput");
+  const uploadBtn = document.getElementById("uploadBtn");
+  const cancelBtn = document.getElementById("cancelBtn");
+  const checksBtn = document.getElementById("checksBtn");
+  const writeProbeBtn = document.getElementById("writeProbeBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const progressEl = document.getElementById("progress");
+  const linkWrap = document.getElementById("linkWrap");
+  const fileUrlEl = document.getElementById("fileUrl");
+  const previewEl = document.getElementById("preview");
 
-    urlEl.textContent = location.href;
-    originEl.textContent = location.origin;
+  urlEl.textContent = location.href;
+  originEl.textContent = location.origin;
 
-    function log(...args) {
-      const line = args.map(a => typeof a === "object" ? JSON.stringify(a, null, 2) : String(a)).join(" ");
-      console.log(...args);
-      logEl.textContent += line + "\n";
-      logEl.scrollTop = logEl.scrollHeight;
-    }
+  function setOnlineText() {
+    onlineEl.textContent = navigator.onLine ? "true" : "false";
+  }
+  setOnlineText();
+  addEventListener("online",  () => { setOnlineText(); log("EVENT: online=true"); });
+  addEventListener("offline", () => { setOnlineText(); log("EVENT: online=false"); });
 
-    function logError(label, e) {
-      log(label, {
-        name: e?.name,
-        code: e?.code,
-        message: e?.message,
-        customData: e?.customData || null,
-        stack: e?.stack ? String(e.stack).slice(0, 600) : null
-      });
-    }
+  function log(...args) {
+    const line = args.map(a => typeof a === "object" ? JSON.stringify(a, null, 2) : String(a)).join(" ");
+    console.log(...args);
+    logEl.textContent += line + "\n";
+    logEl.scrollTop = logEl.scrollHeight;
+  }
 
-    // ===== Initial environment logs =====
-    log("START");
-    log("protocol:", location.protocol);
-    if (location.protocol === "file:") {
-      log("WARNING: פתיחה דרך file:// עלולה לגרום לבעיות. מומלץ Live Server / http://localhost");
-    }
+  function logError(label, e) {
+    log(label, {
+      name: e?.name,
+      code: e?.code,
+      message: e?.message,
+      customData: e?.customData || null,
+      stack: e?.stack ? String(e.stack).slice(0, 500) : null
+    });
+  }
 
-    // ===== Firebase config (כמו אצלך) =====
-    const firebaseConfig = {
-      apiKey: "AIzaSyBf-12UCoHpIMg81MWaer7DmtfVla95X9M",
-      authDomain: "try-a-69b75.firebaseapp.com",
-      projectId: "try-a-69b75",
-      storageBucket: "try-a-69b75.firebasestorage.app",
-      messagingSenderId: "136796358688",
-      appId: "1:136796358688:web:f6d41df5505e26ec0b5445",
-      measurementId: "G-ST0TTENTGF"
-    };
+  // ===== Firebase config =====
+  const firebaseConfig = {
+    apiKey: "AIzaSyBf-12UCoHpIMg81MWaer7DmtfVla95X9M",
+    authDomain: "try-a-69b75.firebaseapp.com",
+    projectId: "try-a-69b75",
+    storageBucket: "try-a-69b75.firebasestorage.app",
+    messagingSenderId: "136796358688",
+    appId: "1:136796358688:web:f6d41df5505e26ec0b5445",
+    measurementId: "G-ST0TTENTGF"
+  };
 
-    // ===== Init Firebase =====
-    let app;
+  log("START");
+  log("protocol:", location.protocol);
+
+  const app = initializeApp(firebaseConfig);
+  log("initializeApp OK");
+
+  try { getAnalytics(app); log("getAnalytics OK (optional)"); }
+  catch (e) { log("getAnalytics FAILED (not critical)"); logError("analytics error:", e); }
+
+  const storage = getStorage(app);
+  log("getStorage OK, bucket:", storage?.app?.options?.storageBucket);
+  log("READY");
+
+  // ===== State =====
+  let file = null;
+  let activeTask = null;
+
+  // Stall monitor
+  let stallTimer = null;
+  let lastProgressTs = Date.now();
+
+  function stopStallMonitor() {
+    if (stallTimer) clearInterval(stallTimer);
+    stallTimer = null;
+  }
+
+  function startStallMonitor(onStall) {
+    stopStallMonitor();
+    lastProgressTs = Date.now();
+    stallTimer = setInterval(() => {
+      const diff = Date.now() - lastProgressTs;
+      if (diff > 12000) {
+        stopStallMonitor();
+        onStall?.(diff);
+      }
+    }, 1000);
+  }
+
+  function resetUI() {
+    linkWrap.style.display = "none";
+    previewEl.style.display = "none";
+    progressEl.style.display = "none";
+    progressEl.value = 0;
+    statusEl.textContent = "";
+  }
+
+  function setBusy(isBusy) {
+    uploadBtn.disabled = isBusy || !file;
+    cancelBtn.disabled = !isBusy;
+    fileInput.disabled = isBusy;
+    checksBtn.disabled = isBusy;
+    writeProbeBtn.disabled = isBusy;
+  }
+
+  function isRetryableCode(code) {
+    return [
+      "storage/network-request-failed",
+      "storage/retry-limit-exceeded",
+      "storage/unknown",
+      "stall-timeout"
+    ].includes(code);
+  }
+
+  function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  // ===== Connectivity (READ) =====
+  async function runConnectivityChecks() {
+    log("=== CONNECTIVITY CHECKS START ===");
     try {
-      app = initializeApp(firebaseConfig);
-      log("initializeApp OK");
+      const probePath = `__probe__/nope_${Date.now()}.txt`;
+      log("CHECK A: getDownloadURL probe path:", probePath);
+      await getDownloadURL(ref(storage, probePath));
+      log("CHECK A: getDownloadURL OK (unexpected but confirms connectivity)");
     } catch (e) {
-      logError("initializeApp FAILED:", e);
+      log("CHECK A: getDownloadURL failed (often expected).");
+      logError("CHECK A error:", e);
+      if (e?.code === "storage/object-not-found") log("CHECK A RESULT: CONNECTED (server answered: object-not-found)");
+      else log("CHECK A RESULT: code=", e?.code || "(no code)");
     }
 
-    // Analytics optional
     try {
-      getAnalytics(app);
-      log("getAnalytics OK (optional)");
+      const folder = "__probe__";
+      log("CHECK B: listAll folder:", folder);
+      const res = await listAll(ref(storage, folder));
+      log("CHECK B: listAll OK (server responded)");
+      log("CHECK B items:", res.items.map(i => i.fullPath));
+      log("CHECK B prefixes:", res.prefixes.map(p => p.fullPath));
     } catch (e) {
-      log("getAnalytics FAILED (not critical)");
-      logError("analytics error:", e);
+      log("CHECK B: listAll failed.");
+      logError("CHECK B error:", e);
     }
 
-    // ===== Init Storage =====
-    let storage;
+    log("=== CONNECTIVITY CHECKS END ===");
+  }
+
+  // ===== Connectivity (WRITE) =====
+  async function runWriteProbe() {
+    log("=== WRITE PROBE START ===");
+    setBusy(true);
+    resetUI();
+    progressEl.style.display = "block";
+    statusEl.textContent = "בודק כתיבה...";
+
+    const blob = new Blob([`write_probe_${Date.now()}`], { type: "text/plain" });
+    const path = `__probe__/write_${Date.now()}.txt`;
+    log("WRITE PROBE path:", path);
+
     try {
-      storage = getStorage(app);
-      log("getStorage OK, bucket:", storage?.app?.options?.storageBucket);
+      await uploadOnce(blob, path, "text/plain", { quiet: true });
+      log("WRITE PROBE RESULT: SUCCESS (write is allowed and works now)");
+      statusEl.textContent = "בדיקת כתיבה הצליחה";
     } catch (e) {
-      logError("getStorage FAILED:", e);
-    }
-
-    // ===== State =====
-    let file = null;
-    let activeTask = null;
-
-    // Stall monitor: detects "0% forever" and instructs what to check
-    let stallTimer = null;
-    let lastProgressTs = Date.now();
-
-    function startStallMonitor() {
+      log("WRITE PROBE RESULT: FAILED");
+      logError("WRITE PROBE error:", e);
+      statusEl.textContent = "בדיקת כתיבה נכשלה: " + (e?.message || e);
+    } finally {
+      setBusy(false);
       stopStallMonitor();
-      lastProgressTs = Date.now();
-      stallTimer = setInterval(() => {
-        const diff = Date.now() - lastProgressTs;
-        if (diff > 12000) {
-          log("STALL: אין התקדמות כבר", Math.round(diff / 1000), "שניות.");
-          log("HINT: פתח DevTools > Network וסנן firebasestorage. חפש 401/403/429 או pending/blocked.");
-          stopStallMonitor();
-        }
-      }, 1000);
-    }
-
-    function stopStallMonitor() {
-      if (stallTimer) clearInterval(stallTimer);
-      stallTimer = null;
-    }
-
-    function resetUIForNewSelection() {
-      linkWrap.style.display = "none";
-      previewEl.style.display = "none";
+      activeTask = null;
       progressEl.style.display = "none";
-      progressEl.value = 0;
-      statusEl.textContent = "";
+      log("=== WRITE PROBE END ===");
     }
+  }
 
-    function setUploadingUI(isUploading) {
-      uploadBtn.disabled = isUploading || !file;
-      cancelBtn.disabled = !isUploading;
-      fileInput.disabled = isUploading;
-      checksBtn.disabled = isUploading;
-    }
-
-    // ===== Connectivity checks =====
-    async function runConnectivityChecks() {
-      if (!storage) {
-        log("CHECKS: storage not initialized");
-        return;
-      }
-      log("=== CONNECTIVITY CHECKS START ===");
-
-      // A) getDownloadURL for a random non-existing object to force a server response
-      try {
-        const probePath = `__probe__/nope_${Date.now()}.txt`;
-        log("CHECK A: getDownloadURL probe path:", probePath);
-        await getDownloadURL(ref(storage, probePath));
-        log("CHECK A: getDownloadURL OK (unexpected but confirms connectivity)");
-      } catch (e) {
-        log("CHECK A: getDownloadURL failed (often expected).");
-        logError("CHECK A error:", e);
-
-        // Helpful interpretation
-        if (e?.code === "storage/object-not-found") log("CHECK A RESULT: CONNECTED (server answered: object-not-found)");
-        else if (e?.code === "storage/unauthorized" || e?.code === "storage/unauthenticated") log("CHECK A RESULT: CONNECTED but BLOCKED by rules/auth");
-        else if (e?.code === "storage/network-request-failed" || e?.code === "storage/retry-limit-exceeded") log("CHECK A RESULT: NETWORK issue / blocked / unstable connection");
-        else log("CHECK A RESULT: Unclassified:", e?.code || "(no code)");
-      }
-
-      // B) listAll a probe folder (also forces server interaction)
-      try {
-        const folder = "__probe__";
-        log("CHECK B: listAll folder:", folder);
-        const res = await listAll(ref(storage, folder));
-        log("CHECK B: listAll OK (server responded)");
-        log("CHECK B items:", res.items.map(i => i.fullPath));
-        log("CHECK B prefixes:", res.prefixes.map(p => p.fullPath));
-      } catch (e) {
-        log("CHECK B: listAll failed.");
-        logError("CHECK B error:", e);
-      }
-
-      log("=== CONNECTIVITY CHECKS END ===");
-    }
-
-    checksBtn.addEventListener("click", runConnectivityChecks);
-
-    clearBtn.addEventListener("click", () => {
-      logEl.textContent = "";
-      log("LOG CLEARED");
-    });
-
-    // ===== File selection =====
-    fileInput.addEventListener("change", () => {
-      file = fileInput.files?.[0] || null;
-      resetUIForNewSelection();
-
-      if (file) {
-        log("Selected file:", { name: file.name, size: file.size, type: file.type });
-        statusEl.textContent = "נבחר קובץ: " + file.name;
-      } else {
-        log("No file selected");
-      }
-
-      uploadBtn.disabled = !file;
-    });
-
-    // ===== Cancel current upload =====
-    cancelBtn.addEventListener("click", () => {
-      if (!activeTask) return;
-      log("Cancel requested");
-      try {
-        activeTask.cancel();
-      } catch (e) {
-        logError("Cancel failed:", e);
-      }
-    });
-
-    // ===== Upload with retry (manual) =====
-    async function startUpload() {
-      if (!storage) { log("UPLOAD: storage not initialized"); return; }
-      if (!file) return;
-
-      // Prevent multiple concurrent uploads
-      if (activeTask) {
-        log("UPLOAD BLOCKED: an upload is already running");
-        return;
-      }
-
-      const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-      const path = `uploads/${Date.now()}_${safeName}`;
-
-      log("Uploading to path:", path);
-
+  // ===== Core: single upload attempt (returns download URL) =====
+  function uploadOnce(fileOrBlob, path, contentType, { quiet = false } = {}) {
+    return new Promise((resolve, reject) => {
       const storageRef = ref(storage, path);
 
-      setUploadingUI(true);
-      progressEl.style.display = "block";
-      progressEl.value = 0;
-      statusEl.textContent = "מעלה...";
-
-      // Start task
-      activeTask = uploadBytesResumable(storageRef, file, {
-        contentType: file.type || "application/octet-stream"
+      activeTask = uploadBytesResumable(storageRef, fileOrBlob, {
+        contentType: contentType || "application/octet-stream"
       });
 
-      startStallMonitor();
+      if (!quiet) log("Uploading to path:", path);
+
+      startStallMonitor((diff) => {
+        // stall => cancel and reject with a synthetic code for retry logic
+        log("STALL:", Math.round(diff / 1000), "seconds without progress. Canceling...");
+        try { activeTask?.cancel(); } catch {}
+        reject({ code: "stall-timeout", message: "Upload stalled (no progress)" });
+      });
 
       activeTask.on("state_changed",
         (snap) => {
           lastProgressTs = Date.now();
           const p = snap.totalBytes ? (snap.bytesTransferred / snap.totalBytes) * 100 : 0;
+          if (!quiet) log("progress:", p.toFixed(1) + "%", "state:", snap.state);
           progressEl.value = p;
-          statusEl.textContent = `מעלה... ${p.toFixed(0)}%`;
-          log("progress:", p.toFixed(1) + "%", "state:", snap.state, "bytes:", snap.bytesTransferred + "/" + snap.totalBytes);
+          statusEl.textContent = quiet ? "בודק כתיבה..." : `מעלה... ${p.toFixed(0)}%`;
         },
-        async (errObj) => {
+        (errObj) => {
           stopStallMonitor();
-          setUploadingUI(false);
-
-          log("UPLOAD ERROR RAW:", errObj);
-          logError("UPLOAD ERROR:", errObj);
-
-          // Give hints by code
-          if (errObj?.code === "storage/network-request-failed" || errObj?.code === "storage/retry-limit-exceeded") {
-            log("HINT: זו בעיית רשת/חסימה. נסה Incognito ללא תוספים, או רשת אחרת. בדוק Network לשגיאות pending/blocked.");
-          } else if (errObj?.code === "storage/quota-exceeded") {
-            log("HINT: מכסת Storage/Traffic נגמרה (quota-exceeded). בדוק ב-Firebase/Google Cloud Billing.");
-          } else if (errObj?.code === "storage/unauthorized" || errObj?.code === "storage/unauthenticated") {
-            log("HINT: Rules/Auth חוסמים. בדוק Storage Rules והאם צריך התחברות (Auth).");
-          }
-
-          statusEl.textContent = "שגיאה: " + (errObj?.message || "Unknown error");
-          activeTask = null;
+          reject(errObj);
         },
         async () => {
           stopStallMonitor();
-          setUploadingUI(false);
-
-          log("Upload complete");
           try {
             const url = await getDownloadURL(activeTask.snapshot.ref);
-            log("Download URL:", url);
-
-            fileUrlEl.href = url;
-            fileUrlEl.textContent = url;
-            linkWrap.style.display = "block";
-
-            previewEl.src = url;
-            previewEl.style.display = "block";
-
-            statusEl.textContent = "העלאה הושלמה";
+            resolve(url);
           } catch (e) {
-            logError("getDownloadURL failed:", e);
-            statusEl.textContent = "הועלה אבל נכשל בקבלת URL";
-          } finally {
-            activeTask = null;
+            reject(e);
           }
         }
       );
+    });
+  }
+
+  // ===== Upload with retries =====
+  async function uploadWithRetry(realFile) {
+    setBusy(true);
+    resetUI();
+    progressEl.style.display = "block";
+    progressEl.value = 0;
+
+    const safeName = realFile.name.replace(/[^\w.\-]+/g, "_");
+    const basePath = `uploads/${Date.now()}_${safeName}`;
+
+    const maxAttempts = 4; // 1 + 3 retries
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const path = attempt === 1 ? basePath : basePath.replace("uploads/", `uploads/retry${attempt}_`);
+      log(`ATTEMPT ${attempt}/${maxAttempts}`);
+
+      try {
+        const url = await uploadOnce(realFile, path, realFile.type);
+        log("Upload complete");
+        log("Download URL:", url);
+
+        fileUrlEl.href = url;
+        fileUrlEl.textContent = url;
+        linkWrap.style.display = "block";
+
+        previewEl.src = url;
+        previewEl.style.display = "block";
+
+        statusEl.textContent = "העלאה הושלמה";
+        return; // success
+      } catch (e) {
+        const code = e?.code || "(no-code)";
+        logError(`ATTEMPT ${attempt} FAILED:`, e);
+
+        if (code === "storage/quota-exceeded") {
+          statusEl.textContent = "כשל: מכסה/Quota נגמרה (quota-exceeded)";
+          break;
+        }
+
+        if (code === "storage/unauthorized" || code === "storage/unauthenticated") {
+          statusEl.textContent = "כשל: הרשאות (Rules/Auth) חוסמות כתיבה";
+          break;
+        }
+
+        if (attempt === maxAttempts || !isRetryableCode(code)) {
+          statusEl.textContent = "כשל: " + (e?.message || code);
+          break;
+        }
+
+        // backoff
+        const delay = 800 * Math.pow(2, attempt - 1); // 0.8s, 1.6s, 3.2s...
+        log(`Retrying in ${delay}ms due to retryable error: ${code}`);
+        await sleep(delay);
+      } finally {
+        activeTask = null;
+      }
     }
 
-    uploadBtn.addEventListener("click", startUpload);
+    setBusy(false);
+  }
 
-    // Optional: quick sanity note
-    log("READY");
-    log("Tip: אם יש כישלונות רבים, לחץ 'בדיקת חיבור' ואז DevTools > Network וסנן firebasestorage.");
-  </script>
+  // ===== Events =====
+  checksBtn.addEventListener("click", runConnectivityChecks);
+  writeProbeBtn.addEventListener("click", runWriteProbe);
+
+  clearBtn.addEventListener("click", () => {
+    logEl.textContent = "";
+    log("LOG CLEARED");
+  });
+
+  fileInput.addEventListener("change", () => {
+    file = fileInput.files?.[0] || null;
+    resetUI();
+    uploadBtn.disabled = !file;
+
+    if (file) {
+      log("Selected file:", { name: file.name, size: file.size, type: file.type });
+      statusEl.textContent = "נבחר קובץ: " + file.name;
+    } else {
+      log("No file selected");
+    }
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    if (!activeTask) return;
+    log("Cancel requested");
+    try { activeTask.cancel(); } catch {}
+    setBusy(false);
+    stopStallMonitor();
+    statusEl.textContent = "בוטל";
+    activeTask = null;
+  });
+
+  uploadBtn.addEventListener("click", async () => {
+    if (!file) return;
+    await uploadWithRetry(file);
+    setBusy(false);
+  });
+</script>
+
 </body>
 </html>
-```0
