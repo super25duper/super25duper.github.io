@@ -1,1681 +1,1756 @@
-<!DOCTYPE html>
-<html lang="he">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>פורום מאובטח</title>
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="firebaseConfig.js"></script>
-
-  <link rel="stylesheet" href="css/forum.css">
-
-  <style>
-    /* NOTE: לפי הבקשה שלך – בלי ההנפשה ההיא */
-    /* אם תרצה אפקט עדין אחר בהמשך – נעשה, אבל כרגע "אפס אנימציות" */
-
-    /* =====================================================================================
-       Image support - minimal inlined safety styles (doesn't replace your css/forum.css)
-       ===================================================================================== */
-    .post-image-wrap {
-      margin-top: 10px;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid rgba(0,0,0,0.12);
-      background: rgba(0,0,0,0.03);
-    }
-    .post-image {
-      width: 100%;
-      height: auto;
-      display: block;
-      max-height: 360px;
-      object-fit: cover;
-      background: #fff;
-    }
-    .image-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(0,0,0,0.12);
-      background: rgba(0,0,0,0.03);
-      font-size: 12px;
-      opacity: 0.9;
-      user-select: none;
-    }
-    .image-actions-row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .img-btn {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(0,0,0,0.18);
-      background: #fff;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .img-btn-primary {
-      border: none;
-      background: rgb(17,17,87);
-      color: #fff;
-    }
-    .img-btn-danger {
-      border: 1px solid rgba(255,0,0,0.35);
-      background: rgba(255,0,0,0.06);
-      color: #8a0000;
-    }
-    .img-preview {
-      width: 100%;
-      border-radius: 12px;
-      border: 1px solid rgba(0,0,0,0.12);
-      overflow: hidden;
-      background: rgba(0,0,0,0.03);
-    }
-    .img-preview img {
-      width: 100%;
-      height: auto;
-      display: block;
-      max-height: 320px;
-      object-fit: cover;
-      background: #fff;
-    }
-    .progress-wrap {
-      width: 100%;
-      height: 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(0,0,0,0.12);
-      overflow: hidden;
-      background: rgba(0,0,0,0.04);
-    }
-    .progress-bar {
-      height: 100%;
-      width: 0%;
-      background: rgb(17,17,87);
-    }
-
-    /* Fullscreen image viewer overlay (no animation) */
-    #imageViewerOverlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.78);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      box-sizing: border-box;
-      z-index: 10000;
-    }
-    #imageViewerInner {
-      width: min(920px, 100%);
-      background: rgba(255,255,255,0.96);
-      border-radius: 16px;
-      padding: 12px;
-      box-sizing: border-box;
-    }
-    #imageViewerInner img {
-      width: 100%;
-      height: auto;
-      display: block;
-      border-radius: 14px;
-      background: #fff;
-      border: 1px solid rgba(0,0,0,0.12);
-      max-height: 78vh;
-      object-fit: contain;
-    }
-    #imageViewerTop {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-    #closeImageViewer {
-      border: none;
-      background: transparent;
-      font-size: 18px;
-      cursor: pointer;
-      padding: 8px 10px;
-      border-radius: 10px;
-    }
-  </style>
-</head>
-
-<body>
-
-<header class="top-bar">
-  <h1>פורום הבניידים!</h1>
-</header>
-
-<!-- Pull To Refresh indicator -->
-<div id="pull-indicator" style="
-  display:none;
-  text-align:center;
-  padding:6px;
-  user-select:none;
-">
-  <div class="loader"></div>
-</div>
-
-<!-- ======= TOP ACTIONS (New Post + Search + Sort) ======= -->
-<div id="top-actions" style="
-  max-width:900px;
-  margin:auto;
-  padding: 10px 20px 0 20px;
-  box-sizing:border-box;
-">
-  <div style="
-    display:flex;
-    gap:10px;
-    align-items:center;
-    justify-content:space-between;
-    flex-wrap:wrap;
-  ">
-    <button id="openCreatePost" type="button" style="
-      padding:10px 12px;
-      border-radius:10px;
-      border:none;
-      background: rgb(17,17,87);
-      color:#fff;
-      cursor:pointer;
-      font-weight:bold;
-    ">➕ צור פוסט</button>
-
-    <input id="searchBox" type="search" placeholder="חיפוש בפוסטים..."
-      style="
-        flex:1;
-        min-width:180px;
-        padding:10px 12px;
-        border-radius:10px;
-        border:1px solid rgba(0,0,0,0.15);
-        outline:none;
-        box-sizing:border-box;
-      "
-    />
-
-    <select id="sortMode" style="
-      padding:10px 12px;
-      border-radius:10px;
-      border:1px solid rgba(0,0,0,0.15);
-      outline:none;
-      background:#fff;
-      cursor:pointer;
-    ">
-      <option value="newest">מיון: החדשים למעלה</option>
-      <option value="oldest">מיון: הישנים למעלה</option>
-      <option value="author">מיון: לפי מחבר</option>
-      <option value="title">מיון: לפי כותרת</option>
-    </select>
-  </div>
-
-  <div id="statusBar" style="
-    margin-top:10px;
-    padding:8px 10px;
-    border-radius:10px;
-    background: rgba(0,0,0,0.04);
-    color:#111;
-    font-size:13px;
-    display:none;
-  "></div>
-</div>
-
-<main class="forum-container">
-  <div id="posts">
-    <div class="loader"></div>
-  </div>
-</main>
-
-<!-- ======= CREATE POST MODAL (UI ONLY, AUTH STILL REQUIRED) ======= -->
-<div id="createPostOverlay" style="
-  position:fixed;
-  inset:0;
-  background: rgba(0,0,0,0.45);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:16px;
-  box-sizing:border-box;
-  z-index:9999;
-">
-  <div id="createPostModal" style="
-    width:min(720px, 100%);
-    background:#fff;
-    border-radius:16px;
-    padding:16px;
-    box-sizing:border-box;
-  ">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-      <div style="font-weight:bold; font-size:18px;">יצירת פוסט חדש</div>
-      <button id="closeCreatePost" type="button" style="
-        border:none;
-        background:transparent;
-        font-size:18px;
-        cursor:pointer;
-      ">✕</button>
-    </div>
-
-    <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">
-      <input id="newPostTitle" type="text" placeholder="כותרת"
-        maxlength="80"
-        style="
-          padding:12px;
-          border-radius:12px;
-          border:1px solid rgba(0,0,0,0.18);
-          outline:none;
-          box-sizing:border-box;
-        "
-      />
-
-      <textarea id="newPostText" placeholder="תוכן הפוסט..."
-        rows="6"
-        maxlength="2000"
-        style="
-          padding:12px;
-          border-radius:12px;
-          border:1px solid rgba(0,0,0,0.18);
-          outline:none;
-          box-sizing:border-box;
-          resize:vertical;
-        "
-      ></textarea>
-
-      <!-- =====================================================================================
-           IMAGE UPLOAD UI (שדרוג מלא - לא פוגע בשיטה / לא מוריד שום פיצ'ר)
-           ===================================================================================== -->
-      <div id="newPostImageBlock" style="
-        border:1px solid rgba(0,0,0,0.10);
-        border-radius:14px;
-        padding:12px;
-        background: rgba(0,0,0,0.02);
-      ">
-        <div class="image-actions-row">
-          <div style="display:flex; flex-direction:column; gap:4px;">
-            <div style="font-weight:bold;">תמונה לפוסט (אופציונלי)</div>
-            <div id="newPostImageMeta" style="font-size:12px; opacity:.75;">
-              פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 6MB.
-            </div>
-          </div>
-
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button id="chooseImageBtn" type="button" class="img-btn img-btn-primary">בחר תמונה</button>
-            <button id="removeImageBtn" type="button" class="img-btn img-btn-danger" style="display:none;">הסר תמונה</button>
-          </div>
-        </div>
-
-        <input id="newPostImage" type="file" accept="image/*" style="display:none;" />
-
-        <div id="imagePreviewWrap" style="display:none; margin-top:12px;">
-          <div class="img-preview">
-            <img id="imagePreview" alt="תצוגה מקדימה" src="" />
-          </div>
-
-          <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-            <span id="imageChip" class="image-chip" style="display:none;">🖼️ תמונה מוכנה</span>
-            <span id="imageWarn" style="display:none; font-size:12px; color:#7a4b00; opacity:.95;"></span>
-          </div>
-
-          <div id="uploadProgressArea" style="display:none; margin-top:10px;">
-            <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-              <span style="font-size:12px; opacity:.75;">מעלה תמונה…</span>
-              <span id="uploadProgressText" style="font-size:12px; opacity:.75;">0%</span>
-            </div>
-            <div class="progress-wrap" style="margin-top:6px;">
-              <div id="uploadProgressBar" class="progress-bar"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-        <div id="newPostHint" style="font-size:12px; color:#444;">
-          טיפ: תכתוב ברור, ותשאיר מקום לתגובות.
-        </div>
-        <div style="display:flex; gap:10px;">
-          <button id="submitPost" type="button" style="
-            padding:10px 14px;
-            border-radius:12px;
-            border:none;
-            background: rgb(17,17,87);
-            color:#fff;
-            cursor:pointer;
-            font-weight:bold;
-          ">פרסם</button>
-          <button id="cancelPost" type="button" style="
-            padding:10px 14px;
-            border-radius:12px;
-            border:1px solid rgba(0,0,0,0.18);
-            background:#fff;
-            cursor:pointer;
-            font-weight:bold;
-          ">ביטול</button>
-        </div>
-      </div>
-
-      <div id="createPostError" style="
-        display:none;
-        padding:10px 12px;
-        border-radius:12px;
-        background: rgba(255,0,0,0.08);
-        color:#8a0000;
-        font-size:13px;
-      "></div>
-    </div>
-  </div>
-</div>
-
-<!-- =====================================================================================
-     FULLSCREEN IMAGE VIEWER (שדרוג UX - לא פוגע באבטחה)
-     ===================================================================================== -->
-<div id="imageViewerOverlay">
-  <div id="imageViewerInner">
-    <div id="imageViewerTop">
-      <div style="font-weight:bold;">תמונה</div>
-      <button id="closeImageViewer" type="button">✕</button>
-    </div>
-    <img id="imageViewerImg" alt="תמונה" src="" />
-    <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-      <button id="copyImageLinkBtn" type="button" class="img-btn">העתק קישור לתמונה</button>
-      <span id="imageViewerHint" style="font-size:12px; opacity:.75;">לחץ מחוץ לתיבה כדי לסגור</span>
-    </div>
-  </div>
-</div>
-
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-<script>
-alert("forum.js started");
-/* =========================================================================================
-   ⚠️ חשוב: אבטחה – לא נוגעים ולא משנים שיטה
-   1) חסימה מיידית – לא WebView => forbidden.html
-   2) payload מקודולר (email/password/token)
-   3) Firebase Auth
-   4) אימות token מול sessions/{uid}/token
-   רק אחרי זה: גישה לפוסטים/יצירה/רענון
-   ========================================================================================= */
-
-/* ===============================
-   חסימה מיידית – לא WebView
-   =============================== */
-(function () {
-  try {
-    if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {
-      location.replace("forbidden.html");
-      return;
-    }
-  } catch (e) {
-    location.replace("forbidden.html");
-    return;
-  }
-})();
-
-/* =========================================================================================
-   Cache (A) – תצוגה מיידית
-   ========================================================================================= */
-var cached = null;
-try {
-  cached = sessionStorage.getItem("cachedPosts");
-} catch (e1) {
-  cached = null;
-}
-if (cached) {
-  var postsHost = document.getElementById("posts");
-  if (postsHost) postsHost.innerHTML = cached;
-}
-
-/* =========================================================================================
-   Utilities
-   ========================================================================================= */
-function escapeHTML(str) {
-  if (str === undefined || str === null) str = "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function safeText(str) {
-  if (str === undefined || str === null) str = "";
-  return String(str);
-}
-
-/* =========================================================================================
-   Image URL safety (הקשחה קלה נגד ערכי URL מוזרים)
-   - לא משנה אבטחה אמיתית (היא ברולס), רק מונע XSS/הזרקות
-   ========================================================================================= */
-function sanitizeImageUrl(url) {
-  if (url === undefined || url === null) return "";
-  var u = safeText(url).trim();
-  if (!u) return "";
-  // allow only http(s)
-  if (u.indexOf("https://") === 0 || u.indexOf("http://") === 0) return u;
-  return "";
-}
-
-function sanitizeStoragePath(p) {
-  // === IMG FIX: path בלבד (לא URL). מאפשר אותיות/מספרים/סלאשים/נקודות/קוים/קו תחתון.
-  // אם מישהו מנסה להזריק משהו מוזר ל-data-path, ננטרל.
-  if (p === undefined || p === null) return "";
-  var s = safeText(p).trim();
-  if (!s) return "";
-  if (s.length > 500) return "";
-  if (!/^[A-Za-z0-9_\-\/.]+$/.test(s)) return "";
-  return s;
-}
-
-function isLikelyImageFile(file) {
-  try {
-    if (!file) return false;
-    var t = safeText(file.type || "").toLowerCase();
-    if (t.indexOf("image/") === 0) return true;
-    var n = safeText(file.name || "").toLowerCase();
-    if (n.indexOf(".jpg") > -1 || n.indexOf(".jpeg") > -1 || n.indexOf(".png") > -1 || n.indexOf(".webp") > -1) return true;
-    return false;
-  } catch (e) {
-    return false;
-  }
-}
-
-function bytesToHuman(n) {
-  try {
-    var x = Number(n || 0);
-    if (!x) return "0B";
-    if (x < 1024) return x + "B";
-    if (x < 1024 * 1024) return Math.round(x / 1024) + "KB";
-    return (Math.round((x / (1024 * 1024)) * 10) / 10) + "MB";
-  } catch (e) {
-    return "";
-  }
-}
-
-function copyToClipboard(text) {
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text);
-      return;
-    }
-  } catch (e) { }
-  try {
-    var ta = document.createElement("textarea");
-    ta.value = safeText(text);
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand("copy"); } catch (e2) { }
-    document.body.removeChild(ta);
-  } catch (e3) { }
-}
-
-/* ===============================
-   FIX: WebView compatibility helpers
-   =============================== */
-function dataURLToBlob(dataUrl) {
-  try {
-    var parts = safeText(dataUrl || "").split(",");
-    if (parts.length < 2) return null;
-    var meta = parts[0];
-    var b64 = parts[1];
-    var mime = "application/octet-stream";
-    var m = /data:([^;]+);base64/i.exec(meta);
-    if (m && m[1]) mime = m[1];
-    var bin = atob(b64);
-    var len = bin.length;
-    var arr = new Uint8Array(len);
-    for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
-    return new Blob([arr], { type: mime });
-  } catch (e) {
-    return null;
-  }
-}
-
-function openImageViewer(url) {
-  var overlay = document.getElementById("imageViewerOverlay");
-  var img = document.getElementById("imageViewerImg");
-  var copyBtn = document.getElementById("copyImageLinkBtn");
-  var closeBtn = document.getElementById("closeImageViewer");
-
-  if (!overlay || !img) return;
-
-  var safe = sanitizeImageUrl(url);
-  if (!safe) return;
-
-  img.setAttribute("src", safe);
-  overlay.style.display = "flex";
-
-  if (copyBtn && !copyBtn.__bound) {
-    copyBtn.__bound = true;
-    copyBtn.addEventListener("click", function () {
-      var src = img.getAttribute("src") || "";
-      if (src) copyToClipboard(src);
-    });
-  }
-
-  if (closeBtn && !closeBtn.__bound) {
-    closeBtn.__bound = true;
-    closeBtn.addEventListener("click", function () {
-      overlay.style.display = "none";
-      img.setAttribute("src", "");
-    });
-  }
-
-  if (!overlay.__bound) {
-    overlay.__bound = true;
-    overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) {
-        overlay.style.display = "none";
-        img.setAttribute("src", "");
-      }
-    });
-  }
-}
-
-function nowTs() {
-  return Date.now();
-}
-
-function setStatus(msg, type) {
-  if (type === undefined || type === null) type = "info";
-  var bar = document.getElementById("statusBar");
-  if (!bar) return;
-
-  if (!msg) {
-    bar.style.display = "none";
-    bar.textContent = "";
-    return;
-  }
-
-  bar.style.display = "block";
-  bar.textContent = msg;
-
-  if (type === "error") {
-    bar.style.background = "rgba(255,0,0,0.08)";
-    bar.style.color = "#8a0000";
-  } else if (type === "ok") {
-    bar.style.background = "rgba(0,128,0,0.08)";
-    bar.style.color = "#0b5a0b";
-  } else {
-    bar.style.background = "rgba(0,0,0,0.04)";
-    bar.style.color = "#111";
-  }
-}
-
-function debounce(fn, ms) {
-  var t = null;
-  return function () {
-    var args = arguments;
-    clearTimeout(t);
-    t = setTimeout(function () {
-      fn.apply(null, args);
-    }, ms);
-  };
-}
-
-/* =========================================================================================
-   Global State
-   ========================================================================================= */
-var payload = null;
-var uid = null;
-var isRefreshing = false;
-var isAuthed = false;
-
-var postsCacheData = [];
-var renderedHtmlCache = "";
-var lastNavAt = 0;
-var lastOpenId = "";
-var pullStartY = 0;
-var pulling = false;
-var didTriggerRefresh = false;
-var realUsername = "משתמש";
-
-/* =========================================================================================
-   Image state (שדרוג)
-   ========================================================================================= */
-var selectedImageFile = null;
-var selectedImagePreviewUrl = "";
-var selectedImagePreviewCanRevoke = false;
-var selectedImageDataUrl = ""; // FIX: יציב ב-WebView (DataURL)
-var isPublishingNow = false;
-
-/* =========================================================================================
-   DOM Ready
-   ========================================================================================= */
-document.addEventListener("DOMContentLoaded", function () {
-
-  /* ===============================
-     Elements
-     =============================== */
-  var postsEl = document.getElementById("posts");
-  var indicator = document.getElementById("pull-indicator");
-
-  var searchBox = document.getElementById("searchBox");
-  var sortMode = document.getElementById("sortMode");
-
-  var openCreatePostBtn = document.getElementById("openCreatePost");
-  var overlay = document.getElementById("createPostOverlay");
-  var closeCreatePostBtn = document.getElementById("closeCreatePost");
-  var cancelPostBtn = document.getElementById("cancelPost");
-  var submitPostBtn = document.getElementById("submitPost");
-  var newPostTitle = document.getElementById("newPostTitle");
-  var newPostText = document.getElementById("newPostText");
-  var createPostError = document.getElementById("createPostError");
-
-  /* ===============================
-     Image UI elements (שדרוג)
-     =============================== */
-  var newPostImage = document.getElementById("newPostImage");
-  var chooseImageBtn = document.getElementById("chooseImageBtn");
-  var removeImageBtn = document.getElementById("removeImageBtn");
-  var imagePreviewWrap = document.getElementById("imagePreviewWrap");
-  var imagePreview = document.getElementById("imagePreview");
-  var imageChip = document.getElementById("imageChip");
-  var imageWarn = document.getElementById("imageWarn");
-
-  var uploadProgressArea = document.getElementById("uploadProgressArea");
-  var uploadProgressText = document.getElementById("uploadProgressText");
-  var uploadProgressBar = document.getElementById("uploadProgressBar");
-  var newPostImageMeta = document.getElementById("newPostImageMeta");
-
-  if (!postsEl) {
-    location.replace("forbidden.html");
-    return;
-  }
-
-  /* =====================================================================================
-     Image viewer delegation (click image in post card)
-     ===================================================================================== */
-  if (!postsEl.__imgViewerBound) {
-    postsEl.__imgViewerBound = true;
-    postsEl.addEventListener("click", function (e) {
-      var img = null;
-      try { img = e.target.closest(".post-image"); } catch (errX) { img = null; }
-      if (!img) return;
-
-      var src = img.getAttribute("data-full") || img.getAttribute("src") || "";
-      src = sanitizeImageUrl(src);
-      if (!src) return;
-
-      openImageViewer(src);
-    }, false);
-  }
-
-  bindPostNavigation(postsEl);
-
-  if (searchBox) {
-    searchBox.addEventListener("input", debounce(function () {
-      renderPostsFromCache();
-      hydrateImagesInDom(); // === IMG FIX
-    }, 120));
-  }
-
-  if (sortMode) {
-    sortMode.addEventListener("change", function () {
-      renderPostsFromCache();
-      hydrateImagesInDom(); // === IMG FIX
-    });
-  }
-
-  /* =====================================================================================
-     Image choose/remove handlers (שדרוג מלא)
-     ===================================================================================== */
-  if (chooseImageBtn && newPostImage) {
-    chooseImageBtn.addEventListener("click", function () {
-      try {
-        newPostImage.value = "";
-        newPostImage.click();
-      } catch (eImg0) { }
-    });
-  }
-
-  if (removeImageBtn) {
-    removeImageBtn.addEventListener("click", function () {
-      clearSelectedImage(true);
-    });
-  }
-
-  if (newPostImage) {
-    newPostImage.addEventListener("change", function () {
-      try {
-        var f = (newPostImage.files && newPostImage.files[0]) ? newPostImage.files[0] : null;
-        if (!f) return;
-
-        if (!isLikelyImageFile(f)) {
-          createPostErrorShow("קובץ לא נתמך. בחר תמונה (JPG/PNG/WebP).");
-          clearSelectedImage(true);
-          return;
-        }
-
-        var MAX = 6 * 1024 * 1024; // 6MB
-        if (Number(f.size || 0) > MAX) {
-          createPostErrorShow("התמונה גדולה מדי (" + bytesToHuman(f.size) + "). מומלץ עד 6MB.");
-          clearSelectedImage(true);
-          return;
-        }
-
-        selectedImageFile = f;
-        selectedImageDataUrl = "";
-        if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }
-
-        try {
-          if (selectedImagePreviewUrl && selectedImagePreviewCanRevoke) {
-            try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv0) { }
-          }
-        } catch (eRv1) { }
-        selectedImagePreviewUrl = "";
-        selectedImagePreviewCanRevoke = false;
-
-        try {
-          var reader = new FileReader();
-          reader.onerror = function () {
-            createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב.");
-            clearSelectedImage(true);
-          };
-          reader.onload = function () {
-            try {
-              var dataUrl = safeText(reader.result || "");
-              if (!dataUrl || dataUrl.indexOf("data:") !== 0) {
-                createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב.");
-                clearSelectedImage(true);
-                return;
-              }
-
-              selectedImageDataUrl = dataUrl;
-              selectedImagePreviewUrl = dataUrl;
-              selectedImagePreviewCanRevoke = false;
-
-              if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);
-              if (imagePreviewWrap) imagePreviewWrap.style.display = "block";
-              if (removeImageBtn) removeImageBtn.style.display = "inline-block";
-              if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }
-              try {
-                if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";
-              } catch (eM) { }
-            } catch (eImg1) { }
-          };
-          reader.readAsDataURL(f);
-        } catch (eFR) {
-          createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב.");
-          clearSelectedImage(true);
-          return;
-        }
-
-      } catch (eImg2) { }
-    });
-  }
-
-  function clearSelectedImage(resetInput) {
-    try {
-      if (selectedImagePreviewUrl && selectedImagePreviewCanRevoke) {
-        try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv2) { }
-      }
-    } catch (eRv3) { }
-
-    selectedImageFile = null;
-    selectedImagePreviewUrl = "";
-    selectedImagePreviewCanRevoke = false;
-    selectedImageDataUrl = "";
-
-    try {
-      if (imagePreview) imagePreview.setAttribute("src", "");
-      if (imagePreviewWrap) imagePreviewWrap.style.display = "none";
-      if (removeImageBtn) removeImageBtn.style.display = "none";
-      if (imageChip) imageChip.style.display = "none";
-      if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }
-
-      if (uploadProgressArea) uploadProgressArea.style.display = "none";
-      if (uploadProgressText) uploadProgressText.textContent = "0%";
-      if (uploadProgressBar) uploadProgressBar.style.width = "0%";
-
-      if (resetInput && newPostImage) newPostImage.value = "";
-
-      if (newPostImageMeta) newPostImageMeta.textContent = "פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 6MB.";
-    } catch (eImg3) { }
-  }
-
-  if (openCreatePostBtn) {
-    openCreatePostBtn.addEventListener("click", function () {
-      if (!isAuthed) {
-        setStatus("עוד לא אומתת מול השרת. חכה שנייה ואז נסה שוב.", "error");
-        return;
-      }
-      openCreatePostModal();
-    });
-  }
-
-  if (closeCreatePostBtn) closeCreatePostBtn.addEventListener("click", closeCreatePostModal);
-  if (cancelPostBtn) cancelPostBtn.addEventListener("click", closeCreatePostModal);
-
-  if (overlay) {
-    overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) closeCreatePostModal();
-    });
-  }
-
-  if (submitPostBtn) {
-    submitPostBtn.addEventListener("click", function () {
-      createPostErrorHide();
-
-      if (!isAuthed) {
-        createPostErrorShow("אתה לא מאומת עדיין. נסה שוב עוד רגע.");
-        return;
-      }
-
-      if (isPublishingNow) return;
-
-      var t1 = "";
-      var t2 = "";
-      if (newPostTitle && typeof newPostTitle.value === "string") t1 = newPostTitle.value;
-      if (newPostText && typeof newPostText.value === "string") t2 = newPostText.value;
-
-      var title = safeText(t1).trim();
-      var text = safeText(t2).trim();
-
-      if (title.length < 3) {
-        createPostErrorShow("כותרת קצרה מדי. מינימום 3 תווים.");
-        return;
-      }
-      if (text.length < 3) {
-        createPostErrorShow("תוכן קצר מדי. מינימום 3 תווים.");
-        return;
-      }
-
-      if (selectedImageFile) {
-        if (!isLikelyImageFile(selectedImageFile)) {
-          createPostErrorShow("התמונה שנבחרה לא תקינה. בחר תמונה מחדש.");
-          clearSelectedImage(true);
-          return;
-        }
-        var MAX2 = 6 * 1024 * 1024;
-        if (Number(selectedImageFile.size || 0) > MAX2) {
-          createPostErrorShow("התמונה גדולה מדי. בחר תמונה קטנה יותר.");
-          return;
-        }
-      }
-
-      publishPost(title, text);
-    });
-  }
-
-  /* =====================================================================================
-     4) Pull To Refresh – נשמר בדיוק
-     ===================================================================================== */
-  document.addEventListener("touchstart", function (e) {
-    try {
-      if (window.scrollY === 0 && !isRefreshing) {
-        pullStartY = e.touches[0].clientY;
-        pulling = true;
-        didTriggerRefresh = false;
-      }
-    } catch (err1) { }
-  }, { passive: true });
-
-  document.addEventListener("touchmove", function (e) {
-    if (!pulling || isRefreshing) return;
-
-    var diff = e.touches[0].clientY - pullStartY;
-    if (diff <= 0) return;
-
-    if (indicator) indicator.style.display = "block";
-
-    var THRESHOLD = 90;
-    if (diff > THRESHOLD && !didTriggerRefresh) {
-      didTriggerRefresh = true;
-      pulling = false;
-      isRefreshing = true;
-
-      try { sessionStorage.removeItem("cachedPosts"); } catch (err2) { }
-
-      loadPosts(true);
-    }
-  }, { passive: true });
-
-  document.addEventListener("touchend", function () {
-    pulling = false;
-    if (!isRefreshing && indicator) indicator.style.display = "none";
-  }, { passive: true });
-
-  /* =====================================================================================
-     5) Start Auth Flow
-     ===================================================================================== */
-  waitForPayload();
-
-  function waitForPayload() {
-    var raw = "";
-    try {
-      raw = window.AppInventor.getWebViewString();
-      if (!raw) {
-        setTimeout(waitForPayload, 200);
-        return;
-      }
-      payload = JSON.parse(raw);
-    } catch (e) {
-      setTimeout(waitForPayload, 200);
-      return;
-    }
-
-    loginToFirebase(payload);
-  }
-
-  function loginToFirebase(data) {
-    if (!data || !data.email || !data.password || !data.token) {
-      location.replace("forbidden.html");
-      return;
-    }
-
-    firebase.auth()
-      .signInWithEmailAndPassword(data.email, data.password)
-      .then(function (c) {
-        validateToken(c.user.uid, data.token);
-      })
-      .catch(function () {
-        location.replace("forbidden.html");
-      });
-  }
-
-  function validateToken(userId, token) {
-    firebase.database()
-      .ref("sessions/" + userId + "/token")
-      .once("value")
-      .then(function (snap) {
-        if (!snap.exists() || snap.val() !== token) {
-          location.replace("forbidden.html");
-          return;
-        }
-
-        uid = userId;
-        isAuthed = true;
-
-        // === IMG FIX: מגדילים Retry times ל-Storage (מינימלי, לא נוגע באבטחה)
-        try {
-          firebase.storage().setMaxUploadRetryTime(120000);
-          firebase.storage().setMaxOperationRetryTime(120000);
-        } catch (eStor) { }
-
-        firebase.database()
-          .ref("users/" + uid + "/username")
-          .once("value")
-          .then(function (uSnap) {
-            realUsername = uSnap.val() || "משתמש";
-            setStatus("מחובר כ־" + realUsername, "ok");
-
-            loadPosts(false);
-            attachLivePostListeners();
-          })
-          .catch(function () {
-            realUsername = "משתמש";
-            setStatus("מחובר", "ok");
-            loadPosts(false);
-            attachLivePostListeners();
-          });
-      })
-      .catch(function () {
-        location.replace("forbidden.html");
-      });
-  }
-
-  function loadPosts(fromRefresh) {
-    if (fromRefresh === undefined || fromRefresh === null) fromRefresh = false;
-    setStatus(fromRefresh ? "מרענן פוסטים…" : "טוען פוסטים…", "info");
-
-    firebase.database()
-      .ref("posts")
-      .orderByChild("time")
-      .limitToLast(300)
-      .once("value")
-      .then(function (snap) {
-        var items = [];
-
-        snap.forEach(function (pSnap) {
-          var p = pSnap.val() || {};
-          var postId = pSnap.key;
-
-          // === IMG FIX: תומכים גם ב-imageUrl ישן וגם ב-imagePath חדש
-          var imgUrl = sanitizeImageUrl(p.image || "");
-          var imgPath = sanitizeStoragePath(p.imagePath || "");
-
-          items.push({
-            id: postId,
-            title: safeText(p.title),
-            text: safeText(p.text),
-            author: safeText(p.author),
-            time: Number(p.time || 0),
-            likes: Number(p.likes || 0),
-            commentsCount: Number(p.commentsCount || 0),
-            image: imgUrl,
-            imagePath: imgPath
-          });
-        });
-
-        items.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });
-
-        postsCacheData = items;
-
-        renderPostsFromCache();
-        hydrateImagesInDom(); // === IMG FIX
-
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e2) { }
-
-        if (fromRefresh) {
-          setTimeout(function () {
-            isRefreshing = false;
-            if (indicator) indicator.style.display = "none";
-            setStatus("עודכן בהצלחה.", "ok");
-          }, 250);
-        } else {
-          setStatus("פוסטים נטענו.", "ok");
-        }
-      })
-      .catch(function () {
-        location.replace("forbidden.html");
-      });
-  }
-
-  function renderPostsFromCache() {
-    var q = "";
-    var mode = "newest";
-
-    if (searchBox && typeof searchBox.value === "string") q = searchBox.value;
-    q = safeText(q).trim().toLowerCase();
-
-    if (sortMode && typeof sortMode.value === "string") mode = sortMode.value;
-    mode = safeText(mode) || "newest";
-
-    var list = postsCacheData.slice();
-
-    if (q) {
-      list = list.filter(function (p) {
-        var t = (p.title || "").toLowerCase();
-        var x = (p.text || "").toLowerCase();
-        var a = (p.author || "").toLowerCase();
-        var im = (p.image || "").toLowerCase();
-        var ip = (p.imagePath || "").toLowerCase();
-        var hasImg = (im || ip) ? "תמונה" : "";
-        return t.indexOf(q) !== -1 || x.indexOf(q) !== -1 || a.indexOf(q) !== -1 || hasImg.indexOf(q) !== -1;
-      });
-    }
-
-    if (mode === "oldest") {
-      list.sort(function (a, b) { return (a.time || 0) - (b.time || 0); });
-    } else if (mode === "author") {
-      list.sort(function (a, b) { return (a.author || "").localeCompare(b.author || "", "he"); });
-    } else if (mode === "title") {
-      list.sort(function (a, b) { return (a.title || "").localeCompare(b.title || "", "he"); });
-    } else {
-      list.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });
-    }
-
-    var html = "";
-
-    if (!list.length) {
-      html = q ? "<p>לא נמצאו תוצאות לחיפוש.</p>" : "<p>אין עדיין פוסטים.</p>";
-    } else {
-      for (var i = 0; i < list.length; i++) {
-        html += buildPostCardHTML(list[i]);
-      }
-    }
-
-    postsEl.innerHTML = html;
-    renderedHtmlCache = html;
-  }
-
-  function buildPostCardHTML(p) {
-    var title = escapeHTML(p.title || "");
-    var text = escapeHTML(p.text || "");
-    var author = escapeHTML(p.author || "");
-    var id = escapeHTML(p.id || "");
-
-    var timeStr = "";
-    if (p.time) {
-      try {
-        timeStr = new Date(p.time).toLocaleString("he-IL", {
-          hour: "2-digit",
-          minute: "2-digit",
-          day: "2-digit",
-          month: "2-digit"
-        });
-      } catch (e) {
-        timeStr = "";
-      }
-    }
-
-    // === IMG FIX:
-    // אם יש image (URL ישן) -> מציג כרגיל.
-    // אם יש imagePath (חדש) -> מציג <img> בלי src, עם data-path, ואחר כך hydrateImagesInDom יטען את ה-URL.
-    var imgHtml = "";
-    var imgUrl = sanitizeImageUrl(p.image || "");
-    var imgPath = sanitizeStoragePath(p.imagePath || "");
-
-    if (imgUrl) {
-      var escUrl = escapeHTML(imgUrl);
-      imgHtml =
-        '\n        <div class="post-image-wrap">' +
-        '\n          <img class="post-image" src="' + escUrl + '" data-full="' + escUrl + '" alt="תמונה לפוסט" onerror="this.style.display=\\\'none\\\';" />' +
-        '\n        </div>';
-    } else if (imgPath) {
-      var escPath = escapeHTML(imgPath);
-      imgHtml =
-        '\n        <div class="post-image-wrap">' +
-        '\n          <img class="post-image" data-path="' + escPath + '" src="" alt="תמונה לפוסט" style="display:none;" />' +
-        '\n        </div>';
-    }
-
-    return (
-      '\n      <div class="post" data-id="' + id + '">' +
-      '\n        <h3>' + title + '</h3>' +
-      '\n        <p>' + text + '</p>' +
-      imgHtml +
-      '\n        <small>מאת: ' + author + '</small>' +
-      '\n        <small style="opacity:.75; margin-top:6px; display:block;">' + escapeHTML(timeStr) + '</small>' +
-      '\n      </div>\n    '
-    );
-  }
-
-  function bindPostNavigation(container) {
-    if (container.__navBound) return;
-    container.__navBound = true;
-
-    container.addEventListener("click", function (e) {
-      if (isRefreshing || pulling) return;
-
-      var postEl = null;
-      try { postEl = e.target.closest(".post"); } catch (err) { postEl = null; }
-      if (!postEl) return;
-
-      // אם לחצו על תמונה - אל תנווט, זה פותח viewer
-      try {
-        var inImg = e.target && (e.target.classList && e.target.classList.contains("post-image"));
-        if (inImg) return;
-      } catch (eN) { }
-
-      var id = postEl.getAttribute("data-id");
-      if (!id) return;
-
-      var now = Date.now();
-      if (now - lastNavAt < 350 && lastOpenId === id) return;
-
-      lastNavAt = now;
-      lastOpenId = id;
-
-      openPost(id, postEl);
-    }, false);
-  }
-
-  function openPost(postId, el) {
-    try {
-      var h3 = el.querySelector("h3");
-      var p = el.querySelector("p");
-      var s = el.querySelector("small");
-      var img = el.querySelector("img");
-
-      var title = h3 ? (h3.innerText || "") : "";
-      var text = p ? (p.innerText || "") : "";
-      var author = "";
-      if (s) author = (s.innerText || "").replace("מאת:", "").trim();
-
-      var imageUrl = "";
-      var imagePath = "";
-
-      if (img) {
-        imageUrl = sanitizeImageUrl(img.getAttribute("src") || "");
-        imagePath = sanitizeStoragePath(img.getAttribute("data-path") || "");
-      }
-
-      sessionStorage.setItem("currentPost", JSON.stringify({
-        id: postId,
-        title: title || "",
-        text: text || "",
-        author: author || "",
-        image: imageUrl || "",
-        imagePath: imagePath || ""
-      }));
-    } catch (e) { }
-
-    location.href = "post.html?postId=" + encodeURIComponent(postId);
-  }
-
-  function openCreatePostModal() {
-    createPostErrorHide();
-    if (newPostTitle) newPostTitle.value = "";
-    if (newPostText) newPostText.value = "";
-
-    clearSelectedImage(true);
-    isPublishingNow = false;
-
-    if (overlay) overlay.style.display = "flex";
-
-    setTimeout(function () {
-      try { if (newPostTitle) newPostTitle.focus(); } catch (e) { }
-    }, 50);
-  }
-
-  function closeCreatePostModal() {
-    createPostErrorHide();
-    if (overlay) overlay.style.display = "none";
-
-    clearSelectedImage(true);
-    isPublishingNow = false;
-  }
-
-  function createPostErrorShow(msg) {
-    if (!createPostError) return;
-    createPostError.textContent = msg;
-    createPostError.style.display = "block";
-  }
-
-  function createPostErrorHide() {
-    if (!createPostError) return;
-    createPostError.textContent = "";
-    createPostError.style.display = "none";
-  }
-
-  function setUploadProgress(pct) {
-    try {
-      var x = Math.max(0, Math.min(100, Number(pct || 0)));
-      if (uploadProgressArea) uploadProgressArea.style.display = "block";
-      if (uploadProgressText) uploadProgressText.textContent = x + "%";
-      if (uploadProgressBar) uploadProgressBar.style.width = x + "%";
-    } catch (e) { }
-  }
-
-  // === IMG FIX: טוען תמונות לפי data-path אחרי render
-  function hydrateImagesInDom() {
-    try {
-      if (!isAuthed) return;
-      if (!postsEl) return;
-
-      var imgs = postsEl.querySelectorAll("img.post-image[data-path]");
-      if (!imgs || !imgs.length) return;
-
-      for (var i = 0; i < imgs.length; i++) {
-        (function (imgEl) {
-          try {
-            if (!imgEl || imgEl.__hydrating) return;
-            if (imgEl.getAttribute("src")) return; // כבר נטען
-
-            var path = sanitizeStoragePath(imgEl.getAttribute("data-path") || "");
-            if (!path) return;
-
-            imgEl.__hydrating = true;
-
-            firebase.storage().ref(path).getDownloadURL()
-              .then(function (url) {
-                url = sanitizeImageUrl(url || "");
-                if (!url) throw "bad_url";
-                imgEl.setAttribute("src", url);
-                imgEl.setAttribute("data-full", url);
-                imgEl.style.display = "block";
-              })
-              .catch(function () {
-                imgEl.style.display = "none";
-              })
-              .finally(function () {
-                imgEl.__hydrating = false;
-              });
-          } catch (e1) { }
-        })(imgs[i]);
-      }
-    } catch (e0) { }
-  }
-
-  function publishPost(title, text) {
-    if (!isAuthed || !uid) {
-      createPostErrorShow("אתה לא מאומת. נסה שוב.");
-      return;
-    }
-
-    if (isPublishingNow) return;
-    isPublishingNow = true;
-
-    var btn = submitPostBtn;
-    if (btn) btn.disabled = true;
-
-    var postObj = {
-      title: title,
-      text: text,
-      author: realUsername,
-      time: nowTs(),
-      image: null,       // ישן (URL)
-      imagePath: null    // חדש (Path)
-    };
-
-    var postsRef = firebase.database().ref("posts");
-    var newRef = postsRef.push();
-    var postId = newRef.key;
-
-    if (!selectedImageFile) {
-      postObj.image = null;
-      postObj.imagePath = null;
-
-      newRef.set(postObj)
-        .then(function () {
-          closeCreatePostModal();
-          setStatus("הפוסט פורסם בהצלחה.", "ok");
-
-          try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }
-          try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }
-        })
-        .catch(function () {
-          createPostErrorShow("שגיאה בפרסום. נסה שוב.");
-        })
-        .finally(function () {
-          if (btn) btn.disabled = false;
-          isPublishingNow = false;
-        });
-
-      return;
-    }
-
-    setStatus("מעלה תמונה…", "info");
-    setUploadProgress(1);
-
-    // === IMG FIX: בניית ext + path קבוע מראש כדי לשמור DB כ-path ולא כ-URL
-    var ext0 = "jpg";
-    try {
-      var n0 = safeText(selectedImageFile.name || "");
-      if (n0.indexOf(".") !== -1) ext0 = n0.split(".").pop().toLowerCase();
-    } catch (eExt) { ext0 = "jpg"; }
-
-    if (ext0 !== "jpg" && ext0 !== "jpeg" && ext0 !== "png" && ext0 !== "webp") ext0 = "jpg";
-    if (ext0 === "jpeg") ext0 = "jpg";
-
-    var fileName = Date.now() + "_" + uid + "." + ext0;
-    var storagePath = "post-images/" + postId + "/" + fileName;
-
-    // 1) ננסה העלאה רגילה (Blob/File) - הכי אמין
-    uploadPostImagePathEx(selectedImageFile, storagePath, function (pct) {
-      setUploadProgress(pct);
-    })
-    .catch(function () {
-      // 2) fallback: data_url
-      return ensureDataUrlFromSelected()
-        .then(function (dataUrl) {
-          return uploadPostImageDataUrlToPathEx(dataUrl, storagePath, function (pct) {
-            setUploadProgress(pct);
-          });
-        });
-    })
-    .then(function () {
-      postObj.image = null; // לא שומרים URL קבוע
-      postObj.imagePath = storagePath;
-
-      setStatus("שומר פוסט…", "info");
-      setUploadProgress(100);
-
-      return newRef.set(postObj);
-    })
-    .then(function () {
-      closeCreatePostModal();
-      setStatus("הפוסט פורסם בהצלחה.", "ok");
-
-      try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }
-      try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }
-    })
-    .catch(function (err) {
-      try {
-        if (postId) firebase.database().ref("posts/" + postId).remove();
-      } catch (eRm) { }
-
-      var msg = "שגיאה בהעלאת תמונה/פרסום. נסה שוב.";
-      if (safeText(err) === "upload_timeout") msg = "העלאת תמונה נתקעה (Timeout). נסה שוב.";
-      if (safeText(err) === "read_failed") msg = "שגיאה בקריאת התמונה. בחר תמונה מחדש.";
-
-      createPostErrorShow(msg);
-      setStatus("שגיאה בפרסום.", "error");
-    })
-    .finally(function () {
-      if (uploadProgressArea) uploadProgressArea.style.display = "none";
-      if (btn) btn.disabled = false;
-      isPublishingNow = false;
-    });
-  }
-
-  function attachLivePostListeners() {
-    if (window.__postsLiveAttached) return;
-    window.__postsLiveAttached = true;
-
-    var ref = firebase.database().ref("posts").orderByChild("time").limitToLast(50);
-
-    ref.on("child_added", function (snap) {
-      var id = snap.key;
-      var v = snap.val() || {};
-
-      var item = {
-        id: id,
-        title: safeText(v.title),
-        text: safeText(v.text),
-        author: safeText(v.author),
-        time: Number(v.time || 0),
-        likes: Number(v.likes || 0),
-        commentsCount: Number(v.commentsCount || 0),
-        image: sanitizeImageUrl(v.image || ""),
-        imagePath: sanitizeStoragePath(v.imagePath || "")
-      };
-
-      for (var i = 0; i < postsCacheData.length; i++) {
-        if (postsCacheData[i] && postsCacheData[i].id === id) return;
-      }
-
-      postsCacheData.unshift(item);
-
-      if (!isRefreshing) {
-        renderPostsFromCache();
-        hydrateImagesInDom(); // === IMG FIX
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e5) { }
-      }
-    });
-
-    ref.on("child_changed", function (snap) {
-      var id = snap.key;
-      var v = snap.val() || {};
-
-      var idx = -1;
-      for (var i = 0; i < postsCacheData.length; i++) {
-        if (postsCacheData[i] && postsCacheData[i].id === id) { idx = i; break; }
-      }
-      if (idx === -1) return;
-
-      var prev = postsCacheData[idx] || {};
-
-      postsCacheData[idx] = {
-        id: id,
-        title: safeText(v.title),
-        text: safeText(v.text),
-        author: safeText(v.author),
-        time: Number(v.time || prev.time || 0),
-        likes: Number(v.likes || prev.likes || 0),
-        commentsCount: Number(v.commentsCount || prev.commentsCount || 0),
-        image: sanitizeImageUrl(v.image || prev.image || ""),
-        imagePath: sanitizeStoragePath(v.imagePath || prev.imagePath || "")
-      };
-
-      if (!isRefreshing) {
-        renderPostsFromCache();
-        hydrateImagesInDom(); // === IMG FIX
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e6) { }
-      }
-    });
-  }
-
-}); // DOMContentLoaded end
-
-/* =========================================================================================
-   === IMG FIX: Upload helpers that save PATH (not URL in DB)
-   ========================================================================================= */
-
-function ensureDataUrlFromSelected() {
-  return new Promise(function (resolve, reject) {
-    try {
-      if (selectedImageDataUrl && selectedImageDataUrl.indexOf("data:") === 0) {
-        resolve(selectedImageDataUrl);
-        return;
-      }
-      if (!selectedImageFile) { reject("read_failed"); return; }
-
-      var r = new FileReader();
-      r.onerror = function () { reject("read_failed"); };
-      r.onload = function () {
-        var u = safeText(r.result || "");
-        if (!u || u.indexOf("data:") !== 0) { reject("read_failed"); return; }
-        selectedImageDataUrl = u;
-        resolve(u);
-      };
-      r.readAsDataURL(selectedImageFile);
-    } catch (e) { reject("read_failed"); }
-  });
-}
-
-function uploadPostImagePathEx(fileOrBlob, storagePath, onProgress) {
-  return new Promise(function (resolve, reject) {
-    try {
-      if (!fileOrBlob || !storagePath) { reject("missing params"); return; }
-
-      var ref = firebase.storage().ref(storagePath);
-
-      var meta = {};
-      try {
-        var t = safeText(fileOrBlob.type || "");
-        if (t) meta.contentType = t;
-      } catch (eM) { }
-
-      var task = null;
-      try {
-        task = ref.put(fileOrBlob, meta);
-      } catch (ePut) {
-        task = ref.put(fileOrBlob);
-      }
-
-      var finished = false;
-      var timer = setTimeout(function () {
-        if (finished) return;
-        finished = true;
-        try { if (task && typeof task.cancel === "function") task.cancel(); } catch (eC) { }
-        reject("upload_timeout");
-      }, 90000);
-
-      task.on("state_changed",
-        function (snap) {
-          try {
-            if (!snap) return;
-            var bytes = Number(snap.bytesTransferred || 0);
-            var total = Number(snap.totalBytes || 0);
-            if (total > 0) {
-              var pct = Math.round((bytes / total) * 100);
-              if (typeof onProgress === "function") onProgress(pct);
-            }
-          } catch (eP) { }
-        },
-        function (err) {
-          if (finished) return;
-          finished = true;
-          try { clearTimeout(timer); } catch (eT) { }
-          reject(err);
-        },
-        function () {
-          if (finished) return;
-          finished = true;
-          try { clearTimeout(timer); } catch (eT2) { }
-          resolve(true);
-        }
-      );
-    } catch (e0) {
-      reject(e0);
-    }
-  });
-}
-
-function uploadPostImageDataUrlToPathEx(dataUrl, storagePath, onProgress) {
-  return new Promise(function (resolve, reject) {
-    try {
-      if (!dataUrl || !storagePath) { reject("missing params"); return; }
-
-      var ref = firebase.storage().ref(storagePath);
-
-      var blob = dataURLToBlob(dataUrl);
-      if (blob) {
-        // עדיף Blob (גם אם הגיע מ-dataUrl)
-        uploadPostImagePathEx(blob, storagePath, onProgress).then(resolve).catch(reject);
-        return;
-      }
-
-      var finished = false;
-      var task = ref.putString(dataUrl, "data_url");
-
-      var timer = setTimeout(function () {
-        if (finished) return;
-        finished = true;
-        try { if (task && typeof task.cancel === "function") task.cancel(); } catch (eC) { }
-        reject("upload_timeout");
-      }, 90000);
-
-      task.on("state_changed",
-        function (snap) {
-          try {
-            if (!snap) return;
-            var bytes = Number(snap.bytesTransferred || 0);
-            var total = Number(snap.totalBytes || 0);
-            if (total > 0) {
-              var pct = Math.round((bytes / total) * 100);
-              if (typeof onProgress === "function") onProgress(pct);
-            }
-          } catch (eP) { }
-        },
-        function (err) {
-          if (finished) return;
-          finished = true;
-          try { clearTimeout(timer); } catch (eT) { }
-          reject(err);
-        },
-        function () {
-          if (finished) return;
-          finished = true;
-          try { clearTimeout(timer); } catch (eT2) { }
-          resolve(true);
-        }
-      );
-    } catch (e0) {
-      reject(e0);
-    }
-  });
-}
-
-/* =========================================================================================
-   ORIGINAL helper you added (unchanged)
-   ========================================================================================= */
-function uploadPostImage(file, postId, uid) {
-  return new Promise((resolve, reject) => {
-
-    if (!file || !postId || !uid) {
-      reject("missing params");
-      return;
-    }
-
-    const ext = file.name.split(".").pop().toLowerCase();
-    const name = Date.now() + "_" + uid + "." + ext;
-
-    const ref = firebase.storage()
-      .ref("post-images/" + postId + "/" + name);
-
-    const task = ref.put(file);
-
-    task.on("state_changed",
-      null,
-      err => reject(err),
-      () => {
-        task.snapshot.ref.getDownloadURL()
-          .then(url => resolve(url))
-          .catch(reject);
-      }
-    );
-  });
-}
-</script>
-
-</body>
+<!DOCTYPE html>            
+<html lang="he">            
+<head>            
+  <meta charset="UTF-8">            
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">            
+  <title>פורום מאובטח</title>            
+
+  <!-- Firebase -->            
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>            
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>            
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>            
+  <script src="firebaseConfig.js"></script>            
+
+  <link rel="stylesheet" href="css/forum.css">            
+
+  <style>            
+    /* NOTE: לפי הבקשה שלך – בלי ההנפשה ההיא */            
+    /* אם תרצה אפקט עדין אחר בהמשך – נעשה, אבל כרגע "אפס אנימציות" */            
+
+    /* =====================================================================================  
+       Image support - minimal inlined safety styles (doesn't replace your css/forum.css)  
+       ===================================================================================== */  
+    .post-image-wrap {  
+      margin-top: 10px;  
+      border-radius: 12px;  
+      overflow: hidden;  
+      border: 1px solid rgba(0,0,0,0.12);  
+      background: rgba(0,0,0,0.03);  
+    }  
+    .post-image {  
+      width: 100%;  
+      height: auto;  
+      display: block;  
+      max-height: 360px;  
+      object-fit: cover;  
+      background: #fff;  
+    }  
+    .image-chip {  
+      display: inline-flex;  
+      align-items: center;  
+      gap: 6px;  
+      padding: 6px 10px;  
+      border-radius: 999px;  
+      border: 1px solid rgba(0,0,0,0.12);  
+      background: rgba(0,0,0,0.03);  
+      font-size: 12px;  
+      opacity: 0.9;  
+      user-select: none;  
+    }  
+    .image-actions-row {  
+      display: flex;  
+      gap: 10px;  
+      flex-wrap: wrap;  
+      align-items: center;  
+      justify-content: space-between;  
+    }  
+    .img-btn {  
+      padding: 10px 12px;  
+      border-radius: 12px;  
+      border: 1px solid rgba(0,0,0,0.18);  
+      background: #fff;  
+      cursor: pointer;  
+      font-weight: bold;  
+    }  
+    .img-btn-primary {  
+      border: none;  
+      background: rgb(17,17,87);  
+      color: #fff;  
+    }  
+    .img-btn-danger {  
+      border: 1px solid rgba(255,0,0,0.35);  
+      background: rgba(255,0,0,0.06);  
+      color: #8a0000;  
+    }  
+    .img-preview {  
+      width: 100%;  
+      border-radius: 12px;  
+      border: 1px solid rgba(0,0,0,0.12);  
+      overflow: hidden;  
+      background: rgba(0,0,0,0.03);  
+    }  
+    .img-preview img {  
+      width: 100%;  
+      height: auto;  
+      display: block;  
+      max-height: 320px;  
+      object-fit: cover;  
+      background: #fff;  
+    }  
+    .progress-wrap {  
+      width: 100%;  
+      height: 10px;  
+      border-radius: 999px;  
+      border: 1px solid rgba(0,0,0,0.12);  
+      overflow: hidden;  
+      background: rgba(0,0,0,0.04);  
+    }  
+    .progress-bar {  
+      height: 100%;  
+      width: 0%;  
+      background: rgb(17,17,87);  
+    }  
+
+    /* Fullscreen image viewer overlay (no animation) */  
+    #imageViewerOverlay {  
+      position: fixed;  
+      inset: 0;  
+      background: rgba(0,0,0,0.78);  
+      display: none;  
+      align-items: center;  
+      justify-content: center;  
+      padding: 16px;  
+      box-sizing: border-box;  
+      z-index: 10000;  
+    }  
+    #imageViewerInner {  
+      width: min(920px, 100%);  
+      background: rgba(255,255,255,0.96);  
+      border-radius: 16px;  
+      padding: 12px;  
+      box-sizing: border-box;  
+    }  
+    #imageViewerInner img {  
+      width: 100%;  
+      height: auto;  
+      display: block;  
+      border-radius: 14px;  
+      background: #fff;  
+      border: 1px solid rgba(0,0,0,0.12);  
+      max-height: 78vh;  
+      object-fit: contain;  
+    }  
+    #imageViewerTop {  
+      display: flex;  
+      align-items: center;  
+      justify-content: space-between;  
+      gap: 10px;  
+      margin-bottom: 10px;  
+    }  
+    #closeImageViewer {  
+      border: none;  
+      background: transparent;  
+      font-size: 18px;  
+      cursor: pointer;  
+      padding: 8px 10px;  
+      border-radius: 10px;  
+    }  
+  </style>            
+</head>            
+
+<body>            
+
+<header class="top-bar">            
+  <h1>פורום הבניידים!</h1>            
+</header>            
+
+<!-- Pull To Refresh indicator -->            
+<div id="pull-indicator" style="            
+  display:none;            
+  text-align:center;            
+  padding:6px;            
+  user-select:none;            
+">            
+  <div class="loader"></div>            
+</div>            
+
+<!-- ======= TOP ACTIONS (New Post + Search + Sort) ======= -->            
+<div id="top-actions" style="            
+  max-width:900px;            
+  margin:auto;            
+  padding: 10px 20px 0 20px;            
+  box-sizing:border-box;            
+">            
+  <div style="            
+    display:flex;            
+    gap:10px;            
+    align-items:center;            
+    justify-content:space-between;            
+    flex-wrap:wrap;            
+  ">            
+    <button id="openCreatePost" type="button" style="            
+      padding:10px 12px;            
+      border-radius:10px;            
+      border:none;            
+      background: rgb(17,17,87);            
+      color:#fff;            
+      cursor:pointer;            
+      font-weight:bold;            
+    ">➕ צור פוסט</button>            
+
+    <input id="searchBox" type="search" placeholder="חיפוש בפוסטים..."            
+      style="            
+        flex:1;            
+        min-width:180px;            
+        padding:10px 12px;            
+        border-radius:10px;            
+        border:1px solid rgba(0,0,0,0.15);            
+        outline:none;            
+        box-sizing:border-box;            
+      "            
+    />            
+
+    <select id="sortMode" style="            
+      padding:10px 12px;            
+      border-radius:10px;            
+      border:1px solid rgba(0,0,0,0.15);            
+      outline:none;            
+      background:#fff;            
+      cursor:pointer;            
+    ">            
+      <option value="newest">מיון: החדשים למעלה</option>            
+      <option value="oldest">מיון: הישנים למעלה</option>            
+      <option value="author">מיון: לפי מחבר</option>            
+      <option value="title">מיון: לפי כותרת</option>            
+    </select>            
+  </div>            
+
+  <div id="statusBar" style="            
+    margin-top:10px;            
+    padding:8px 10px;            
+    border-radius:10px;            
+    background: rgba(0,0,0,0.04);            
+    color:#111;            
+    font-size:13px;            
+    display:none;            
+  "></div>            
+</div>            
+
+<main class="forum-container">            
+  <div id="posts">            
+    <div class="loader"></div>            
+  </div>            
+</main>            
+
+<!-- ======= CREATE POST MODAL (UI ONLY, AUTH STILL REQUIRED) ======= -->            
+<div id="createPostOverlay" style="            
+  position:fixed;            
+  inset:0;            
+  background: rgba(0,0,0,0.45);            
+  display:none;            
+  align-items:center;            
+  justify-content:center;            
+  padding:16px;            
+  box-sizing:border-box;            
+  z-index:9999;            
+">            
+  <div id="createPostModal" style="            
+    width:min(720px, 100%);            
+    background:#fff;            
+    border-radius:16px;            
+    padding:16px;            
+    box-sizing:border-box;            
+  ">            
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">            
+      <div style="font-weight:bold; font-size:18px;">יצירת פוסט חדש</div>            
+      <button id="closeCreatePost" type="button" style="            
+        border:none;            
+        background:transparent;            
+        font-size:18px;            
+        cursor:pointer;            
+      ">✕</button>            
+    </div>            
+
+    <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">            
+      <input id="newPostTitle" type="text" placeholder="כותרת"            
+        maxlength="80"            
+        style="            
+          padding:12px;            
+          border-radius:12px;            
+          border:1px solid rgba(0,0,0,0.18);            
+          outline:none;            
+          box-sizing:border-box;            
+        "            
+      />            
+
+      <textarea id="newPostText" placeholder="תוכן הפוסט..."            
+        rows="6"            
+        maxlength="2000"            
+        style="            
+          padding:12px;            
+          border-radius:12px;            
+          border:1px solid rgba(0,0,0,0.18);            
+          outline:none;            
+          box-sizing:border-box;            
+          resize:vertical;            
+        "            
+      ></textarea>            
+
+      <!-- =====================================================================================  
+           IMAGE UPLOAD UI (שדרוג מלא - לא פוגע בשיטה / לא מוריד שום פיצ'ר)  
+           ===================================================================================== -->  
+      <div id="newPostImageBlock" style="  
+        border:1px solid rgba(0,0,0,0.10);  
+        border-radius:14px;  
+        padding:12px;  
+        background: rgba(0,0,0,0.02);  
+      ">  
+        <div class="image-actions-row">  
+          <div style="display:flex; flex-direction:column; gap:4px;">  
+            <div style="font-weight:bold;">תמונה לפוסט (אופציונלי)</div>  
+            <div id="newPostImageMeta" style="font-size:12px; opacity:.75;">  
+              פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 6MB.  
+            </div>  
+          </div>  
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">  
+            <button id="chooseImageBtn" type="button" class="img-btn img-btn-primary">בחר תמונה</button>  
+            <button id="removeImageBtn" type="button" class="img-btn img-btn-danger" style="display:none;">הסר תמונה</button>  
+          </div>  
+        </div>  
+
+        <input id="newPostImage" type="file" accept="image/*" style="display:none;" />  
+
+        <div id="imagePreviewWrap" style="display:none; margin-top:12px;">  
+          <div class="img-preview">  
+            <img id="imagePreview" alt="תצוגה מקדימה" src="" />  
+          </div>  
+
+          <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">  
+            <span id="imageChip" class="image-chip" style="display:none;">🖼️ תמונה מוכנה</span>  
+            <span id="imageWarn" style="display:none; font-size:12px; color:#7a4b00; opacity:.95;"></span>  
+          </div>  
+
+          <div id="uploadProgressArea" style="display:none; margin-top:10px;">  
+            <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">  
+              <span style="font-size:12px; opacity:.75;">מעלה תמונה…</span>  
+              <span id="uploadProgressText" style="font-size:12px; opacity:.75;">0%</span>  
+            </div>  
+            <div class="progress-wrap" style="margin-top:6px;">  
+              <div id="uploadProgressBar" class="progress-bar"></div>  
+            </div>  
+          </div>  
+        </div>  
+      </div>  
+
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">            
+        <div id="newPostHint" style="font-size:12px; color:#444;">            
+          טיפ: תכתוב ברור, ותשאיר מקום לתגובות.            
+        </div>            
+        <div style="display:flex; gap:10px;">            
+          <button id="submitPost" type="button" style="            
+            padding:10px 14px;            
+            border-radius:12px;            
+            border:none;            
+            background: rgb(17,17,87);            
+            color:#fff;            
+            cursor:pointer;            
+            font-weight:bold;            
+          ">פרסם</button>            
+          <button id="cancelPost" type="button" style="            
+            padding:10px 14px;            
+            border-radius:12px;            
+            border:1px solid rgba(0,0,0,0.18);            
+            background:#fff;            
+            cursor:pointer;            
+            font-weight:bold;            
+          ">ביטול</button>            
+        </div>            
+      </div>            
+
+      <div id="createPostError" style="            
+        display:none;            
+        padding:10px 12px;            
+        border-radius:12px;            
+        background: rgba(255,0,0,0.08);            
+        color:#8a0000;            
+        font-size:13px;            
+      "></div>            
+    </div>            
+  </div>            
+</div>            
+
+<!-- =====================================================================================  
+     FULLSCREEN IMAGE VIEWER (שדרוג UX - לא פוגע באבטחה)  
+     ===================================================================================== -->  
+<div id="imageViewerOverlay">  
+  <div id="imageViewerInner">  
+    <div id="imageViewerTop">  
+      <div style="font-weight:bold;">תמונה</div>  
+      <button id="closeImageViewer" type="button">✕</button>  
+    </div>  
+    <img id="imageViewerImg" alt="תמונה" src="" />  
+    <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">  
+      <button id="copyImageLinkBtn" type="button" class="img-btn">העתק קישור לתמונה</button>  
+      <span id="imageViewerHint" style="font-size:12px; opacity:.75;">לחץ מחוץ לתיבה כדי לסגור</span>  
+    </div>  
+  </div>  
+</div>  
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>            
+<script>            
+/* =========================================================================================            
+   ⚠️ חשוב: אבטחה – לא נוגעים ולא משנים שיטה            
+   1) חסימה מיידית – לא WebView => forbidden.html            
+   2) payload מקודולר (email/password/token)            
+   3) Firebase Auth            
+   4) אימות token מול sessions/{uid}/token            
+   רק אחרי זה: גישה לפוסטים/יצירה/רענון            
+   ========================================================================================= */            
+
+/* ===============================            
+   חסימה מיידית – לא WebView            
+   =============================== */            
+(function () {            
+  try {            
+    if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {            
+      location.replace("forbidden.html");            
+      return;            
+    }            
+  } catch (e) {            
+    location.replace("forbidden.html");            
+    return;            
+  }            
+})();            
+
+/* =========================================================================================            
+   Cache (A) – תצוגה מיידית            
+   ========================================================================================= */            
+var cached = null;            
+try {            
+  cached = sessionStorage.getItem("cachedPosts");            
+} catch (e1) {            
+  cached = null;            
+}            
+if (cached) {            
+  var postsHost = document.getElementById("posts");            
+  if (postsHost) postsHost.innerHTML = cached;            
+}            
+
+/* =========================================================================================            
+   Utilities            
+   ========================================================================================= */            
+function escapeHTML(str) {            
+  if (str === undefined || str === null) str = "";            
+  return String(str)            
+    .replace(/&/g, "&amp;")            
+    .replace(/</g, "&lt;")            
+    .replace(/>/g, "&gt;")            
+    .replace(/"/g, "&quot;")            
+    .replace(/'/g, "&#039;");            
+}            
+
+function safeText(str) {            
+  if (str === undefined || str === null) str = "";            
+  return String(str);            
+}            
+
+/* =========================================================================================  
+   Image URL safety (הקשחה קלה נגד ערכי URL מוזרים)  
+   - לא משנה אבטחה אמיתית (היא ברולס), רק מונע XSS/הזרקות  
+   ========================================================================================= */  
+function sanitizeImageUrl(url) {  
+  if (url === undefined || url === null) return "";  
+  var u = safeText(url).trim();  
+  if (!u) return "";  
+  // allow only http(s)  
+  if (u.indexOf("https://") === 0 || u.indexOf("http://") === 0) return u;  
+  return "";  
+}  
+
+function isLikelyImageFile(file) {  
+  try {  
+    if (!file) return false;  
+    var t = safeText(file.type || "").toLowerCase();  
+    if (t.indexOf("image/") === 0) return true;  
+    var n = safeText(file.name || "").toLowerCase();  
+    if (n.indexOf(".jpg") > -1 || n.indexOf(".jpeg") > -1 || n.indexOf(".png") > -1 || n.indexOf(".webp") > -1) return true;  
+    return false;  
+  } catch (e) {  
+    return false;  
+  }  
+}  
+
+function bytesToHuman(n) {  
+  try {  
+    var x = Number(n || 0);  
+    if (!x) return "0B";  
+    if (x < 1024) return x + "B";  
+    if (x < 1024 * 1024) return Math.round(x / 1024) + "KB";  
+    return (Math.round((x / (1024 * 1024)) * 10) / 10) + "MB";  
+  } catch (e) {  
+    return "";  
+  }  
+}  
+
+function copyToClipboard(text) {  
+  try {  
+    if (navigator.clipboard && navigator.clipboard.writeText) {  
+      navigator.clipboard.writeText(text);  
+      return;  
+    }  
+  } catch (e) { }  
+  try {  
+    var ta = document.createElement("textarea");  
+    ta.value = safeText(text);  
+    ta.style.position = "fixed";  
+    ta.style.opacity = "0";  
+    document.body.appendChild(ta);  
+    ta.select();  
+    try { document.execCommand("copy"); } catch (e2) { }  
+    document.body.removeChild(ta);  
+  } catch (e3) { }  
+}  
+
+/* ===============================  
+   FIX: WebView compatibility helpers  
+   =============================== */  
+function dataURLToBlob(dataUrl) {  
+  try {  
+    var parts = safeText(dataUrl || "").split(",");  
+    if (parts.length < 2) return null;  
+    var meta = parts[0];  
+    var b64 = parts[1];  
+    var mime = "application/octet-stream";  
+    var m = /data:([^;]+);base64/i.exec(meta);  
+    if (m && m[1]) mime = m[1];  
+    var bin = atob(b64);  
+    var len = bin.length;  
+    var arr = new Uint8Array(len);  
+    for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);  
+    return new Blob([arr], { type: mime });  
+  } catch (e) {  
+    return null;  
+  }  
+}  
+
+function canvasToBlobSafe(canvas, outType, quality, cb) {  
+  try {  
+    if (canvas && typeof canvas.toBlob === "function") {  
+      canvas.toBlob(function (blob) { cb(blob); }, outType, quality);  
+      return;  
+    }  
+  } catch (e1) { }  
+  try {  
+    var dataUrl = "";  
+    try { dataUrl = canvas.toDataURL(outType, quality); } catch (e2) { dataUrl = canvas.toDataURL(); }  
+    var blob2 = dataURLToBlob(dataUrl);  
+    cb(blob2);  
+  } catch (e3) {  
+    cb(null);  
+  }  
+}  
+
+function getPreviewUrlForFile(file, done) {  
+  try {  
+    if (window.URL && typeof URL.createObjectURL === "function") {  
+      try {  
+        var u = URL.createObjectURL(file);  
+        done(u, true);  
+        return;  
+      } catch (eObj) { }  
+    }  
+  } catch (e0) { }  
+
+  try {  
+    var r = new FileReader();  
+    r.onerror = function () { done("", false); };  
+    r.onload = function () { done(safeText(r.result || ""), false); };  
+    r.readAsDataURL(file);  
+  } catch (e1) {  
+    done("", false);  
+  }  
+}  
+
+function openImageViewer(url) {  
+  var overlay = document.getElementById("imageViewerOverlay");  
+  var img = document.getElementById("imageViewerImg");  
+  var copyBtn = document.getElementById("copyImageLinkBtn");  
+  var closeBtn = document.getElementById("closeImageViewer");  
+
+  if (!overlay || !img) return;  
+
+  var safe = sanitizeImageUrl(url);  
+  if (!safe) return;  
+
+  img.setAttribute("src", safe);  
+  overlay.style.display = "flex";  
+
+  if (copyBtn && !copyBtn.__bound) {  
+    copyBtn.__bound = true;  
+    copyBtn.addEventListener("click", function () {  
+      var src = img.getAttribute("src") || "";  
+      if (src) copyToClipboard(src);  
+    });  
+  }  
+
+  if (closeBtn && !closeBtn.__bound) {  
+    closeBtn.__bound = true;  
+    closeBtn.addEventListener("click", function () {  
+      overlay.style.display = "none";  
+      img.setAttribute("src", "");  
+    });  
+  }  
+
+  if (!overlay.__bound) {  
+    overlay.__bound = true;  
+    overlay.addEventListener("click", function (e) {  
+      // click outside inner  
+      if (e.target === overlay) {  
+        overlay.style.display = "none";  
+        img.setAttribute("src", "");  
+      }  
+    });  
+  }  
+}  
+
+function prepareImageForUpload(file, warnEl) {  
+  // שדרוג: ניסיון להקטין תמונה גדולה (אופציונלי). אם נכשל – מחזירים קובץ מקורי.  
+  return new Promise(function (resolve) {  
+    try {  
+      if (!file) { resolve({ blob: null, contentType: "", ext: "" }); return; }  
+
+      var type = safeText(file.type || "").toLowerCase();  
+      var name = safeText(file.name || "");  
+      var ext = "";  
+      if (name.indexOf(".") !== -1) ext = name.split(".").pop().toLowerCase();  
+
+      // אם זה כבר webp/png/jpeg - ננסה להקטין רק אם כבד  
+      var size = Number(file.size || 0);  
+      var SHOULD_TRY_RESIZE = size > (1.2 * 1024 * 1024); // 1.2MB+  
+
+      if (!SHOULD_TRY_RESIZE) {  
+        resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+        return;  
+      }  
+
+      // load image (ObjectURL with fallback to FileReader)  
+      getPreviewUrlForFile(file, function (srcUrl, canRevoke) {  
+        if (!srcUrl) {  
+          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+          return;  
+        }  
+
+        var img = new Image();  
+
+        img.onload = function () {  
+          try {  
+            try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch (eR) { }  
+
+            var maxDim = 1280;  
+            var w = img.width || 0;  
+            var h = img.height || 0;  
+
+            if (!w || !h) {  
+              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+              return;  
+            }  
+
+            var scale = 1;  
+            if (w > maxDim || h > maxDim) {  
+              scale = Math.min(maxDim / w, maxDim / h);  
+            }  
+
+            var nw = Math.max(1, Math.round(w * scale));  
+            var nh = Math.max(1, Math.round(h * scale));  
+
+            var canvas = document.createElement("canvas");  
+            canvas.width = nw;  
+            canvas.height = nh;  
+
+            var ctx = canvas.getContext("2d");  
+            if (!ctx) {  
+              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+              return;  
+            }  
+
+            ctx.drawImage(img, 0, 0, nw, nh);  
+
+            // נייצא ל-JPEG כדי לחסוך (גם אם מקור PNG). אם מקור WebP ויש תמיכה - אפשר גם webp.  
+            var outType = "image/jpeg";  
+            var quality = 0.85;  
+
+            // אם המקור webp ונראה שיש תמיכה - ננסה webp  
+            if (type === "image/webp") outType = "image/webp";  
+
+            canvasToBlobSafe(canvas, outType, quality, function (blob) {  
+              if (!blob) {  
+                resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+                return;  
+              }  
+
+              // הודעה עדינה על כיווץ (לא חובה)  
+              try {  
+                if (warnEl) {  
+                  warnEl.style.display = "block";  
+                  warnEl.textContent = "בוצעה אופטימיזציה לתמונה כדי להאיץ טעינה.";  
+                }  
+              } catch (eWarn) { }  
+
+              var outExt = "jpg";  
+              if (outType === "image/webp") outExt = "webp";  
+              resolve({ blob: blob, contentType: outType, ext: outExt });  
+            });  
+
+          } catch (e2) {  
+            resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+          }  
+        };  
+
+        img.onerror = function () {  
+          try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch (eR2) { }  
+          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+        };  
+
+        img.src = srcUrl;  
+      });  
+
+    } catch (e0) {  
+      resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: "jpg" });  
+    }  
+  });  
+}  
+
+function nowTs() {            
+  return Date.now();            
+}            
+
+function setStatus(msg, type) {            
+  if (type === undefined || type === null) type = "info";            
+  var bar = document.getElementById("statusBar");            
+  if (!bar) return;            
+
+  if (!msg) {            
+    bar.style.display = "none";            
+    bar.textContent = "";            
+    return;            
+  }            
+
+  bar.style.display = "block";            
+  bar.textContent = msg;            
+
+  if (type === "error") {            
+    bar.style.background = "rgba(255,0,0,0.08)";            
+    bar.style.color = "#8a0000";            
+  } else if (type === "ok") {            
+    bar.style.background = "rgba(0,128,0,0.08)";            
+    bar.style.color = "#0b5a0b";            
+  } else {            
+    bar.style.background = "rgba(0,0,0,0.04)";            
+    bar.style.color = "#111";            
+  }            
+}            
+
+function debounce(fn, ms) {            
+  var t = null;            
+  return function () {            
+    var args = arguments;            
+    clearTimeout(t);            
+    t = setTimeout(function () {            
+      fn.apply(null, args);            
+    }, ms);            
+  };            
+}            
+
+/* =========================================================================================            
+   Global State            
+   ========================================================================================= */            
+var payload = null;            
+var uid = null;            
+var isRefreshing = false;            
+var isAuthed = false;            
+
+var postsCacheData = [];            
+var renderedHtmlCache = "";            
+var lastNavAt = 0;            
+var lastOpenId = "";            
+var pullStartY = 0;            
+var pulling = false;            
+var didTriggerRefresh = false;            
+var realUsername = "משתמש";            
+
+/* =========================================================================================  
+   Image state (שדרוג)  
+   ========================================================================================= */  
+var selectedImageFile = null;  
+var selectedImagePreviewUrl = "";  
+var selectedImagePreviewCanRevoke = false;  
+var selectedImagePrepared = null; // { blob, contentType, ext }  
+var selectedImageDataUrl = ""; // FIX: יציב ב-WebView (DataURL)  
+var isPublishingNow = false;  
+
+/* =========================================================================================            
+   DOM Ready            
+   ========================================================================================= */            
+document.addEventListener("DOMContentLoaded", function () {            
+
+  /* ===============================            
+     Elements            
+     =============================== */            
+  var postsEl = document.getElementById("posts");            
+  var indicator = document.getElementById("pull-indicator");            
+
+  var searchBox = document.getElementById("searchBox");            
+  var sortMode = document.getElementById("sortMode");            
+
+  var openCreatePostBtn = document.getElementById("openCreatePost");            
+  var overlay = document.getElementById("createPostOverlay");            
+  var closeCreatePostBtn = document.getElementById("closeCreatePost");            
+  var cancelPostBtn = document.getElementById("cancelPost");            
+  var submitPostBtn = document.getElementById("submitPost");            
+  var newPostTitle = document.getElementById("newPostTitle");            
+  var newPostText = document.getElementById("newPostText");            
+  var createPostError = document.getElementById("createPostError");            
+
+  /* ===============================  
+     Image UI elements (שדרוג)  
+     =============================== */  
+  var newPostImage = document.getElementById("newPostImage");  
+  var chooseImageBtn = document.getElementById("chooseImageBtn");  
+  var removeImageBtn = document.getElementById("removeImageBtn");  
+  var imagePreviewWrap = document.getElementById("imagePreviewWrap");  
+  var imagePreview = document.getElementById("imagePreview");  
+  var imageChip = document.getElementById("imageChip");  
+  var imageWarn = document.getElementById("imageWarn");  
+
+  var uploadProgressArea = document.getElementById("uploadProgressArea");  
+  var uploadProgressText = document.getElementById("uploadProgressText");  
+  var uploadProgressBar = document.getElementById("uploadProgressBar");  
+  var newPostImageMeta = document.getElementById("newPostImageMeta");  
+
+  if (!postsEl) {            
+    location.replace("forbidden.html");            
+    return;            
+  }            
+
+  /* =====================================================================================  
+     Image viewer delegation (click image in post card)  
+     ===================================================================================== */  
+  if (!postsEl.__imgViewerBound) {  
+    postsEl.__imgViewerBound = true;  
+    postsEl.addEventListener("click", function (e) {  
+      var img = null;  
+      try { img = e.target.closest(".post-image"); } catch (errX) { img = null; }  
+      if (!img) return;  
+
+      var src = img.getAttribute("data-full") || img.getAttribute("src") || "";  
+      src = sanitizeImageUrl(src);  
+      if (!src) return;  
+
+      openImageViewer(src);  
+    }, false);  
+  }  
+
+  bindPostNavigation(postsEl);            
+
+  if (searchBox) {            
+    searchBox.addEventListener("input", debounce(function () {            
+      renderPostsFromCache();            
+    }, 120));            
+  }            
+
+  if (sortMode) {            
+    sortMode.addEventListener("change", function () {            
+      renderPostsFromCache();            
+    });            
+  }            
+
+  /* =====================================================================================  
+     Image choose/remove handlers (שדרוג מלא)  
+     ===================================================================================== */  
+  if (chooseImageBtn && newPostImage) {  
+    chooseImageBtn.addEventListener("click", function () {  
+      try {  
+        newPostImage.value = "";  
+        newPostImage.click();  
+      } catch (eImg0) { }  
+    });  
+  }  
+
+  if (removeImageBtn) {  
+    removeImageBtn.addEventListener("click", function () {  
+      clearSelectedImage(true);  
+    });  
+  }  
+
+  if (newPostImage) {  
+    newPostImage.addEventListener("change", function () {  
+      try {  
+        var f = (newPostImage.files && newPostImage.files[0]) ? newPostImage.files[0] : null;  
+        if (!f) return;  
+
+        // validation  
+        if (!isLikelyImageFile(f)) {  
+          createPostErrorShow("קובץ לא נתמך. בחר תמונה (JPG/PNG/WebP).");  
+          clearSelectedImage(true);  
+          return;  
+        }  
+
+        // size limit  
+        var MAX = 6 * 1024 * 1024; // 6MB  
+        if (Number(f.size || 0) > MAX) {  
+          createPostErrorShow("התמונה גדולה מדי (" + bytesToHuman(f.size) + "). מומלץ עד 6MB.");  
+          clearSelectedImage(true);  
+          return;  
+        }  
+
+        // accept  
+        selectedImageFile = f;  
+        selectedImagePrepared = null;  
+        selectedImageDataUrl = "";  
+        if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
+
+        // preview (FIX: DataURL בלבד - יציב ב-WebView, בלי ObjectURL)  
+        try {  
+          if (selectedImagePreviewUrl && selectedImagePreviewCanRevoke) {  
+            try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv0) { }  
+          }  
+        } catch (eRv1) { }  
+        selectedImagePreviewUrl = "";  
+        selectedImagePreviewCanRevoke = false;  
+
+        try {  
+          var reader = new FileReader();  
+          reader.onerror = function () {  
+            createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב.");  
+            clearSelectedImage(true);  
+          };  
+          reader.onload = function () {  
+            try {  
+              var dataUrl = safeText(reader.result || "");  
+              if (!dataUrl || dataUrl.indexOf("data:") !== 0) {  
+                createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב.");  
+                clearSelectedImage(true);  
+                return;  
+              }  
+
+              selectedImageDataUrl = dataUrl;  
+              selectedImagePreviewUrl = dataUrl;  
+              selectedImagePreviewCanRevoke = false;  
+
+              if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);  
+              if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
+              if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
+              if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
+              try {  
+                if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
+              } catch (eM) { }  
+            } catch (eImg1) { }  
+          };  
+          reader.readAsDataURL(f);  
+        } catch (eFR) {  
+          createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב.");  
+          clearSelectedImage(true);  
+          return;  
+        }  
+
+      } catch (eImg2) { }  
+    });  
+  }  
+
+  function clearSelectedImage(resetInput) {  
+    try {  
+      if (selectedImagePreviewUrl && selectedImagePreviewCanRevoke) {  
+        try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv2) { }  
+      }  
+    } catch (eRv3) { }  
+
+    selectedImageFile = null;  
+    selectedImagePreviewUrl = "";  
+    selectedImagePreviewCanRevoke = false;  
+    selectedImagePrepared = null;  
+    selectedImageDataUrl = "";  
+
+    try {  
+      if (imagePreview) imagePreview.setAttribute("src", "");  
+      if (imagePreviewWrap) imagePreviewWrap.style.display = "none";  
+      if (removeImageBtn) removeImageBtn.style.display = "none";  
+      if (imageChip) imageChip.style.display = "none";  
+      if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
+
+      if (uploadProgressArea) uploadProgressArea.style.display = "none";  
+      if (uploadProgressText) uploadProgressText.textContent = "0%";  
+      if (uploadProgressBar) uploadProgressBar.style.width = "0%";  
+
+      if (resetInput && newPostImage) newPostImage.value = "";  
+
+      if (newPostImageMeta) newPostImageMeta.textContent = "פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 6MB.";  
+    } catch (eImg3) { }  
+  }  
+
+  if (openCreatePostBtn) {            
+    openCreatePostBtn.addEventListener("click", function () {            
+      if (!isAuthed) {            
+        setStatus("עוד לא אומתת מול השרת. חכה שנייה ואז נסה שוב.", "error");            
+        return;            
+      }            
+      openCreatePostModal();            
+    });            
+  }            
+
+  if (closeCreatePostBtn) closeCreatePostBtn.addEventListener("click", closeCreatePostModal);            
+  if (cancelPostBtn) cancelPostBtn.addEventListener("click", closeCreatePostModal);            
+
+  if (overlay) {            
+    overlay.addEventListener("click", function (e) {            
+      if (e.target === overlay) closeCreatePostModal();            
+    });            
+  }            
+
+  if (submitPostBtn) {            
+    submitPostBtn.addEventListener("click", function () {            
+      createPostErrorHide();            
+
+      if (!isAuthed) {            
+        createPostErrorShow("אתה לא מאומת עדיין. נסה שוב עוד רגע.");            
+        return;            
+      }            
+
+      // מניעת דאבל-פרסום (שדרוג - תיקון)  
+      if (isPublishingNow) return;  
+
+      var t1 = "";            
+      var t2 = "";            
+      if (newPostTitle && typeof newPostTitle.value === "string") t1 = newPostTitle.value;            
+      if (newPostText && typeof newPostText.value === "string") t2 = newPostText.value;            
+
+      var title = safeText(t1).trim();            
+      var text = safeText(t2).trim();            
+
+      if (title.length < 3) {            
+        createPostErrorShow("כותרת קצרה מדי. מינימום 3 תווים.");            
+        return;            
+      }            
+      if (text.length < 3) {            
+        createPostErrorShow("תוכן קצר מדי. מינימום 3 תווים.");            
+        return;            
+      }            
+
+      // אם יש תמונה - נוודא שהיא עדיין תקינה  
+      if (selectedImageFile) {  
+        if (!isLikelyImageFile(selectedImageFile)) {  
+          createPostErrorShow("התמונה שנבחרה לא תקינה. בחר תמונה מחדש.");  
+          clearSelectedImage(true);  
+          return;  
+        }  
+        var MAX2 = 6 * 1024 * 1024;  
+        if (Number(selectedImageFile.size || 0) > MAX2) {  
+          createPostErrorShow("התמונה גדולה מדי. בחר תמונה קטנה יותר.");  
+          return;  
+        }  
+      }  
+
+      publishPost(title, text);            
+    });            
+  }            
+
+  /* =====================================================================================            
+     4) Pull To Refresh – נשמר בדיוק            
+     ===================================================================================== */            
+  document.addEventListener("touchstart", function (e) {            
+    try {            
+      if (window.scrollY === 0 && !isRefreshing) {            
+        pullStartY = e.touches[0].clientY;            
+        pulling = true;            
+        didTriggerRefresh = false;            
+      }            
+    } catch (err1) { }            
+  }, { passive: true });            
+
+  document.addEventListener("touchmove", function (e) {            
+    if (!pulling || isRefreshing) return;            
+
+    var diff = e.touches[0].clientY - pullStartY;            
+    if (diff <= 0) return;            
+
+    if (indicator) indicator.style.display = "block";            
+
+    var THRESHOLD = 90;            
+    if (diff > THRESHOLD && !didTriggerRefresh) {            
+      didTriggerRefresh = true;            
+      pulling = false;            
+      isRefreshing = true;            
+
+      try { sessionStorage.removeItem("cachedPosts"); } catch (err2) { }            
+
+      loadPosts(true);            
+    }            
+  }, { passive: true });            
+
+  document.addEventListener("touchend", function () {            
+    pulling = false;            
+    if (!isRefreshing && indicator) indicator.style.display = "none";            
+  }, { passive: true });            
+
+  /* =====================================================================================            
+     5) Start Auth Flow            
+     ===================================================================================== */            
+  waitForPayload();            
+
+  function waitForPayload() {            
+    var raw = "";            
+    try {            
+      raw = window.AppInventor.getWebViewString();            
+      if (!raw) {            
+        setTimeout(waitForPayload, 200);            
+        return;            
+      }            
+      payload = JSON.parse(raw);            
+    } catch (e) {            
+      setTimeout(waitForPayload, 200);            
+      return;            
+    }            
+
+    loginToFirebase(payload);            
+  }            
+
+  function loginToFirebase(data) {            
+    if (!data || !data.email || !data.password || !data.token) {            
+      location.replace("forbidden.html");            
+      return;            
+    }            
+
+    firebase.auth()            
+      .signInWithEmailAndPassword(data.email, data.password)            
+      .then(function (c) {            
+        validateToken(c.user.uid, data.token);            
+      })            
+      .catch(function () {            
+        location.replace("forbidden.html");            
+      });            
+  }            
+
+  function validateToken(userId, token) {            
+    firebase.database()            
+      .ref("sessions/" + userId + "/token")            
+      .once("value")            
+      .then(function (snap) {            
+        if (!snap.exists() || snap.val() !== token) {            
+          location.replace("forbidden.html");            
+          return;            
+        }            
+
+        uid = userId;            
+        isAuthed = true;            
+
+        firebase.database()            
+          .ref("users/" + uid + "/username")            
+          .once("value")            
+          .then(function (uSnap) {            
+            realUsername = uSnap.val() || "משתמש";            
+            setStatus("מחובר כ־" + realUsername, "ok");            
+
+            loadPosts(false);            
+            attachLivePostListeners();            
+          })            
+          .catch(function () {            
+            realUsername = "משתמש";            
+            setStatus("מחובר", "ok");            
+            loadPosts(false);            
+            attachLivePostListeners();            
+          });            
+      })            
+      .catch(function () {            
+        location.replace("forbidden.html");            
+      });            
+  }            
+
+  function loadPosts(fromRefresh) {            
+    if (fromRefresh === undefined || fromRefresh === null) fromRefresh = false;            
+    setStatus(fromRefresh ? "מרענן פוסטים…" : "טוען פוסטים…", "info");            
+
+    firebase.database()            
+      .ref("posts")            
+      .orderByChild("time")            
+      .limitToLast(300)            
+      .once("value")            
+      .then(function (snap) {            
+        var items = [];            
+
+        snap.forEach(function (pSnap) {            
+          var p = pSnap.val() || {};            
+          var postId = pSnap.key;            
+
+          items.push({            
+            id: postId,            
+            title: safeText(p.title),            
+            text: safeText(p.text),            
+            author: safeText(p.author),            
+            time: Number(p.time || 0),            
+            likes: Number(p.likes || 0),            
+            commentsCount: Number(p.commentsCount || 0),  
+            image: sanitizeImageUrl(p.image || "")            
+          });            
+        });            
+
+        items.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });            
+
+        postsCacheData = items;            
+
+        renderPostsFromCache();            
+
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e2) { }            
+
+        if (fromRefresh) {            
+          setTimeout(function () {            
+            isRefreshing = false;            
+            if (indicator) indicator.style.display = "none";            
+            setStatus("עודכן בהצלחה.", "ok");            
+          }, 250);            
+        } else {            
+          setStatus("פוסטים נטענו.", "ok");            
+        }            
+      })            
+      .catch(function () {            
+        location.replace("forbidden.html");            
+      });            
+  }            
+
+  function renderPostsFromCache() {            
+    var q = "";            
+    var mode = "newest";            
+
+    if (searchBox && typeof searchBox.value === "string") q = searchBox.value;            
+    q = safeText(q).trim().toLowerCase();            
+
+    if (sortMode && typeof sortMode.value === "string") mode = sortMode.value;            
+    mode = safeText(mode) || "newest";            
+
+    var list = postsCacheData.slice();            
+
+    if (q) {            
+      list = list.filter(function (p) {            
+        var t = (p.title || "").toLowerCase();            
+        var x = (p.text || "").toLowerCase();            
+        var a = (p.author || "").toLowerCase();  
+        var im = (p.image || "").toLowerCase();  
+        // שדרוג: גם חיפוש לפי "תמונה" אם יש URL  
+        var hasImg = im ? "תמונה" : "";  
+        return t.indexOf(q) !== -1 || x.indexOf(q) !== -1 || a.indexOf(q) !== -1 || hasImg.indexOf(q) !== -1;            
+      });            
+    }            
+
+    if (mode === "oldest") {            
+      list.sort(function (a, b) { return (a.time || 0) - (b.time || 0); });            
+    } else if (mode === "author") {            
+      list.sort(function (a, b) { return (a.author || "").localeCompare(b.author || "", "he"); });            
+    } else if (mode === "title") {            
+      list.sort(function (a, b) { return (a.title || "").localeCompare(b.title || "", "he"); });            
+    } else {            
+      list.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });            
+    }            
+
+    var html = "";            
+
+    if (!list.length) {            
+      html = q ? "<p>לא נמצאו תוצאות לחיפוש.</p>" : "<p>אין עדיין פוסטים.</p>";            
+    } else {            
+      for (var i = 0; i < list.length; i++) {            
+        html += buildPostCardHTML(list[i]);            
+      }            
+    }            
+
+    postsEl.innerHTML = html;            
+    renderedHtmlCache = html;            
+  }            
+
+  function buildPostCardHTML(p) {            
+    var title = escapeHTML(p.title || "");            
+    var text = escapeHTML(p.text || "");            
+    var author = escapeHTML(p.author || "");            
+    var id = escapeHTML(p.id || "");            
+
+    var timeStr = "";            
+    if (p.time) {            
+      try {            
+        timeStr = new Date(p.time).toLocaleString("he-IL", {            
+          hour: "2-digit",            
+          minute: "2-digit",            
+          day: "2-digit",            
+          month: "2-digit"            
+        });            
+      } catch (e) {            
+        timeStr = "";            
+      }            
+    }            
+
+    // שדרוג: תמונה בפוסט (אם קיימת)  
+    var imgHtml = "";  
+    var imgUrl = sanitizeImageUrl(p.image || "");  
+    if (imgUrl) {  
+      var escUrl = escapeHTML(imgUrl);  
+      imgHtml =  
+        '\n        <div class="post-image-wrap">' +  
+        '\n          <img class="post-image" src="' + escUrl + '" data-full="' + escUrl + '" alt="תמונה לפוסט" onerror="this.style.display=\'none\';" />' +  
+        '\n        </div>';  
+    }  
+
+    return (            
+      '\n      <div class="post" data-id="' + id + '">' +            
+      '\n        <h3>' + title + '</h3>' +            
+      '\n        <p>' + text + '</p>' +            
+      imgHtml +   
+      '\n        <small>מאת: ' + author + '</small>' +            
+      '\n        <small style="opacity:.75; margin-top:6px; display:block;">' + escapeHTML(timeStr) + '</small>' +            
+      '\n      </div>\n    '            
+    );            
+  }            
+
+  function bindPostNavigation(container) {            
+    if (container.__navBound) return;            
+    container.__navBound = true;            
+
+    container.addEventListener("click", function (e) {            
+      if (isRefreshing || pulling) return;            
+
+      var postEl = null;            
+      try { postEl = e.target.closest(".post"); } catch (err) { postEl = null; }            
+      if (!postEl) return;            
+
+      // אם לחצו על תמונה - אל תנווט, זה פותח viewer  
+      try {  
+        var inImg = e.target && (e.target.classList && e.target.classList.contains("post-image"));  
+        if (inImg) return;  
+      } catch (eN) { }  
+
+      var id = postEl.getAttribute("data-id");            
+      if (!id) return;            
+
+      var now = Date.now();            
+      if (now - lastNavAt < 350 && lastOpenId === id) return;            
+
+      lastNavAt = now;            
+      lastOpenId = id;            
+
+      openPost(id, postEl);            
+    }, false);            
+  }            
+
+  function openPost(postId, el) {            
+    try {            
+      var h3 = el.querySelector("h3");            
+      var p = el.querySelector("p");            
+      var s = el.querySelector("small");            
+      var img = el.querySelector("img");            
+
+      var title = h3 ? (h3.innerText || "") : "";            
+      var text = p ? (p.innerText || "") : "";            
+      var author = "";            
+      if (s) author = (s.innerText || "").replace("מאת:", "").trim();            
+
+      var imageUrl = "";  
+      if (img) imageUrl = sanitizeImageUrl(img.getAttribute("src") || "");            
+
+      sessionStorage.setItem("currentPost", JSON.stringify({            
+        id: postId,            
+        title: title || "",            
+        text: text || "",            
+        author: author || "",  
+        image: imageUrl || ""            
+      }));            
+    } catch (e) { }            
+
+    location.href = "post.html?postId=" + encodeURIComponent(postId);            
+  }            
+
+  function openCreatePostModal() {            
+    createPostErrorHide();            
+    if (newPostTitle) newPostTitle.value = "";            
+    if (newPostText) newPostText.value = "";            
+
+    // reset image (שדרוג)  
+    clearSelectedImage(true);  
+    isPublishingNow = false;  
+
+    if (overlay) overlay.style.display = "flex";            
+
+    setTimeout(function () {            
+      try { if (newPostTitle) newPostTitle.focus(); } catch (e) { }            
+    }, 50);            
+  }            
+
+  function closeCreatePostModal() {            
+    createPostErrorHide();            
+    if (overlay) overlay.style.display = "none";            
+
+    // reset image (שדרוג)  
+    clearSelectedImage(true);  
+    isPublishingNow = false;  
+  }            
+
+  function createPostErrorShow(msg) {            
+    if (!createPostError) return;            
+    createPostError.textContent = msg;            
+    createPostError.style.display = "block";            
+  }            
+
+  function createPostErrorHide() {            
+    if (!createPostError) return;            
+    createPostError.textContent = "";            
+    createPostError.style.display = "none";            
+  }            
+
+  function setUploadProgress(pct) {  
+    try {  
+      var x = Math.max(0, Math.min(100, Number(pct || 0)));  
+      if (uploadProgressArea) uploadProgressArea.style.display = "block";  
+      if (uploadProgressText) uploadProgressText.textContent = x + "%";  
+      if (uploadProgressBar) uploadProgressBar.style.width = x + "%";  
+    } catch (e) { }  
+  }            
+
+  function publishPost(title, text) {            
+    if (!isAuthed || !uid) {            
+      createPostErrorShow("אתה לא מאומת. נסה שוב.");            
+      return;            
+    }            
+
+    // מניעת דאבל-פרסום (שדרוג - תיקון)  
+    if (isPublishingNow) return;  
+    isPublishingNow = true;  
+
+    var btn = submitPostBtn;            
+    if (btn) btn.disabled = true;            
+
+    var postObj = {            
+      title: title,            
+      text: text,            
+      author: realUsername,            
+      time: nowTs(),  
+      image: null            
+    };            
+
+    // שדרוג: פרסום עם תמונה  
+    // 1) יוצרים postId מראש  
+    // 2) אם יש תמונה - מעלים ל-Storage -> מקבלים URL  
+    // 3) שומרים ב-DB את postObj עם image url  
+    var postsRef = firebase.database().ref("posts");  
+    var newRef = postsRef.push();  
+    var postId = newRef.key;  
+
+    // אם אין תמונה: set רגיל  
+    if (!selectedImageFile) {  
+      postObj.image = null;  
+
+      newRef.set(postObj)  
+        .then(function () {            
+          closeCreatePostModal();            
+          setStatus("הפוסט פורסם בהצלחה.", "ok");            
+
+          try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }            
+          try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }            
+        })            
+        .catch(function () {            
+          createPostErrorShow("שגיאה בפרסום. נסה שוב.");            
+        })            
+        .finally(function () {            
+          if (btn) btn.disabled = false;  
+          isPublishingNow = false;  
+        });  
+
+      return;  
+    }  
+
+    // יש תמונה: תהליך העלאה (FIX: DataURL + watchdog נגד תקיעה)  
+    setStatus("מעלה תמונה…", "info");  
+    setUploadProgress(1);  
+
+    var ext0 = "jpg";  
+    try {  
+      var n0 = safeText(selectedImageFile.name || "");  
+      if (n0.indexOf(".") !== -1) ext0 = n0.split(".").pop().toLowerCase();  
+    } catch (eExt) { ext0 = "jpg"; }  
+
+    var ensureDataUrl = function () {  
+      return new Promise(function (resolve, reject) {  
+        try {  
+          if (selectedImageDataUrl && selectedImageDataUrl.indexOf("data:") === 0) {  
+            resolve(selectedImageDataUrl);  
+            return;  
+          }  
+          var r = new FileReader();  
+          r.onerror = function () { reject("read_failed"); };  
+          r.onload = function () { resolve(safeText(r.result || "")); };  
+          r.readAsDataURL(selectedImageFile);  
+        } catch (e) { reject(e); }  
+      });  
+    };  
+
+    ensureDataUrl()  
+      .then(function (dataUrl) {  
+        selectedImageDataUrl = safeText(dataUrl || "");  
+        if (!selectedImageDataUrl || selectedImageDataUrl.indexOf("data:") !== 0) throw "read_failed";  
+
+        return uploadPostImageDataUrlEx(selectedImageDataUrl, ext0, postId, uid, function (pct) {  
+          setUploadProgress(pct);  
+        });  
+      })  
+      .then(function (imageUrl) {  
+        imageUrl = sanitizeImageUrl(imageUrl || "");  
+        postObj.image = imageUrl || null;  
+
+        setStatus("שומר פוסט…", "info");  
+        setUploadProgress(100);  
+
+        return newRef.set(postObj);  
+      })  
+      .then(function () {  
+        closeCreatePostModal();            
+        setStatus("הפוסט פורסם בהצלחה.", "ok");            
+
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }            
+        try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }            
+      })  
+      .catch(function (err) {  
+        // אם קרתה שגיאה - נסיר את הפוסט החצי-מוכן (כדי לא להשאיר ריק)  
+        try {  
+          if (postId) firebase.database().ref("posts/" + postId).remove();  
+        } catch (eRm) { }  
+
+        var msg = "שגיאה בהעלאת תמונה/פרסום. נסה שוב.";  
+        if (safeText(err) === "upload_timeout") msg = "העלאת תמונה נתקעה (Timeout). נסה שוב.";  
+        if (safeText(err) === "read_failed") msg = "שגיאה בקריאת התמונה. בחר תמונה מחדש.";  
+
+        createPostErrorShow(msg);  
+        setStatus("שגיאה בפרסום.", "error");  
+      })  
+      .finally(function () {  
+        if (uploadProgressArea) uploadProgressArea.style.display = "none";  
+        if (btn) btn.disabled = false;  
+        isPublishingNow = false;  
+      });  
+  }            
+
+  function attachLivePostListeners() {            
+    if (window.__postsLiveAttached) return;            
+    window.__postsLiveAttached = true;            
+
+    var ref = firebase.database().ref("posts").orderByChild("time").limitToLast(50);            
+
+    ref.on("child_added", function (snap) {            
+      var id = snap.key;            
+      var v = snap.val() || {};            
+
+      var item = {            
+        id: id,            
+        title: safeText(v.title),            
+        text: safeText(v.text),            
+        author: safeText(v.author),            
+        time: Number(v.time || 0),            
+        likes: Number(v.likes || 0),            
+        commentsCount: Number(v.commentsCount || 0),  
+        image: sanitizeImageUrl(v.image || "")            
+      };            
+
+      for (var i = 0; i < postsCacheData.length; i++) {            
+        if (postsCacheData[i] && postsCacheData[i].id === id) return;            
+      }            
+
+      postsCacheData.unshift(item);            
+
+      if (!isRefreshing) {            
+        renderPostsFromCache();            
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e5) { }            
+      }            
+    });            
+
+    ref.on("child_changed", function (snap) {            
+      var id = snap.key;            
+      var v = snap.val() || {};            
+
+      var idx = -1;            
+      for (var i = 0; i < postsCacheData.length; i++) {            
+        if (postsCacheData[i] && postsCacheData[i].id === id) { idx = i; break; }            
+      }            
+      if (idx === -1) return;            
+
+      var prev = postsCacheData[idx] || {};            
+
+      postsCacheData[idx] = {            
+        id: id,            
+        title: safeText(v.title),            
+        text: safeText(v.text),            
+        author: safeText(v.author),            
+        time: Number(v.time || prev.time || 0),            
+        likes: Number(v.likes || prev.likes || 0),            
+        commentsCount: Number(v.commentsCount || prev.commentsCount || 0),  
+        image: sanitizeImageUrl(v.image || prev.image || "")            
+      };            
+
+      if (!isRefreshing) {            
+        renderPostsFromCache();            
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e6) { }            
+      }            
+    });            
+  }            
+
+});            
+
+/* =========================================================================================  
+   FIX: Upload DataURL (stable in WebView) + progress + timeout  
+   ========================================================================================= */  
+function uploadPostImageDataUrlEx(dataUrl, ext, postId, uid, onProgress) {  
+  return new Promise(function (resolve, reject) {  
+    try {  
+      if (!dataUrl || !postId || !uid) {  
+        reject("missing params");  
+        return;  
+      }  
+
+      var safeExt = safeText(ext || "").toLowerCase();  
+      if (!safeExt) safeExt = "jpg";  
+      if (safeExt.length > 8) safeExt = "jpg";  
+
+      var name = Date.now() + "_" + uid + "." + safeExt;  
+      var ref = firebase.storage().ref("post-images/" + postId + "/" + name);  
+
+      var finished = false;  
+      var task = ref.putString(dataUrl, "data_url");  
+
+      var timer = setTimeout(function () {  
+        if (finished) return;  
+        finished = true;  
+        try { if (task && typeof task.cancel === "function") task.cancel(); } catch (eC) { }  
+        reject("upload_timeout");  
+      }, 90000); // 90s watchdog  
+
+      task.on("state_changed",  
+        function (snap) {  
+          try {  
+            if (!snap) return;  
+            var bytes = Number(snap.bytesTransferred || 0);  
+            var total = Number(snap.totalBytes || 0);  
+            if (total > 0) {  
+              var pct = Math.round((bytes / total) * 100);  
+              if (typeof onProgress === "function") onProgress(pct);  
+            }  
+          } catch (eP) { }  
+        },  
+        function (err) {  
+          if (finished) return;  
+          finished = true;  
+          try { clearTimeout(timer); } catch (eT) { }  
+          reject(err);  
+        },  
+        function () {  
+          try {  
+            task.snapshot.ref.getDownloadURL()  
+              .then(function (url) {  
+                if (finished) return;  
+                finished = true;  
+                try { clearTimeout(timer); } catch (eT2) { }  
+                resolve(url);  
+              })  
+              .catch(function (eU) {  
+                if (finished) return;  
+                finished = true;  
+                try { clearTimeout(timer); } catch (eT3) { }  
+                reject(eU);  
+              });  
+          } catch (eU2) {  
+            if (finished) return;  
+            finished = true;  
+            try { clearTimeout(timer); } catch (eT4) { }  
+            reject(eU2);  
+          }  
+        }  
+      );  
+    } catch (e0) {  
+      reject(e0);  
+    }  
+  });  
+}  
+
+/* =========================================================================================  
+   Image upload (extended with progress) - keeps your original uploadPostImage untouched  
+   ========================================================================================= */  
+function uploadPostImageEx(blobOrFile, contentType, ext, postId, uid, onProgress) {  
+  return new Promise(function (resolve, reject) {  
+    try {  
+      if (!blobOrFile || !postId || !uid) {  
+        reject("missing params");  
+        return;  
+      }  
+
+      var safeExt = safeText(ext || "").toLowerCase();  
+      if (!safeExt) safeExt = "jpg";  
+      if (safeExt.length > 8) safeExt = "jpg";  
+
+      var name = Date.now() + "_" + uid + "." + safeExt;  
+
+      var ref = firebase.storage().ref("post-images/" + postId + "/" + name);  
+
+      var meta = {};  
+      try {  
+        if (contentType) meta.contentType = contentType;  
+      } catch (eM) { }  
+
+      var task = null;  
+      try {  
+        task = ref.put(blobOrFile, meta);  
+      } catch (ePut) {  
+        // fallback  
+        task = ref.put(blobOrFile);  
+      }  
+
+      task.on("state_changed",  
+        function (snap) {  
+          try {  
+            if (!snap) return;  
+            var bytes = Number(snap.bytesTransferred || 0);  
+            var total = Number(snap.totalBytes || 0);  
+            if (total > 0) {  
+              var pct = Math.round((bytes / total) * 100);  
+              if (typeof onProgress === "function") onProgress(pct);  
+            }  
+          } catch (eP) { }  
+        },  
+        function (err) { reject(err); },  
+        function () {  
+          try {  
+            task.snapshot.ref.getDownloadURL()  
+              .then(function (url) { resolve(url); })  
+              .catch(reject);  
+          } catch (eU) { reject(eU); }  
+        }  
+      );  
+    } catch (e0) {  
+      reject(e0);  
+    }  
+  });  
+}  
+
+/* =========================================================================================  
+   ORIGINAL helper you added (unchanged)  
+   ========================================================================================= */  
+function uploadPostImage(file, postId, uid) {            
+  return new Promise((resolve, reject) => {            
+
+    if (!file || !postId || !uid) {            
+      reject("missing params");            
+      return;            
+    }            
+
+    const ext = file.name.split(".").pop().toLowerCase();            
+    const name = Date.now() + "_" + uid + "." + ext;            
+
+    const ref = firebase.storage()            
+      .ref("post-images/" + postId + "/" + name);            
+
+    const task = ref.put(file);            
+
+    task.on("state_changed",            
+      null,            
+      err => reject(err),            
+      () => {            
+        task.snapshot.ref.getDownloadURL()            
+          .then(url => resolve(url))            
+          .catch(reject);            
+      }            
+    );            
+  });            
+}            
+</script>            
+
+</body>            
 </html>
