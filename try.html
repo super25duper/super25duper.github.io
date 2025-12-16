@@ -1,176 +1,123 @@
-<!doctype html>
-<html lang="he" dir="rtl">
+<!DOCTYPE html>
+<html lang="he">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Upload to Firebase Storage (v12)</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; }
-    button { padding: 10px 14px; cursor: pointer; }
-    button:disabled { opacity: .5; cursor: not-allowed; }
-    progress { width: 100%; height: 18px; margin-top: 12px; }
-    .log { font-family: monospace; background:#111; color:#0f0; padding:10px; border-radius:10px; height: 200px; overflow:auto; }
-    img { max-width: 100%; border-radius: 12px; margin-top: 12px; display:none; }
-    a { word-break: break-all; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>העלאת תמונה ל-Firebase</title>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            margin: 10px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: green;
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <h1>העלאת תמונה לאחסון Firebase</h1>
+        <input type="file" id="fileInput" />
+        <button id="uploadButton">העלה תמונה</button>
+        <p id="status"></p>
+    </div>
 
-  <h2>העלאת תמונה ל-Firebase Storage</h2>
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBf-12UCoHpIMg81MWaer7DmtfVla95X9M",
+  authDomain: "try-a-69b75.firebaseapp.com",
+  projectId: "try-a-69b75",
+  storageBucket: "try-a-69b75.firebasestorage.app",
+  messagingSenderId: "136796358688",
+  appId: "1:136796358688:web:f6d41df5505e26ec0b5445",
+  measurementId: "G-ST0TTENTGF"
+        };
 
-  <p><b>כתובת הדף:</b> <span id="url"></span></p>
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const storage = firebase.storage();
 
-  <input id="fileInput" type="file" accept="image/*" />
-  <button id="uploadBtn" disabled>העלה</button>
+        // אלמנטי ממשק
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+        const statusText = document.getElementById('status');
 
-  <progress id="progress" value="0" max="100" style="display:none;"></progress>
-  <p id="status"></p>
+        // פונקציה להעלאת התמונה
+        uploadButton.addEventListener('click', () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                statusText.textContent = 'נא לבחור תמונה להעלאה.';
+                return;
+            }
 
-  <p id="linkWrap" style="display:none;">
-    <b>קישור לתמונה:</b> <a id="fileUrl" href="#" target="_blank" rel="noopener">—</a>
-  </p>
+            const storageRef = storage.ref('images/' + file.name);
+            const uploadTask = storageRef.put(file);
 
-  <img id="preview" alt="preview" />
-
-  <h3>לוגים</h3>
-  <div class="log" id="log"></div>
-
-  <script type="module">
-    // ===== Firebase v12 imports =====
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
-    import {
-      getStorage,
-      ref,
-      uploadBytesResumable,
-      getDownloadURL
-    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
-
-    // ===== UI =====
-    const urlEl = document.getElementById("url");
-    const logEl = document.getElementById("log");
-    const statusEl = document.getElementById("status");
-    const fileInput = document.getElementById("fileInput");
-    const uploadBtn = document.getElementById("uploadBtn");
-    const progressEl = document.getElementById("progress");
-    const linkWrap = document.getElementById("linkWrap");
-    const fileUrlEl = document.getElementById("fileUrl");
-    const previewEl = document.getElementById("preview");
-
-    urlEl.textContent = location.href;
-
-    function log(...args) {
-      const line = args.map(a => typeof a === "object" ? JSON.stringify(a, null, 2) : String(a)).join(" ");
-      console.log(...args);
-      logEl.textContent += line + "\n";
-      logEl.scrollTop = logEl.scrollHeight;
-    }
-
-    log("START");
-    log("protocol:", location.protocol);
-
-    if (location.protocol === "file:") {
-      log("WARNING: אתה פותח ב-file://. עבור ל-Live Server / http://localhost כדי ש-module יעבוד.");
-    }
-
-    // ===== Your Firebase config =====
-    const firebaseConfig = {
-      apiKey: "AIzaSyBf-12UCoHpIMg81MWaer7DmtfVla95X9M",
-      authDomain: "try-a-69b75.firebaseapp.com",
-      projectId: "try-a-69b75",
-      storageBucket: "try-a-69b75.firebasestorage.app",
-      messagingSenderId: "136796358688",
-      appId: "1:136796358688:web:f6d41df5505e26ec0b5445",
-      measurementId: "G-ST0TTENTGF"
-    };
-
-    // ===== Init Firebase =====
-    const app = initializeApp(firebaseConfig);
-    log("initializeApp OK");
-
-    // Analytics is optional for upload
-    try {
-      getAnalytics(app);
-      log("getAnalytics OK (optional)");
-    } catch (e) {
-      log("getAnalytics FAILED (not critical):", e?.message || e);
-    }
-
-    // ===== Init Storage =====
-    const storage = getStorage(app);
-    log("getStorage OK, bucket:", storage?.app?.options?.storageBucket);
-
-    // ===== File selection =====
-    let file = null;
-
-    fileInput.addEventListener("change", () => {
-      file = fileInput.files?.[0] || null;
-      uploadBtn.disabled = !file;
-
-      linkWrap.style.display = "none";
-      previewEl.style.display = "none";
-      progressEl.style.display = "none";
-      progressEl.value = 0;
-
-      if (file) {
-        statusEl.textContent = "נבחר קובץ: " + file.name;
-        log("Selected file:", { name: file.name, size: file.size, type: file.type });
-      } else {
-        statusEl.textContent = "";
-        log("No file selected");
-      }
-    });
-
-    // ===== Upload =====
-    uploadBtn.addEventListener("click", () => {
-      if (!file) return;
-
-      const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-      const path = `uploads/${Date.now()}_${safeName}`;
-
-      log("Uploading to path:", path);
-
-      const storageRef = ref(storage, path);
-      const task = uploadBytesResumable(storageRef, file, {
-        contentType: file.type || "application/octet-stream"
-      });
-
-      uploadBtn.disabled = true;
-      progressEl.style.display = "block";
-      statusEl.textContent = "מעלה...";
-
-      task.on("state_changed",
-        (snap) => {
-          const p = (snap.bytesTransferred / snap.totalBytes) * 100;
-          progressEl.value = p;
-          statusEl.textContent = `מעלה... ${p.toFixed(0)}%`;
-          log("progress:", p.toFixed(1) + "%", "state:", snap.state);
-        },
-        (errObj) => {
-          uploadBtn.disabled = false;
-          log("UPLOAD ERROR:", { code: errObj.code, message: errObj.message });
-          statusEl.textContent = "שגיאה: " + errObj.message;
-        },
-        async () => {
-          uploadBtn.disabled = false;
-          log("Upload complete");
-          const url = await getDownloadURL(task.snapshot.ref);
-
-          fileUrlEl.href = url;
-          fileUrlEl.textContent = url;
-          linkWrap.style.display = "block";
-
-          previewEl.src = url;
-          previewEl.style.display = "block";
-
-          statusEl.textContent = "העלאה הושלמה";
-          log("Download URL:", url);
-        }
-      );
-    });
-
-    log("READY");
-  </script>
-
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    // מציג את התקדמות ההעלאה
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    statusText.textContent = `העלאה ב-${Math.round(progress)}%...`;
+                }, 
+                (error) => {
+                    statusText.textContent = 'שגיאה בהעלאה: ' + error.message;
+                }, 
+                () => {
+                    statusText.textContent = 'ההעלאה הושלמה בהצלחה!';
+                }
+            );
+        });
+    </script>
 </body>
 </html>
