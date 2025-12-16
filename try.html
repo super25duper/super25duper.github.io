@@ -3,22 +3,23 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Firebase Storage Upload (v12) - Debug + Retry</title>
+  <title>Firebase Storage Upload (v12) - Deep Debug</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 880px; margin: 40px auto; padding: 0 16px; }
+    body { font-family: Arial, sans-serif; max-width: 920px; margin: 40px auto; padding: 0 16px; }
     button { padding: 10px 14px; cursor: pointer; margin-inline-end: 8px; margin-top: 8px; }
     button:disabled { opacity: .55; cursor: not-allowed; }
     progress { width: 100%; height: 18px; margin-top: 12px; display:none; }
-    .log { font-family: monospace; background:#111; color:#0f0; padding:10px; border-radius:10px; height: 280px; overflow:auto; white-space: pre-wrap; }
+    .log { font-family: monospace; background:#111; color:#0f0; padding:10px; border-radius:10px; height: 320px; overflow:auto; white-space: pre-wrap; }
     img { max-width: 100%; border-radius: 12px; margin-top: 12px; display:none; }
     a { word-break: break-all; }
     .muted { opacity:.8; font-size: 12px; }
-    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    label { user-select:none; }
   </style>
 </head>
 <body>
 
-<h2>העלאת תמונה ל-Firebase Storage (v12) — Debug + Retry</h2>
+<h2>Firebase Storage (v12) — Deep Debug</h2>
 
 <div class="muted">
   <div><b>URL:</b> <span id="url"></span></div>
@@ -33,6 +34,11 @@
   <button id="checksBtn">בדיקת חיבור (READ)</button>
   <button id="writeProbeBtn">בדיקת כתיבה (WRITE)</button>
   <button id="clearBtn">נקה לוג</button>
+</div>
+
+<div class="row">
+  <label><input type="checkbox" id="forceNonResumable"> לכפות העלאה לא-Resumable (uploadBytes)</label>
+  <label><input type="checkbox" id="traceNet" checked> להפעיל Network Trace (XHR)</label>
 </div>
 
 <progress id="progress" value="0" max="100"></progress>
@@ -54,6 +60,7 @@
     getStorage,
     ref,
     uploadBytesResumable,
+    uploadBytes,
     getDownloadURL,
     listAll
   } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
@@ -74,13 +81,13 @@
   const linkWrap = document.getElementById("linkWrap");
   const fileUrlEl = document.getElementById("fileUrl");
   const previewEl = document.getElementById("preview");
+  const forceNonResumableEl = document.getElementById("forceNonResumable");
+  const traceNetEl = document.getElementById("traceNet");
 
   urlEl.textContent = location.href;
   originEl.textContent = location.origin;
 
-  function setOnlineText() {
-    onlineEl.textContent = navigator.onLine ? "true" : "false";
-  }
+  function setOnlineText() { onlineEl.textContent = navigator.onLine ? "true" : "false"; }
   setOnlineText();
   addEventListener("online",  () => { setOnlineText(); log("EVENT: online=true"); });
   addEventListener("offline", () => { setOnlineText(); log("EVENT: online=false"); });
@@ -102,7 +109,80 @@
     });
   }
 
+  // ===== XHR Trace (to catch "pending forever") =====
+  let xhrTraced = false;
+  function enableXHRTrace() {
+    if (xhrTraced) return;
+    xhrTraced = true;
+
+    const OrigXHR = window.XMLHttpRequest;
+    window.XMLHttpRequest = function() {
+      const xhr = new OrigXHR();
+
+      let _method = "";
+      let _url = "";
+      let _start = 0;
+
+      const origOpen = xhr.open;
+      xhr.open = function(method, url, ...rest) {
+        _method = method;
+        _url = url;
+        _start = Date.now();
+
+        if (traceNetEl.checked && (String(url).includes("firebasestorage") || String(url).includes("googleapis.com"))) {
+          log(`[NET] open ${method} ${url}`);
+        }
+        return origOpen.call(this, method, url, ...rest);
+      };
+
+      const origSend = xhr.send;
+      xhr.send = function(body) {
+        // Give stuck requests a timeout so we get an event + log
+        try { xhr.timeout = 45000; } catch {}
+
+        if (traceNetEl.checked && (_url.includes("firebasestorage") || _url.includes("googleapis.com"))) {
+          const bodySize = (body && (body.size || body.byteLength)) ? (body.size || body.byteLength) : null;
+          log(`[NET] send ${_method} ${_url}` + (bodySize ? ` (bodySize=${bodySize})` : ""));
+        }
+
+        xhr.addEventListener("load", () => {
+          if (!traceNetEl.checked) return;
+          if (!(_url.includes("firebasestorage") || _url.includes("googleapis.com"))) return;
+          const ms = Date.now() - _start;
+          log(`[NET] load status=${xhr.status} (${ms}ms) url=${_url}`);
+        });
+
+        xhr.addEventListener("error", () => {
+          if (!traceNetEl.checked) return;
+          if (!(_url.includes("firebasestorage") || _url.includes("googleapis.com"))) return;
+          const ms = Date.now() - _start;
+          log(`[NET] error status=${xhr.status} (${ms}ms) url=${_url}`);
+          log(`[NET] hint: אם status=0 לרוב זה חסימת רשת/תוסף/Proxy/VPN או CORS/Blocked.`);
+        });
+
+        xhr.addEventListener("timeout", () => {
+          if (!traceNetEl.checked) return;
+          if (!(_url.includes("firebasestorage") || _url.includes("googleapis.com"))) return;
+          const ms = Date.now() - _start;
+          log(`[NET] timeout (${ms}ms) url=${_url}`);
+        });
+
+        xhr.addEventListener("abort", () => {
+          if (!traceNetEl.checked) return;
+          if (!(_url.includes("firebasestorage") || _url.includes("googleapis.com"))) return;
+          const ms = Date.now() - _start;
+          log(`[NET] abort (${ms}ms) url=${_url}`);
+        });
+
+        return origSend.call(this, body);
+      };
+
+      return xhr;
+    };
+  }
+
   // ===== Firebase config =====
+  // (bucket format PROJECT_ID.firebasestorage.app is normal for new projects) 1
   const firebaseConfig = {
     apiKey: "AIzaSyBf-12UCoHpIMg81MWaer7DmtfVla95X9M",
     authDomain: "try-a-69b75.firebaseapp.com",
@@ -113,8 +193,12 @@
     measurementId: "G-ST0TTENTGF"
   };
 
+  // ===== Init =====
   log("START");
   log("protocol:", location.protocol);
+  if (location.protocol === "file:") log("WARNING: file:// + type=module עלול להיכשל. מומלץ https/http.");
+
+  enableXHRTrace();
 
   const app = initializeApp(firebaseConfig);
   log("initializeApp OK");
@@ -130,7 +214,6 @@
   let file = null;
   let activeTask = null;
 
-  // Stall monitor
   let stallTimer = null;
   let lastProgressTs = Date.now();
 
@@ -144,7 +227,7 @@
     lastProgressTs = Date.now();
     stallTimer = setInterval(() => {
       const diff = Date.now() - lastProgressTs;
-      if (diff > 12000) {
+      if (diff > 20000) { // 20s to reduce false positives
         stopStallMonitor();
         onStall?.(diff);
       }
@@ -167,22 +250,10 @@
     writeProbeBtn.disabled = isBusy;
   }
 
-  function isRetryableCode(code) {
-    return [
-      "storage/network-request-failed",
-      "storage/retry-limit-exceeded",
-      "storage/unknown",
-      "stall-timeout"
-    ].includes(code);
-  }
-
-  function sleep(ms) {
-    return new Promise(r => setTimeout(r, ms));
-  }
-
   // ===== Connectivity (READ) =====
   async function runConnectivityChecks() {
     log("=== CONNECTIVITY CHECKS START ===");
+
     try {
       const probePath = `__probe__/nope_${Date.now()}.txt`;
       log("CHECK A: getDownloadURL probe path:", probePath);
@@ -192,7 +263,6 @@
       log("CHECK A: getDownloadURL failed (often expected).");
       logError("CHECK A error:", e);
       if (e?.code === "storage/object-not-found") log("CHECK A RESULT: CONNECTED (server answered: object-not-found)");
-      else log("CHECK A RESULT: code=", e?.code || "(no code)");
     }
 
     try {
@@ -210,21 +280,22 @@
     log("=== CONNECTIVITY CHECKS END ===");
   }
 
-  // ===== Connectivity (WRITE) =====
+  // ===== WRITE PROBE =====
   async function runWriteProbe() {
     log("=== WRITE PROBE START ===");
     setBusy(true);
     resetUI();
+
     progressEl.style.display = "block";
     statusEl.textContent = "בודק כתיבה...";
 
     const blob = new Blob([`write_probe_${Date.now()}`], { type: "text/plain" });
     const path = `__probe__/write_${Date.now()}.txt`;
-    log("WRITE PROBE path:", path);
 
     try {
-      await uploadOnce(blob, path, "text/plain", { quiet: true });
-      log("WRITE PROBE RESULT: SUCCESS (write is allowed and works now)");
+      // use non-resumable for probe to isolate resumable path
+      await uploadBytes(ref(storage, path), blob, { contentType: "text/plain" });
+      log("WRITE PROBE RESULT: SUCCESS");
       statusEl.textContent = "בדיקת כתיבה הצליחה";
     } catch (e) {
       log("WRITE PROBE RESULT: FAILED");
@@ -232,27 +303,44 @@
       statusEl.textContent = "בדיקת כתיבה נכשלה: " + (e?.message || e);
     } finally {
       setBusy(false);
-      stopStallMonitor();
-      activeTask = null;
       progressEl.style.display = "none";
       log("=== WRITE PROBE END ===");
     }
   }
 
-  // ===== Core: single upload attempt (returns download URL) =====
-  function uploadOnce(fileOrBlob, path, contentType, { quiet = false } = {}) {
+  // ===== Upload helpers =====
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  async function uploadNonResumable(realFile, path) {
+    log("Non-resumable uploadBytes() to:", path);
+    statusEl.textContent = "מעלה (לא-Resumable)...";
+    progressEl.style.display = "block";
+    progressEl.value = 0;
+
+    // no progress events in uploadBytes, so we just keep UI alive
+    const t0 = Date.now();
+    const res = await uploadBytes(ref(storage, path), realFile, { contentType: realFile.type || "application/octet-stream" });
+    log(`uploadBytes DONE (${Date.now() - t0}ms)`, { fullPath: res.ref.fullPath });
+
+    const url = await getDownloadURL(res.ref);
+    return url;
+  }
+
+  function uploadResumableWithStall(realFile, path) {
     return new Promise((resolve, reject) => {
+      log("Resumable uploadBytesResumable() to:", path);
       const storageRef = ref(storage, path);
 
-      activeTask = uploadBytesResumable(storageRef, fileOrBlob, {
-        contentType: contentType || "application/octet-stream"
+      activeTask = uploadBytesResumable(storageRef, realFile, {
+        contentType: realFile.type || "application/octet-stream"
       });
 
-      if (!quiet) log("Uploading to path:", path);
+      progressEl.style.display = "block";
+      progressEl.value = 0;
+      statusEl.textContent = "מעלה (Resumable)...";
 
       startStallMonitor((diff) => {
-        // stall => cancel and reject with a synthetic code for retry logic
-        log("STALL:", Math.round(diff / 1000), "seconds without progress. Canceling...");
+        log(`STALL: ${Math.round(diff/1000)}s without progress. Canceling task...`);
         try { activeTask?.cancel(); } catch {}
         reject({ code: "stall-timeout", message: "Upload stalled (no progress)" });
       });
@@ -261,13 +349,13 @@
         (snap) => {
           lastProgressTs = Date.now();
           const p = snap.totalBytes ? (snap.bytesTransferred / snap.totalBytes) * 100 : 0;
-          if (!quiet) log("progress:", p.toFixed(1) + "%", "state:", snap.state);
           progressEl.value = p;
-          statusEl.textContent = quiet ? "בודק כתיבה..." : `מעלה... ${p.toFixed(0)}%`;
+          statusEl.textContent = `מעלה... ${p.toFixed(0)}%`;
+          log("progress:", p.toFixed(1) + "%", "state:", snap.state);
         },
-        (errObj) => {
+        (e) => {
           stopStallMonitor();
-          reject(errObj);
+          reject(e);
         },
         async () => {
           stopStallMonitor();
@@ -282,64 +370,44 @@
     });
   }
 
-  // ===== Upload with retries =====
-  async function uploadWithRetry(realFile) {
+  async function uploadWithStrategy(realFile) {
     setBusy(true);
     resetUI();
-    progressEl.style.display = "block";
-    progressEl.value = 0;
 
     const safeName = realFile.name.replace(/[^\w.\-]+/g, "_");
     const basePath = `uploads/${Date.now()}_${safeName}`;
 
-    const maxAttempts = 4; // 1 + 3 retries
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const path = attempt === 1 ? basePath : basePath.replace("uploads/", `uploads/retry${attempt}_`);
-      log(`ATTEMPT ${attempt}/${maxAttempts}`);
+    try {
+      let url;
 
-      try {
-        const url = await uploadOnce(realFile, path, realFile.type);
-        log("Upload complete");
-        log("Download URL:", url);
-
-        fileUrlEl.href = url;
-        fileUrlEl.textContent = url;
-        linkWrap.style.display = "block";
-
-        previewEl.src = url;
-        previewEl.style.display = "block";
-
-        statusEl.textContent = "העלאה הושלמה";
-        return; // success
-      } catch (e) {
-        const code = e?.code || "(no-code)";
-        logError(`ATTEMPT ${attempt} FAILED:`, e);
-
-        if (code === "storage/quota-exceeded") {
-          statusEl.textContent = "כשל: מכסה/Quota נגמרה (quota-exceeded)";
-          break;
+      if (forceNonResumableEl.checked) {
+        url = await uploadNonResumable(realFile, basePath);
+      } else {
+        // Try resumable first, then fallback to non-resumable if it stalls
+        try {
+          url = await uploadResumableWithStall(realFile, basePath);
+        } catch (e) {
+          logError("Resumable failed:", e);
+          log("FALLBACK: trying uploadBytes() (non-resumable)...");
+          url = await uploadNonResumable(realFile, basePath);
         }
-
-        if (code === "storage/unauthorized" || code === "storage/unauthenticated") {
-          statusEl.textContent = "כשל: הרשאות (Rules/Auth) חוסמות כתיבה";
-          break;
-        }
-
-        if (attempt === maxAttempts || !isRetryableCode(code)) {
-          statusEl.textContent = "כשל: " + (e?.message || code);
-          break;
-        }
-
-        // backoff
-        const delay = 800 * Math.pow(2, attempt - 1); // 0.8s, 1.6s, 3.2s...
-        log(`Retrying in ${delay}ms due to retryable error: ${code}`);
-        await sleep(delay);
-      } finally {
-        activeTask = null;
       }
-    }
 
-    setBusy(false);
+      log("SUCCESS Download URL:", url);
+      fileUrlEl.href = url;
+      fileUrlEl.textContent = url;
+      linkWrap.style.display = "block";
+      previewEl.src = url;
+      previewEl.style.display = "block";
+      statusEl.textContent = "העלאה הושלמה";
+    } catch (e) {
+      logError("UPLOAD FINAL FAILED:", e);
+      statusEl.textContent = "שגיאה: " + (e?.message || e?.code || "unknown");
+    } finally {
+      stopStallMonitor();
+      activeTask = null;
+      setBusy(false);
+    }
   }
 
   // ===== Events =====
@@ -355,29 +423,23 @@
     file = fileInput.files?.[0] || null;
     resetUI();
     uploadBtn.disabled = !file;
-
-    if (file) {
-      log("Selected file:", { name: file.name, size: file.size, type: file.type });
-      statusEl.textContent = "נבחר קובץ: " + file.name;
-    } else {
-      log("No file selected");
-    }
+    if (file) log("Selected file:", { name: file.name, size: file.size, type: file.type });
+    else log("No file selected");
   });
 
   cancelBtn.addEventListener("click", () => {
     if (!activeTask) return;
     log("Cancel requested");
     try { activeTask.cancel(); } catch {}
-    setBusy(false);
     stopStallMonitor();
-    statusEl.textContent = "בוטל";
     activeTask = null;
+    setBusy(false);
+    statusEl.textContent = "בוטל";
   });
 
   uploadBtn.addEventListener("click", async () => {
     if (!file) return;
-    await uploadWithRetry(file);
-    setBusy(false);
+    await uploadWithStrategy(file);
   });
 </script>
 
