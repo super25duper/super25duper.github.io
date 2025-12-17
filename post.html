@@ -1172,21 +1172,7 @@ document.addEventListener("DOMContentLoaded", function () {
               </div>
             ` : ``}
 
-            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-              <button type="button" class="post-action" data-action="copyLink"
-                style="padding:8px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;">
-                העתק קישור
-              </button>
-
-              <button type="button" class="post-action" data-action="share"
-                style="padding:8px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;">
-                שתף
-              </button>
-
-              <button type="button" class="post-action" data-action="report"
-                style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,0,0,0.35);background:rgba(255,0,0,0.06);cursor:pointer;">
-                דווח
-              </button>
+            
 
               ${canEditPostNow ? `
                 <button type="button" class="post-action" data-action="editPost"
