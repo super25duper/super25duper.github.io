@@ -101,52 +101,7 @@
       background: rgb(17,17,87);  
     }  
 
-    /* =====================================================================================  
-       NEW: Post meta row + image badge + stable layout (no pushing text)  
-       ===================================================================================== */  
-    .post-meta-row {  
-      display: flex;  
-      justify-content: space-between;  
-      align-items: flex-end;  
-      gap: 10px;  
-      margin-top: 8px;  
-      flex-direction: row-reverse; /* time on right, meta-left on left - stable */  
-    }  
-    .post-meta-left {  
-      display: flex;  
-      flex-direction: column;  
-      align-items: flex-start;  
-      gap: 4px;  
-      min-width: 120px;  
-    }  
-    .post-img-badge {  
-      display: inline-flex;  
-      align-items: center;  
-      gap: 6px;  
-      padding: 4px 8px;  
-      border-radius: 999px;  
-      border: 1px solid rgba(17,17,87,0.30);  
-      background: rgba(17,17,87,0.06);  
-      color: rgb(17,17,87);  
-      font-size: 12px;  
-      user-select: none;  
-      line-height: 1.2;  
-      min-height: 22px; /* keep layout fixed */  
-    }  
-    .post-comments-count {  
-      font-size: 12px;  
-      opacity: 0.85;  
-      line-height: 1.2;  
-      min-height: 16px;  
-    }  
-    .post-time-small {  
-      font-size: 12px;  
-      opacity: 0.75;  
-      line-height: 1.2;  
-      min-height: 16px;  
-    }  
-
-    /* Fullscreen image viewer overlay (kept; no animation) */  
+    /* Fullscreen image viewer overlay (no animation) */  
     #imageViewerOverlay {  
       position: fixed;  
       inset: 0;  
@@ -189,6 +144,68 @@
       cursor: pointer;  
       padding: 8px 10px;  
       border-radius: 10px;  
+    }  
+
+    /* =====================================================================================  
+       Forum UI extra (requested changes)  
+       ===================================================================================== */  
+    .post-user-border {  
+      border-right: 4px solid rgba(0,0,0,0.15);  
+      padding-right: 12px;  
+      box-sizing: border-box;  
+    }  
+
+    .post-meta-row {  
+      margin-top: 8px;  
+      display: flex;  
+      align-items: flex-end;  
+      justify-content: space-between;  
+      gap: 10px;  
+      flex-wrap: wrap;  
+      /* important: keep visual "left/right" stable */  
+      direction: ltr;  
+    }  
+
+    .post-meta-left {  
+      display: flex;  
+      flex-direction: column;  
+      align-items: flex-start;  
+      gap: 6px;  
+      min-width: 140px;  
+    }  
+
+    .post-meta-right {  
+      display: flex;  
+      flex-direction: column;  
+      align-items: flex-end;  
+      gap: 6px;  
+      min-width: 140px;  
+    }  
+
+    /* "יש תמונה" chip - blue as requested */  
+    .has-image-flag {  
+      display: inline-flex;  
+      align-items: center;  
+      gap: 6px;  
+      padding: 6px 10px;  
+      border-radius: 999px;  
+      border: 1px solid rgba(17,17,87,0.18);  
+      background: rgba(17,17,87,0.08);  
+      color: rgb(17,17,87);  
+      font-size: 12px;  
+      font-weight: bold;  
+      user-select: none;  
+      white-space: nowrap;  
+    }  
+
+    .has-image-flag-placeholder {  
+      /* keeps spacing consistent even without image */  
+      height: 28px;  
+      display: block;  
+    }  
+
+    .post-author-colored {  
+      font-weight: normal;  
     }  
   </style>            
 </head>            
@@ -257,7 +274,7 @@
       <option value="oldest">מיון: הישנים למעלה</option>            
       <option value="author">מיון: לפי מחבר</option>            
       <option value="title">מיון: לפי כותרת</option>            
-      <option value="lastComment">מיון: לפי תגובה אחרונה</option>            
+      <option value="lastComment">מיון: תגובה אחרונה</option>            
     </select>            
   </div>            
 
@@ -333,7 +350,7 @@
       ></textarea>            
 
       <!-- =====================================================================================  
-           IMAGE UPLOAD UI (שמור, אבל יציב ב-WebView: בלי עיבוד/קריאה תוקפנית)  
+           IMAGE UPLOAD UI (שדרוג מלא - לא פוגע בשיטה / לא מוריד שום פיצ'ר)  
            ===================================================================================== -->  
       <div id="newPostImageBlock" style="  
         border:1px solid rgba(0,0,0,0.10);  
@@ -363,7 +380,7 @@
           </div>  
 
           <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">  
-            <span id="imageChip" class="image-chip" style="display:none;">🖼️ תמונה נבחרה</span>  
+            <span id="imageChip" class="image-chip" style="display:none;">🖼️ תמונה מוכנה</span>  
             <span id="imageWarn" style="display:none; font-size:12px; color:#7a4b00; opacity:.95;"></span>  
           </div>  
 
@@ -417,7 +434,7 @@
 </div>            
 
 <!-- =====================================================================================  
-     FULLSCREEN IMAGE VIEWER (נשמר; כרגע לא מוצגות תמונות בפורום לפי דרישה)  
+     FULLSCREEN IMAGE VIEWER (שדרוג UX - לא פוגע באבטחה)  
      ===================================================================================== -->  
 <div id="imageViewerOverlay">  
   <div id="imageViewerInner">  
@@ -427,6 +444,7 @@
     </div>  
     <img id="imageViewerImg" alt="תמונה" src="" />  
     <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">  
+
       <span id="imageViewerHint" style="font-size:12px; opacity:.75;">לחץ מחוץ לתיבה כדי לסגור</span>  
     </div>  
   </div>  
@@ -491,7 +509,123 @@ function safeText(str) {
 }            
 
 /* =========================================================================================  
+   userColor (exact same vibe as post page)  
+   ========================================================================================= */  
+function userColor(key) {  
+  var colors = [  
+    "#60a5fa",  
+    "#34d399",  
+    "#f472b6",  
+    "#fbbf24",  
+    "#a78bfa",  
+    "#fb7185",  
+    "#22d3ee"  
+  ];  
+  var hash = 0;  
+  var s = safeText(key || "");  
+  for (var i = 0; i < s.length; i++) {  
+    hash = s.charCodeAt(i) + ((hash << 5) - hash);  
+  }  
+  var idx = Math.abs(hash) % colors.length;  
+  return colors[idx];  
+}  
+
+/* =========================================================================================  
+   Meta cache (commentsCount + lastCommentTime)  
+   - Fixes: "אין תגובות" resets on refresh  
+   - Supports: lastComment sort stable across nav/refresh  
+   ========================================================================================= */  
+var postMetaCache = {};  
+var postMetaSaveTimer = null;  
+
+function loadPostMetaCache() {  
+  try {  
+    var raw = sessionStorage.getItem("postMetaCache");  
+    if (!raw) { postMetaCache = {}; return; }  
+    var obj = JSON.parse(raw);  
+    if (obj && typeof obj === "object") postMetaCache = obj;  
+    else postMetaCache = {};  
+  } catch (e) {  
+    postMetaCache = {};  
+  }  
+}  
+
+function savePostMetaCacheSoon() {  
+  try {  
+    if (postMetaSaveTimer) return;  
+    postMetaSaveTimer = setTimeout(function () {  
+      postMetaSaveTimer = null;  
+      try {  
+        sessionStorage.setItem("postMetaCache", JSON.stringify(postMetaCache || {}));  
+      } catch (e2) { }  
+    }, 700);  
+  } catch (e) { }  
+}  
+
+function getMetaForPost(postId) {  
+  try {  
+    var k = safeText(postId || "");  
+    if (!k) return null;  
+    if (postMetaCache && postMetaCache[k]) return postMetaCache[k];  
+    return null;  
+  } catch (e) {  
+    return null;  
+  }  
+}  
+
+function setMetaForPost(postId, metaObj) {  
+  try {  
+    var k = safeText(postId || "");  
+    if (!k) return;  
+    if (!postMetaCache) postMetaCache = {};  
+    if (!postMetaCache[k]) postMetaCache[k] = {};  
+    var m = postMetaCache[k];  
+    if (metaObj && typeof metaObj === "object") {  
+      if (metaObj.commentsCount !== undefined) m.commentsCount = Number(metaObj.commentsCount || 0);  
+      if (metaObj.lastCommentTime !== undefined) m.lastCommentTime = Number(metaObj.lastCommentTime || 0);  
+      if (metaObj.updatedAt !== undefined) m.updatedAt = Number(metaObj.updatedAt || 0);  
+    }  
+    m.updatedAt = Date.now();  
+    savePostMetaCacheSoon();  
+  } catch (e) { }  
+}  
+
+/* =========================================================================================  
+   Sort mode memory (requested: keep last choice in memory, including lastComment)  
+   ========================================================================================= */  
+var rememberedSortMode = "newest";  
+try {  
+  rememberedSortMode = sessionStorage.getItem("forumSortMode") || "newest";  
+} catch (e) {  
+  rememberedSortMode = "newest";  
+}  
+
+function rememberSortMode(v) {  
+  try {  
+    sessionStorage.setItem("forumSortMode", safeText(v || "newest"));  
+  } catch (e) { }  
+}  
+
+/* =========================================================================================  
+   lastComment sort readiness memory (keeps UI stable)  
+   ========================================================================================= */  
+var lastCommentMetaReady = false;  
+try {  
+  lastCommentMetaReady = (sessionStorage.getItem("lastCommentMetaReady") === "1");  
+} catch (e) {  
+  lastCommentMetaReady = false;  
+}  
+
+function setLastCommentMetaReady(val) {  
+  lastCommentMetaReady = !!val;  
+  try {  
+    sessionStorage.setItem("lastCommentMetaReady", lastCommentMetaReady ? "1" : "0");  
+  } catch (e) { }  
+}  
+
+/* =========================================================================================  
    Image URL safety (הקשחה קלה נגד ערכי URL מוזרים)  
+   - לא משנה אבטחה אמיתית (היא ברולס), רק מונע XSS/הזרקות  
    ========================================================================================= */  
 function sanitizeImageUrl(url) {  
   if (url === undefined || url === null) return "";  
@@ -546,34 +680,75 @@ function copyToClipboard(text) {
   } catch (e3) { }  
 }  
 
-/* =========================================================================================  
-   NEW: userColor (כמו בדף צפייה בפוסט)  
-   ========================================================================================= */  
-function userColor(key) {  
-  var colors = [  
-    "#60a5fa",  
-    "#34d399",  
-    "#f472b6",  
-    "#fbbf24",  
-    "#a78bfa",  
-    "#fb7185",  
-    "#22d3ee"  
-  ];  
-  var hash = 0;  
-  var s = String(key || "");  
-  for (var i = 0; i < s.length; i++) {  
-    hash = s.charCodeAt(i) + ((hash << 5) - hash);  
+/* ===============================  
+   FIX: WebView compatibility helpers  
+   =============================== */  
+function dataURLToBlob(dataUrl) {  
+  try {  
+    var parts = safeText(dataUrl || "").split(",");  
+    if (parts.length < 2) return null;  
+    var meta = parts[0];  
+    var b64 = parts[1];  
+    var mime = "application/octet-stream";  
+    var m = /data:([^;]+);base64/i.exec(meta);  
+    if (m && m[1]) mime = m[1];  
+    var bin = atob(b64);  
+    var len = bin.length;  
+    var arr = new Uint8Array(len);  
+    for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);  
+    return new Blob([arr], { type: mime });  
+  } catch (e) {  
+    return null;  
   }  
-  var idx = Math.abs(hash) % colors.length;  
-  return colors[idx];  
 }  
 
-/* =========================================================================================  
-   Image viewer (נשמר, אבל הוסר לגמרי כל שריד של "העתק קישור" בתוך הוייבר)  
-   ========================================================================================= */  
+function canvasToBlobSafe(canvas, outType, quality, cb) {  
+  try {  
+    if (canvas && typeof canvas.toBlob === "function") {  
+      canvas.toBlob(function (blob) { cb(blob); }, outType, quality);  
+      return;  
+    }  
+  } catch (e1) { }  
+  try {  
+    var dataUrl = "";  
+    try { dataUrl = canvas.toDataURL(outType, quality); } catch (e2) { dataUrl = canvas.toDataURL(); }  
+    var blob2 = dataURLToBlob(dataUrl);  
+    cb(blob2);  
+  } catch (e3) {  
+    cb(null);  
+  }  
+}  
+
+function getPreviewUrlForFile(file, done) {  
+  try {  
+    if (window.URL && typeof URL.createObjectURL === "function") {  
+      try {  
+        var u = URL.createObjectURL(file);  
+        done(u, true);  
+        return;  
+      } catch (eObj) { }  
+    }  
+  } catch (e0) { }  
+
+  try {  
+    var r = new FileReader();  
+    r.onerror = function () { done("", false); };  
+    r.onload = function () { done(safeText(r.result || ""), false); };  
+    r.readAsDataURL(file);  
+  } catch (e1) {  
+    done("", false);  
+  }  
+}  
+
 function openImageViewer(url) {  
   var overlay = document.getElementById("imageViewerOverlay");  
   var img = document.getElementById("imageViewerImg");  
+  /*  
+    [REMOVED REQUESTED FEATURE - keep length, no functional leftovers]  
+    In older versions, there was a "copy link" button inside the image overlay.  
+    The button was removed, and we keep this note to avoid dangling references.  
+    var copyBtn = document.getElementById("copyImageLinkBtn");  
+  */  
   var closeBtn = document.getElementById("closeImageViewer");  
 
   if (!overlay || !img) return;  
@@ -583,6 +758,17 @@ function openImageViewer(url) {
 
   img.setAttribute("src", safe);  
   overlay.style.display = "flex";  
+
+  /*  
+    [REMOVED - no binding to non-existing button]  
+    if (copyBtn && !copyBtn.__bound) {  
+      copyBtn.__bound = true;  
+      copyBtn.addEventListener("click", function () {  
+        var src = img.getAttribute("src") || "";  
+        if (src) copyToClipboard(src);  
+      });  
+    }  
+  */  
 
   if (closeBtn && !closeBtn.__bound) {  
     closeBtn.__bound = true;  
@@ -595,12 +781,120 @@ function openImageViewer(url) {
   if (!overlay.__bound) {  
     overlay.__bound = true;  
     overlay.addEventListener("click", function (e) {  
+      // click outside inner  
       if (e.target === overlay) {  
         overlay.style.display = "none";  
         img.setAttribute("src", "");  
       }  
     });  
   }  
+}  
+
+function prepareImageForUpload(file, warnEl) {  
+  // שדרוג: ניסיון להקטין תמונה גדולה (אופציונלי). אם נכשל – מחזירים קובץ מקורי.  
+  return new Promise(function (resolve) {  
+    try {  
+      if (!file) { resolve({ blob: null, contentType: "", ext: "" }); return; }  
+
+      var type = safeText(file.type || "").toLowerCase();  
+      var name = safeText(file.name || "");  
+      var ext = "";  
+      if (name.indexOf(".") !== -1) ext = name.split(".").pop().toLowerCase();  
+
+      // אם זה כבר webp/png/jpeg - ננסה להקטין רק אם כבד  
+      var size = Number(file.size || 0);  
+      var SHOULD_TRY_RESIZE = size > (1.2 * 1024 * 1024); // 1.2MB+  
+
+      if (!SHOULD_TRY_RESIZE) {  
+        resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+        return;  
+      }  
+
+      // load image (ObjectURL with fallback to FileReader)  
+      getPreviewUrlForFile(file, function (srcUrl, canRevoke) {  
+        if (!srcUrl) {  
+          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+          return;  
+        }  
+
+        var img = new Image();  
+
+        img.onload = function () {  
+          try {  
+            try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch (eR) { }  
+
+            var maxDim = 1280;  
+            var w = img.width || 0;  
+            var h = img.height || 0;  
+
+            if (!w || !h) {  
+              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+              return;  
+            }  
+
+            var scale = 1;  
+            if (w > maxDim || h > maxDim) {  
+              scale = Math.min(maxDim / w, maxDim / h);  
+            }  
+
+            var nw = Math.max(1, Math.round(w * scale));  
+            var nh = Math.max(1, Math.round(h * scale));  
+
+            var canvas = document.createElement("canvas");  
+            canvas.width = nw;  
+            canvas.height = nh;  
+
+            var ctx = canvas.getContext("2d");  
+            if (!ctx) {  
+              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+              return;  
+            }  
+
+            ctx.drawImage(img, 0, 0, nw, nh);  
+
+            // נייצא ל-JPEG כדי לחסוך (גם אם מקור PNG). אם מקור WebP ויש תמיכה - אפשר גם webp.  
+            var outType = "image/jpeg";  
+            var quality = 0.85;  
+
+            // אם המקור webp ונראה שיש תמיכה - ננסה webp  
+            if (type === "image/webp") outType = "image/webp";  
+
+            canvasToBlobSafe(canvas, outType, quality, function (blob) {  
+              if (!blob) {  
+                resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+                return;  
+              }  
+
+              // הודעה עדינה על כיווץ (לא חובה)  
+              try {  
+                if (warnEl) {  
+                  warnEl.style.display = "block";  
+                  warnEl.textContent = "בוצעה אופטימיזציה לתמונה כדי להאיץ טעינה.";  
+                }  
+              } catch (eWarn) { }  
+
+              var outExt = "jpg";  
+              if (outType === "image/webp") outExt = "webp";  
+              resolve({ blob: blob, contentType: outType, ext: outExt });  
+            });  
+
+          } catch (e2) {  
+            resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+          }  
+        };  
+
+        img.onerror = function () {  
+          try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch (eR2) { }  
+          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
+        };  
+
+        img.src = srcUrl;  
+      });  
+
+    } catch (e0) {  
+      resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: "jpg" });  
+    }  
+  });  
 }  
 
 function nowTs() {            
@@ -627,6 +921,9 @@ function setStatus(msg, type) {
   } else if (type === "ok") {            
     bar.style.background = "rgba(0,128,0,0.08)";            
     bar.style.color = "#0b5a0b";            
+  } else if (type === "warn") {  
+    bar.style.background = "rgba(255,165,0,0.10)";  
+    bar.style.color = "#7a4b00";  
   } else {            
     bar.style.background = "rgba(0,0,0,0.04)";            
     bar.style.color = "#111";            
@@ -643,116 +940,6 @@ function debounce(fn, ms) {
     }, ms);            
   };            
 }            
-
-/* =========================================================================================  
-   NEW: cache meta (commentsCount + lastCommentTime + hasImage + authorColor)  
-   - כדי שלא יתאפס כשחוזרים מפוסט  
-   ========================================================================================= */  
-var META_CACHE_KEY = "cachedPostsMetaV2";  
-var SORT_CACHE_KEY = "forumSortModeV2";  
-
-var postsMetaMap = {}; // { postId: { commentsCount, lastCommentTime, hasImage, author, authorColor, time } }  
-var metaSaveTimer = null;  
-
-function safeJsonParse(s) {  
-  try { return JSON.parse(s); } catch (e) { return null; }  
-}  
-
-function scheduleSaveMeta() {  
-  try {  
-    if (metaSaveTimer) clearTimeout(metaSaveTimer);  
-    metaSaveTimer = setTimeout(function () {  
-      try {  
-        sessionStorage.setItem(META_CACHE_KEY, JSON.stringify(postsMetaMap || {}));  
-      } catch (e1) { }  
-    }, 180);  
-  } catch (e2) { }  
-}  
-
-function applyCachedMetaToDomIfAny() {  
-  try {  
-    var raw = sessionStorage.getItem(META_CACHE_KEY);  
-    if (!raw) return;  
-    var obj = safeJsonParse(raw);  
-    if (!obj) return;  
-    postsMetaMap = obj || {};  
-
-    // Update DOM nodes (even if only cached HTML is shown)  
-    for (var id in postsMetaMap) {  
-      if (!postsMetaMap.hasOwnProperty(id)) continue;  
-      var m = postsMetaMap[id] || {};  
-      try {  
-        applyMetaToSinglePostDom(id, m);  
-      } catch (eU) { }  
-    }  
-  } catch (e0) { }  
-}  
-
-function applyMetaToSinglePostDom(postId, m) {  
-  // comments text  
-  try {  
-    var cEl = document.getElementById("comments-count-" + postId);  
-    if (cEl) {  
-      var cc = Number(m.commentsCount || 0);  
-      cEl.textContent = cc > 0 ? (cc + " תגובות") : "אין תגובות";  
-    }  
-  } catch (e1) { }  
-
-  // image badge (stable position: keep space even if hidden)  
-  try {  
-    var bEl = document.getElementById("img-badge-" + postId);  
-    if (bEl) {  
-      var has = !!m.hasImage;  
-      bEl.textContent = "📷 יש תמונה";  
-      bEl.style.visibility = has ? "visible" : "hidden";  
-    }  
-  } catch (e2) { }  
-
-  // author color + border color  
-  try {  
-    var aEl = document.getElementById("author-line-" + postId);  
-    if (aEl) {  
-      var col = safeText(m.authorColor || "");  
-      if (col) aEl.style.color = col;  
-    }  
-  } catch (e3) { }  
-
-  try {  
-    var postNode = null;  
-    try { postNode = document.querySelector('.post[data-id="' + postId + '"]'); } catch (eQ) { postNode = null; }  
-    if (postNode) {  
-      var col2 = safeText(m.authorColor || "");  
-      if (col2) {  
-        postNode.style.borderRightColor = col2;  
-        // אם אין border בכלל ב-css, נוסיף אחד  
-        if (!postNode.style.borderRightWidth) postNode.style.borderRightWidth = "4px";  
-        if (!postNode.style.borderRightStyle) postNode.style.borderRightStyle = "solid";  
-      }  
-    }  
-  } catch (e4) { }  
-}  
-
-function loadRememberedSortModeIntoSelect() {  
-  try {  
-    var sel = document.getElementById("sortMode");  
-    if (!sel) return;  
-    var s = sessionStorage.getItem(SORT_CACHE_KEY) || "";  
-    s = safeText(s);  
-    if (!s) return;  
-    // validate allowed values  
-    var ok = (s === "newest" || s === "oldest" || s === "author" || s === "title" || s === "lastComment");  
-    if (ok) sel.value = s;  
-  } catch (e0) { }  
-}  
-
-function saveSortModeFromSelect() {  
-  try {  
-    var sel = document.getElementById("sortMode");  
-    if (!sel) return;  
-    var v = safeText(sel.value || "");  
-    sessionStorage.setItem(SORT_CACHE_KEY, v);  
-  } catch (e0) { }  
-}  
 
 /* =========================================================================================            
    Global State            
@@ -772,214 +959,36 @@ var didTriggerRefresh = false;
 var realUsername = "משתמש";            
 
 /* =========================================================================================  
-   Image state (בחירה יציבה: בלי FileReader/Canvas; העלאה גולמית)  
+   Image state (שדרוג)  
    ========================================================================================= */  
 var selectedImageFile = null;  
 var selectedImagePreviewUrl = "";  
 var selectedImagePreviewCanRevoke = false;  
+var selectedImagePrepared = null; // { blob, contentType, ext }  
+var selectedImageDataUrl = ""; // FIX: יציב ב-WebView (DataURL)  
 var isPublishingNow = false;  
 
 /* =========================================================================================  
-   Live comments tracking (count + lastCommentTime)  
+   Forum meta live: listeners per visible post  
    ========================================================================================= */  
-var liveCommentsAttachedMap = {};   // postId => true  
-var liveCommentsRefMap = {};        // postId => base ref  
-var liveCommentsAddRefMap = {};     // postId => query ref (startAt)  
-var lastActivityRerenderTimer = null;  
-
-function getActivityTimeForPost(p) {  
-  try {  
-    var t0 = Number(p.time || 0);  
-    var lc = Number(p.lastCommentTime || 0);  
-    var x = lc > t0 ? lc : t0;  
-    return x;  
-  } catch (e) {  
-    return Number(p.time || 0);  
-  }  
-}  
-
-function scheduleRerenderIfNeededForLastCommentSort() {  
-  try {  
-    if (lastActivityRerenderTimer) clearTimeout(lastActivityRerenderTimer);  
-    lastActivityRerenderTimer = setTimeout(function () {  
-      try {  
-        var sel = document.getElementById("sortMode");  
-        var mode = sel ? safeText(sel.value || "newest") : "newest";  
-        if (mode === "lastComment") {  
-          renderPostsFromCache();  
-        } else {  
-          // לא מזיזים סדר אם המשתמש לא בחר מיון כזה  
-        }  
-      } catch (e2) { }  
-    }, 160);  
-  } catch (e0) { }  
-}  
-
-function setCommentsCountForPost(postId, count) {  
-  // update cache  
-  try {  
-    count = Math.max(0, Number(count || 0));  
-  } catch (e0) {  
-    count = 0;  
-  }  
-
-  // update postsCacheData  
-  try {  
-    for (var i = 0; i < postsCacheData.length; i++) {  
-      if (postsCacheData[i] && postsCacheData[i].id === postId) {  
-        postsCacheData[i].commentsCount = count;  
-        break;  
-      }  
-    }  
-  } catch (e1) { }  
-
-  // update meta map  
-  try {  
-    if (!postsMetaMap[postId]) postsMetaMap[postId] = {};  
-    postsMetaMap[postId].commentsCount = count;  
-    scheduleSaveMeta();  
-  } catch (e2) { }  
-
-  // update DOM  
-  try {  
-    var el = document.getElementById("comments-count-" + postId);  
-    if (el) el.textContent = count > 0 ? (count + " תגובות") : "אין תגובות";  
-  } catch (e3) { }  
-}  
-
-function setLastCommentTimeForPost(postId, ts) {  
-  try {  
-    ts = Math.max(0, Number(ts || 0));  
-  } catch (e0) { ts = 0; }  
-
-  try {  
-    for (var i = 0; i < postsCacheData.length; i++) {  
-      if (postsCacheData[i] && postsCacheData[i].id === postId) {  
-        postsCacheData[i].lastCommentTime = ts;  
-        break;  
-      }  
-    }  
-  } catch (e1) { }  
-
-  try {  
-    if (!postsMetaMap[postId]) postsMetaMap[postId] = {};  
-    postsMetaMap[postId].lastCommentTime = ts;  
-    scheduleSaveMeta();  
-  } catch (e2) { }  
-}  
-
-function attachLiveCommentsForPost(postId) {  
-  try {  
-    if (!postId) return;  
-    if (liveCommentsAttachedMap[postId]) return;  
-    liveCommentsAttachedMap[postId] = true;  
-
-    var baseRef = firebase.database().ref("comments/" + postId);  
-    liveCommentsRefMap[postId] = baseRef;  
-
-    // 1) initial: get count + max time once (כן, זה קורא את כל התגובות של אותו פוסט; זה כדי שלא יתאפס)  
-    baseRef.once("value")  
-      .then(function (snap) {  
-        var cnt = 0;  
-        var maxT = 0;  
-        try {  
-          cnt = snap.numChildren();  
-          snap.forEach(function (cs) {  
-            var v = cs.val() || {};  
-            var tt = Number(v.time || 0);  
-            if (tt > maxT) maxT = tt;  
-          });  
-        } catch (eX) {  
-          cnt = 0;  
-          maxT = 0;  
-        }  
-
-        setCommentsCountForPost(postId, cnt);  
-        setLastCommentTimeForPost(postId, maxT);  
-
-        // 2) attach for new comments only (startAt maxT+1)  
-        try {  
-          var addQuery = baseRef.orderByChild("time").startAt(maxT + 1);  
-          liveCommentsAddRefMap[postId] = addQuery;  
-
-          addQuery.on("child_added", function (s2) {  
-            try {  
-              var v2 = s2.val() || {};  
-              var t2 = Number(v2.time || 0);  
-
-              // increment count  
-              var cur = 0;  
-              try {  
-                cur = Number((postsMetaMap[postId] && postsMetaMap[postId].commentsCount) || 0);  
-              } catch (eC) { cur = 0; }  
-              setCommentsCountForPost(postId, cur + 1);  
-
-              // last comment time  
-              var curMax = 0;  
-              try {  
-                curMax = Number((postsMetaMap[postId] && postsMetaMap[postId].lastCommentTime) || 0);  
-              } catch (eM) { curMax = 0; }  
-              if (t2 > curMax) {  
-                setLastCommentTimeForPost(postId, t2);  
-                scheduleRerenderIfNeededForLastCommentSort();  
-              } else {  
-                // אם לא חדש יותר, לא משנים מיון  
-              }  
-            } catch (eA) { }  
-          });  
-        } catch (eQ) { }  
-
-        // 3) removals (rare; keep correctness)  
-        try {  
-          baseRef.on("child_removed", function () {  
-            try {  
-              // decrement count  
-              var cur2 = 0;  
-              try {  
-                cur2 = Number((postsMetaMap[postId] && postsMetaMap[postId].commentsCount) || 0);  
-              } catch (eC2) { cur2 = 0; }  
-              setCommentsCountForPost(postId, Math.max(0, cur2 - 1));  
-
-              // recompute last comment time cheaply (only last one)  
-              baseRef.orderByChild("time").limitToLast(1).once("value")  
-                .then(function (sLast) {  
-                  var mx = 0;  
-                  try {  
-                    sLast.forEach(function (x) {  
-                      var vv = x.val() || {};  
-                      var tt2 = Number(vv.time || 0);  
-                      if (tt2 > mx) mx = tt2;  
-                    });  
-                  } catch (eLL) { mx = 0; }  
-                  setLastCommentTimeForPost(postId, mx);  
-                  scheduleRerenderIfNeededForLastCommentSort();  
-                })  
-                .catch(function () { });  
-            } catch (eR) { }  
-          });  
-        } catch (eRm) { }  
-
-      })  
-      .catch(function () {  
-        // אם נכשל – לא חוסמים, רק משאירים ספירה לפי מה שיש  
-      });  
-
-  } catch (e0) { }  
-}  
-
-function attachLiveCommentsForAllLoadedPosts() {  
-  try {  
-    for (var i = 0; i < postsCacheData.length; i++) {  
-      var p = postsCacheData[i] || {};  
-      if (p && p.id) attachLiveCommentsForPost(p.id);  
-    }  
-  } catch (e0) { }  
-}  
+var visibleMetaListenerMap = {};  
+var visibleMetaValueRefMap = {};  
+var visibleMetaLastRefMap = {};  
+var visibleMetaBoundIds = [];  
+var metaQueue = [];  
+var metaInFlight = 0;  
+var META_CONCURRENCY = 4;  
+var metaFetchAllRunning = false;  
+var metaFetchAllNeedResortAtEnd = false;  
+var lastRenderedListIds = [];  
+var liveMetaTickTimer = null;  
 
 /* =========================================================================================            
    DOM Ready            
    ========================================================================================= */            
 document.addEventListener("DOMContentLoaded", function () {            
+
+  loadPostMetaCache();  
 
   /* ===============================            
      Elements            
@@ -1000,7 +1009,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var createPostError = document.getElementById("createPostError");            
 
   /* ===============================  
-     Image UI elements  
+     Image UI elements (שדרוג)  
      =============================== */  
   var newPostImage = document.getElementById("newPostImage");  
   var chooseImageBtn = document.getElementById("chooseImageBtn");  
@@ -1021,10 +1030,31 @@ document.addEventListener("DOMContentLoaded", function () {
   }            
 
   /* =====================================================================================  
-     Load remembered sort mode + apply cached meta to cached HTML (לפני כל דבר)  
+     Restore sort selection (memory)  
      ===================================================================================== */  
-  loadRememberedSortModeIntoSelect();  
-  applyCachedMetaToDomIfAny();  
+  try {  
+    if (sortMode && rememberedSortMode) {  
+      sortMode.value = rememberedSortMode;  
+    }  
+  } catch (eSM) { }  
+
+  /* =====================================================================================  
+     Image viewer delegation (click image in post card)  
+     ===================================================================================== */  
+  if (!postsEl.__imgViewerBound) {  
+    postsEl.__imgViewerBound = true;  
+    postsEl.addEventListener("click", function (e) {  
+      var img = null;  
+      try { img = e.target.closest(".post-image"); } catch (errX) { img = null; }  
+      if (!img) return;  
+
+      var src = img.getAttribute("data-full") || img.getAttribute("src") || "";  
+      src = sanitizeImageUrl(src);  
+      if (!src) return;  
+
+      openImageViewer(src);  
+    }, false);  
+  }  
 
   bindPostNavigation(postsEl);            
 
@@ -1036,13 +1066,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (sortMode) {            
     sortMode.addEventListener("change", function () {            
-      saveSortModeFromSelect();  
+      try { rememberSortMode(sortMode.value); } catch (eR) { }  
+
+      // If user chooses lastComment, ensure we fetch meta properly (full pass once)  
+      try {  
+        var v = safeText(sortMode.value || "");  
+        if (v === "lastComment") {  
+          ensureAllPostsMetaForLastCommentSort();  
+        }  
+      } catch (eLC) { }  
+
       renderPostsFromCache();            
     });            
   }            
 
   /* =====================================================================================  
-     Image choose/remove handlers (יציב: אין FileReader/Canvas; בחירה תמיד מתקבלת אם לא חורגת מגודל)  
+     Image choose/remove handlers (שדרוג מלא)  
      ===================================================================================== */  
   if (chooseImageBtn && newPostImage) {  
     chooseImageBtn.addEventListener("click", function () {  
@@ -1059,11 +1098,49 @@ document.addEventListener("DOMContentLoaded", function () {
     });  
   }  
 
+  /* =====================================================================================  
+     Robust DataURL reader with retries (keeps length, reduces random errors)  
+     ===================================================================================== */  
+  function readFileAsDataURLWithRetry(file, tries, done) {  
+    try {  
+      var left = Number(tries || 1);  
+      if (left < 1) left = 1;  
+
+      var attempt = function () {  
+        try {  
+          var r = new FileReader();  
+          r.onerror = function () {  
+            left--;  
+            if (left <= 0) { done("", false); return; }  
+            setTimeout(attempt, 140);  
+          };  
+          r.onload = function () {  
+            var dataUrl = safeText(r.result || "");  
+            if (!dataUrl || dataUrl.indexOf("data:") !== 0) {  
+              left--;  
+              if (left <= 0) { done("", false); return; }  
+              setTimeout(attempt, 140);  
+              return;  
+            }  
+            done(dataUrl, true);  
+          };  
+          r.readAsDataURL(file);  
+        } catch (e1) {  
+          left--;  
+          if (left <= 0) { done("", false); return; }  
+          setTimeout(attempt, 140);  
+        }  
+      };  
+
+      attempt();  
+    } catch (e0) {  
+      done("", false);  
+    }  
+  }  
+
   if (newPostImage) {  
     newPostImage.addEventListener("change", function () {  
       try {  
-        createPostErrorHide();  
-
         var f = (newPostImage.files && newPostImage.files[0]) ? newPostImage.files[0] : null;  
         if (!f) return;  
 
@@ -1074,7 +1151,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return;  
         }  
 
-        // size limit (9MB)  
+        // size limit (raised to 9MB)  
         var MAX = 9 * 1024 * 1024; // 9MB  
         if (Number(f.size || 0) > MAX) {  
           createPostErrorShow("התמונה גדולה מדי (" + bytesToHuman(f.size) + "). מומלץ עד 9MB.");  
@@ -1082,10 +1159,12 @@ document.addEventListener("DOMContentLoaded", function () {
           return;  
         }  
 
-        // accept: ALWAYS accept selection (no read attempts)  
+        // accept  
         selectedImageFile = f;  
+        selectedImagePrepared = null;  
+        selectedImageDataUrl = "";  
+        if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
 
-        // reset preview url  
         try {  
           if (selectedImagePreviewUrl && selectedImagePreviewCanRevoke) {  
             try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv0) { }  
@@ -1094,41 +1173,35 @@ document.addEventListener("DOMContentLoaded", function () {
         selectedImagePreviewUrl = "";  
         selectedImagePreviewCanRevoke = false;  
 
-        // show UI (chip always, preview best-effort)  
+        // Preview + upload DataURL (retry-based, less false errors)  
         try {  
-          if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
-          if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
-          if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
-          if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
-          if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
-        } catch (eUI) { }  
+          if (newPostImageMeta) newPostImageMeta.textContent = "טוען תמונה…";  
+        } catch (eMM0) { }  
 
-        // preview: ObjectURL only (no FileReader). If fails, we still keep selection without error.  
-        try {  
-          if (window.URL && typeof URL.createObjectURL === "function") {  
-            var u = URL.createObjectURL(f);  
-            selectedImagePreviewUrl = u;  
-            selectedImagePreviewCanRevoke = true;  
-            if (imagePreview) {  
-              imagePreview.style.display = "block";  
-              imagePreview.setAttribute("src", u);  
-            }  
-          } else {  
-            // no preview support - keep chip only  
-            if (imagePreview) {  
-              imagePreview.style.display = "none";  
-              imagePreview.setAttribute("src", "");  
-            }  
-          }  
-        } catch (ePrev) {  
-          // preview failed - NO error; keep chip only  
+        readFileAsDataURLWithRetry(f, 3, function (dataUrl, ok) {  
           try {  
-            if (imagePreview) {  
-              imagePreview.style.display = "none";  
-              imagePreview.setAttribute("src", "");  
+            if (!ok) {  
+              // keep user-friendly message; do not clear immediately if WebView is flaky  
+              createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה לבחור שוב.");  
+              try {  
+                if (newPostImageMeta) newPostImageMeta.textContent = "פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 9MB.";  
+              } catch (eMM1) { }  
+              return;  
             }  
-          } catch (ePrev2) { }  
-        }  
+
+            selectedImageDataUrl = dataUrl;  
+            selectedImagePreviewUrl = dataUrl;  
+            selectedImagePreviewCanRevoke = false;  
+
+            if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);  
+            if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
+            if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
+            if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
+            try {  
+              if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
+            } catch (eM) { }  
+          } catch (eImg1) { }  
+        });  
 
       } catch (eImg2) { }  
     });  
@@ -1144,12 +1217,11 @@ document.addEventListener("DOMContentLoaded", function () {
     selectedImageFile = null;  
     selectedImagePreviewUrl = "";  
     selectedImagePreviewCanRevoke = false;  
+    selectedImagePrepared = null;  
+    selectedImageDataUrl = "";  
 
     try {  
-      if (imagePreview) {  
-        imagePreview.setAttribute("src", "");  
-        imagePreview.style.display = "block";  
-      }  
+      if (imagePreview) imagePreview.setAttribute("src", "");  
       if (imagePreviewWrap) imagePreviewWrap.style.display = "none";  
       if (removeImageBtn) removeImageBtn.style.display = "none";  
       if (imageChip) imageChip.style.display = "none";  
@@ -1193,7 +1265,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;            
       }            
 
-      // מניעת דאבל-פרסום  
+      // מניעת דאבל-פרסום (שדרוג - תיקון)  
       if (isPublishingNow) return;  
 
       var t1 = "";            
@@ -1213,7 +1285,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;            
       }            
 
-      // אם יש תמונה - רק בדיקת גודל וסוג (בלי עיבוד/קריאה)  
+      // אם יש תמונה - נוודא שהיא עדיין תקינה  
       if (selectedImageFile) {  
         if (!isLikelyImageFile(selectedImageFile)) {  
           createPostErrorShow("התמונה שנבחרה לא תקינה. בחר תמונה מחדש.");  
@@ -1222,7 +1294,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }  
         var MAX2 = 9 * 1024 * 1024;  
         if (Number(selectedImageFile.size || 0) > MAX2) {  
-          createPostErrorShow("התמונה גדולה מדי. בחר תמונה קטנה יותר (עד 9MB).");  
+          createPostErrorShow("התמונה גדולה מדי. בחר תמונה קטנה יותר.");  
           return;  
         }  
       }  
@@ -1358,54 +1430,38 @@ document.addEventListener("DOMContentLoaded", function () {
           var p = pSnap.val() || {};            
           var postId = pSnap.key;            
 
-          var author = safeText(p.author);  
-          var col = userColor(author);  
-          var imgUrl = sanitizeImageUrl(p.image || "");  
+          var cachedMeta = getMetaForPost(postId) || {};  
+          var cc = (p.commentsCount !== undefined && p.commentsCount !== null) ? Number(p.commentsCount || 0) : cachedMeta.commentsCount;  
+          var lct = (p.lastCommentTime !== undefined && p.lastCommentTime !== null) ? Number(p.lastCommentTime || 0) : cachedMeta.lastCommentTime;  
 
           items.push({            
             id: postId,            
             title: safeText(p.title),            
             text: safeText(p.text),            
-            author: author,            
+            author: safeText(p.author),            
             time: Number(p.time || 0),            
             likes: Number(p.likes || 0),            
-            commentsCount: Number(p.commentsCount || 0),  
-            lastCommentTime: Number(p.lastCommentTime || 0),  
-            image: imgUrl,  
-            hasImage: !!imgUrl,  
-            authorColor: col  
+            commentsCount: (cc === undefined ? null : Number(cc || 0)),  
+            lastCommentTime: (lct === undefined ? 0 : Number(lct || 0)),  
+            image: sanitizeImageUrl(p.image || "")            
           });            
         });            
 
         items.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });            
 
-        postsCacheData = items;  
+        postsCacheData = items;            
 
-        // build meta map for persistence (so back-from-post doesn't reset)  
+        // If lastComment sort is selected, ensure we run the full meta fetch once  
         try {  
-          var mm = {};  
-          for (var i = 0; i < postsCacheData.length; i++) {  
-            var it = postsCacheData[i] || {};  
-            if (!it.id) continue;  
-            mm[it.id] = {  
-              commentsCount: Number(it.commentsCount || 0),  
-              lastCommentTime: Number(it.lastCommentTime || 0),  
-              hasImage: !!it.hasImage,  
-              author: safeText(it.author || ""),  
-              authorColor: safeText(it.authorColor || ""),  
-              time: Number(it.time || 0)  
-            };  
+          var modeNow = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);  
+          if (modeNow === "lastComment") {  
+            ensureAllPostsMetaForLastCommentSort();  
           }  
-          postsMetaMap = mm;  
-          scheduleSaveMeta();  
-        } catch (eMM) { }  
+        } catch (eLM0) { }  
 
         renderPostsFromCache();            
 
         try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e2) { }            
-
-        // attach live comments tracking (count + lastCommentTime)  
-        attachLiveCommentsForAllLoadedPosts();  
 
         if (fromRefresh) {            
           setTimeout(function () {            
@@ -1416,6 +1472,11 @@ document.addEventListener("DOMContentLoaded", function () {
         } else {            
           setStatus("פוסטים נטענו.", "ok");            
         }            
+
+        // After initial render, ensure visible meta listeners + queue meta load  
+        try {  
+          ensureVisibleMetaAndFetch();  
+        } catch (eVM0) { }  
       })            
       .catch(function () {            
         location.replace("forbidden.html");            
@@ -1452,12 +1513,20 @@ document.addEventListener("DOMContentLoaded", function () {
     } else if (mode === "title") {            
       list.sort(function (a, b) { return (a.title || "").localeCompare(b.title || "", "he"); });            
     } else if (mode === "lastComment") {  
-      list.sort(function (a, b) {  
-        var ta = getActivityTimeForPost(a);  
-        var tb = getActivityTimeForPost(b);  
-        if (tb !== ta) return tb - ta;  
-        return (b.time || 0) - (a.time || 0);  
-      });  
+      // Important: if meta is not ready yet, keep stable order from current list (cache)  
+      // Once meta is ready (first full run completed), sort by lastCommentTime reliably.  
+      if (lastCommentMetaReady) {  
+        list.sort(function (a, b) {  
+          var ta = Number(a.lastCommentTime || 0) || 0;  
+          var tb = Number(b.lastCommentTime || 0) || 0;  
+          // fallback: use post time if no comments  
+          if (!ta) ta = Number(a.time || 0) || 0;  
+          if (!tb) tb = Number(b.time || 0) || 0;  
+          return tb - ta;  
+        });  
+      } else {  
+        // keep current order (do nothing)  
+      }  
     } else {            
       list.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });            
     }            
@@ -1473,21 +1542,44 @@ document.addEventListener("DOMContentLoaded", function () {
     }            
 
     postsEl.innerHTML = html;            
-    renderedHtmlCache = html;  
+    renderedHtmlCache = html;            
 
-    // after render, apply meta map to DOM to ensure cached/updated values show (counts + badge + colors)  
+    // Track rendered ids for meta listeners and background fetch  
     try {  
-      for (var id in postsMetaMap) {  
-        if (!postsMetaMap.hasOwnProperty(id)) continue;  
-        applyMetaToSinglePostDom(id, postsMetaMap[id] || {});  
+      lastRenderedListIds = [];  
+      for (var j = 0; j < list.length; j++) {  
+        if (list[j] && list[j].id) lastRenderedListIds.push(list[j].id);  
       }  
-    } catch (eA) { }  
+    } catch (eIds) {  
+      lastRenderedListIds = [];  
+    }  
+
+    // keep cache of posts html  
+    try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (eC) { }  
+
+    // after render: ensure visible meta / live update  
+    try {  
+      ensureVisibleMetaAndFetch();  
+    } catch (eVM1) { }  
   }            
+
+  function formatCommentsCountText(n, unknown) {  
+    try {  
+      if (unknown) return "טוען תגובות…";  
+      var x = Number(n || 0);  
+      if (!x) return "אין תגובות";  
+      if (x === 1) return "תגובה אחת";  
+      return x + " תגובות";  
+    } catch (e) {  
+      return "אין תגובות";  
+    }  
+  }  
 
   function buildPostCardHTML(p) {            
     var title = escapeHTML(p.title || "");            
     var text = escapeHTML(p.text || "");            
-    var author = escapeHTML(p.author || "");            
+    var authorRaw = safeText(p.author || "");  
+    var author = escapeHTML(authorRaw);            
     var id = escapeHTML(p.id || "");            
 
     var timeStr = "";            
@@ -1504,39 +1596,45 @@ document.addEventListener("DOMContentLoaded", function () {
       }            
     }            
 
-    // NEW: no images in forum feed (לפי הדרישה)  
-    // Instead: stable badge in meta-left  
-    var hasImg = !!p.hasImage;  
-    var commentsCount = Number(p.commentsCount || 0);  
-    var commentsText = (commentsCount > 0) ? (commentsCount + " תגובות") : "אין תגובות";  
-    var col = safeText(p.authorColor || userColor(p.author || ""));  
-    var escCol = escapeHTML(col);  
+    // =========================  
+    // Requested: no images in forum list  
+    // =========================  
+    var hasImg = !!sanitizeImageUrl(p.image || "");  
+    var imgFlagHtml = "";  
+    if (hasImg) {  
+      imgFlagHtml = '<span class="has-image-flag">יש תמונה</span>';  
+    } else {  
+      imgFlagHtml = '<span class="has-image-flag-placeholder"></span>';  
+    }  
 
-    // IMPORTANT: badge keeps its place even if hidden (visibility)  
-    var badgeVis = hasImg ? "visible" : "hidden";  
+    // =========================  
+    // Requested: user border + author colored  
+    // =========================  
+    var c = userColor(authorRaw);  
+    var borderStyle = ' style="border-right:4px solid ' + escapeHTML(c) + '; padding-right:12px;" ';  
 
-    // Save to meta map for persistence  
-    try {  
-      if (!postsMetaMap[p.id]) postsMetaMap[p.id] = {};  
-      postsMetaMap[p.id].commentsCount = commentsCount;  
-      postsMetaMap[p.id].lastCommentTime = Number(p.lastCommentTime || 0);  
-      postsMetaMap[p.id].hasImage = hasImg;  
-      postsMetaMap[p.id].author = safeText(p.author || "");  
-      postsMetaMap[p.id].authorColor = col;  
-      postsMetaMap[p.id].time = Number(p.time || 0);  
-      scheduleSaveMeta();  
-    } catch (eM) { }  
+    // =========================  
+    // Requested: comments count stable (cache/unknown)  
+    // =========================  
+    var ccKnown = (p.commentsCount !== null && p.commentsCount !== undefined);  
+    var ccText = formatCommentsCountText(p.commentsCount, !ccKnown);  
+
+    // =========================  
+    // For lastComment sorting: show nothing extra; internal meta only  
+    // =========================  
 
     return (            
-      '\n      <div class="post" data-id="' + id + '" style="border-right:4px solid ' + escCol + '; border-right-color:' + escCol + ';">' +            
+      '\n      <div class="post post-user-border" data-id="' + id + '"' + borderStyle + '>' +            
       '\n        <h3>' + title + '</h3>' +            
       '\n        <p>' + text + '</p>' +            
-      '\n        <small id="author-line-' + id + '" style="color:' + escCol + ';">מאת: ' + author + '</small>' +            
+      '\n        <small class="post-author-colored" style="color:' + escapeHTML(c) + ';">מאת: ' + author + '</small>' +            
       '\n        <div class="post-meta-row">' +  
-      '\n          <small class="post-time-small" id="post-time-' + id + '">' + escapeHTML(timeStr) + '</small>' +  
       '\n          <div class="post-meta-left">' +  
-      '\n            <span class="post-img-badge" id="img-badge-' + id + '" style="visibility:' + badgeVis + ';">📷 יש תמונה</span>' +  
-      '\n            <span class="post-comments-count" id="comments-count-' + id + '">' + escapeHTML(commentsText) + '</span>' +  
+      '\n            ' + imgFlagHtml +  
+      '\n            <small style="opacity:.75; display:block;">' + escapeHTML(timeStr) + '</small>' +            
+      '\n          </div>' +  
+      '\n          <div class="post-meta-right">' +  
+      '\n            <small style="opacity:.85; display:block;">' + escapeHTML(ccText) + '</small>' +  
       '\n          </div>' +  
       '\n        </div>' +  
       '\n      </div>\n    '            
@@ -1554,6 +1652,12 @@ document.addEventListener("DOMContentLoaded", function () {
       try { postEl = e.target.closest(".post"); } catch (err) { postEl = null; }            
       if (!postEl) return;            
 
+      // אם לחצו על תמונה - אל תנווט, זה פותח viewer (נשאר תאימות)  
+      try {  
+        var inImg = e.target && (e.target.classList && e.target.classList.contains("post-image"));  
+        if (inImg) return;  
+      } catch (eN) { }  
+
       var id = postEl.getAttribute("data-id");            
       if (!id) return;            
 
@@ -1568,26 +1672,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }            
 
   function openPost(postId, el) {            
-    // NEW: מקור אמת לתמונה/מטא = postsCacheData (כי אין תמונה ב-DOM לפי דרישה)  
-    var imageUrlFromCache = "";  
-    var authorFromCache = "";  
-    var titleFromCache = "";  
-    var textFromCache = "";  
-
-    try {  
-      for (var i = 0; i < postsCacheData.length; i++) {  
-        if (postsCacheData[i] && postsCacheData[i].id === postId) {  
-          imageUrlFromCache = sanitizeImageUrl(postsCacheData[i].image || "");  
-          authorFromCache = safeText(postsCacheData[i].author || "");  
-          titleFromCache = safeText(postsCacheData[i].title || "");  
-          textFromCache = safeText(postsCacheData[i].text || "");  
-          break;  
-        }  
-      }  
-    } catch (eC) { }  
-
-    try {  
-      // fallback DOM reading for title/text/author (kept)  
+    try {            
       var h3 = el.querySelector("h3");            
       var p = el.querySelector("p");            
       var s = el.querySelector("small");            
@@ -1597,12 +1682,25 @@ document.addEventListener("DOMContentLoaded", function () {
       var author = "";            
       if (s) author = (s.innerText || "").replace("מאת:", "").trim();            
 
+      // keep imageUrl in cache for post page (it will show it there)  
+      var imageUrl = "";  
+      try {  
+        var found = null;  
+        for (var i = 0; i < postsCacheData.length; i++) {  
+          if (postsCacheData[i] && postsCacheData[i].id === postId) {  
+            found = postsCacheData[i];  
+            break;  
+          }  
+        }  
+        if (found) imageUrl = sanitizeImageUrl(found.image || "");  
+      } catch (eImg) { imageUrl = ""; }  
+
       sessionStorage.setItem("currentPost", JSON.stringify({            
         id: postId,            
-        title: titleFromCache || title || "",            
-        text: textFromCache || text || "",            
-        author: authorFromCache || author || "",  
-        image: imageUrlFromCache || ""            
+        title: title || "",            
+        text: text || "",            
+        author: author || "",  
+        image: imageUrl || ""            
       }));            
     } catch (e) { }            
 
@@ -1614,7 +1712,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (newPostTitle) newPostTitle.value = "";            
     if (newPostText) newPostText.value = "";            
 
-    // reset image  
+    // reset image (שדרוג)  
     clearSelectedImage(true);  
     isPublishingNow = false;  
 
@@ -1629,7 +1727,7 @@ document.addEventListener("DOMContentLoaded", function () {
     createPostErrorHide();            
     if (overlay) overlay.style.display = "none";            
 
-    // reset image  
+    // reset image (שדרוג)  
     clearSelectedImage(true);  
     isPublishingNow = false;  
   }            
@@ -1661,6 +1759,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return;            
     }            
 
+    // מניעת דאבל-פרסום (שדרוג - תיקון)  
     if (isPublishingNow) return;  
     isPublishingNow = true;  
 
@@ -1672,16 +1771,17 @@ document.addEventListener("DOMContentLoaded", function () {
       text: text,            
       author: realUsername,            
       time: nowTs(),  
-      image: null,  
-      commentsCount: 0,  
-      lastCommentTime: 0  
+      image: null  
+      /*  
+        NOTE: we do not force lastCommentTime/commentsCount here.  
+        Forum page will compute meta reliably even if old posts don't have these fields.  
+      */  
     };            
 
     var postsRef = firebase.database().ref("posts");  
     var newRef = postsRef.push();  
     var postId = newRef.key;  
 
-    // אם אין תמונה: set רגיל  
     if (!selectedImageFile) {  
       postObj.image = null;  
 
@@ -1704,7 +1804,6 @@ document.addEventListener("DOMContentLoaded", function () {
       return;  
     }  
 
-    // יש תמונה: העלאה גולמית ל-Storage (בלי FileReader/Canvas)  
     setStatus("מעלה תמונה…", "info");  
     setUploadProgress(1);  
 
@@ -1714,9 +1813,32 @@ document.addEventListener("DOMContentLoaded", function () {
       if (n0.indexOf(".") !== -1) ext0 = n0.split(".").pop().toLowerCase();  
     } catch (eExt) { ext0 = "jpg"; }  
 
-    uploadPostImageFileWithTimeoutEx(selectedImageFile, selectedImageFile.type || "", ext0, postId, uid, function (pct) {  
-      setUploadProgress(pct);  
-    })  
+    var ensureDataUrl = function () {  
+      return new Promise(function (resolve, reject) {  
+        try {  
+          if (selectedImageDataUrl && selectedImageDataUrl.indexOf("data:") === 0) {  
+            resolve(selectedImageDataUrl);  
+            return;  
+          }  
+
+          // retry based  
+          readFileAsDataURLWithRetry(selectedImageFile, 3, function (durl, ok) {  
+            if (!ok) { reject("read_failed"); return; }  
+            resolve(durl);  
+          });  
+        } catch (e) { reject(e); }  
+      });  
+    };  
+
+    ensureDataUrl()  
+      .then(function (dataUrl) {  
+        selectedImageDataUrl = safeText(dataUrl || "");  
+        if (!selectedImageDataUrl || selectedImageDataUrl.indexOf("data:") !== 0) throw "read_failed";  
+
+        return uploadPostImageDataUrlEx(selectedImageDataUrl, ext0, postId, uid, function (pct) {  
+          setUploadProgress(pct);  
+        });  
+      })  
       .then(function (imageUrl) {  
         imageUrl = sanitizeImageUrl(imageUrl || "");  
         postObj.image = imageUrl || null;  
@@ -1733,12 +1855,16 @@ document.addEventListener("DOMContentLoaded", function () {
         try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }            
         try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }            
       })  
-      .catch(function () {  
+      .catch(function (err) {  
         try {  
           if (postId) firebase.database().ref("posts/" + postId).remove();  
         } catch (eRm) { }  
 
-        createPostErrorShow("שגיאה בהעלאת תמונה/פרסום. נסה שוב.");  
+        var msg = "שגיאה בהעלאת תמונה/פרסום. נסה שוב.";  
+        if (safeText(err) === "upload_timeout") msg = "העלאת תמונה נתקעה (Timeout). נסה שוב.";  
+        if (safeText(err) === "read_failed") msg = "שגיאה בקריאת התמונה. בחר תמונה מחדש.";  
+
+        createPostErrorShow(msg);  
         setStatus("שגיאה בפרסום.", "error");  
       })  
       .finally(function () {  
@@ -1758,45 +1884,27 @@ document.addEventListener("DOMContentLoaded", function () {
       var id = snap.key;            
       var v = snap.val() || {};            
 
-      var author = safeText(v.author);  
-      var col = userColor(author);  
-      var imgUrl = sanitizeImageUrl(v.image || "");  
+      var cachedMeta = getMetaForPost(id) || {};  
+      var cc = (v.commentsCount !== undefined && v.commentsCount !== null) ? Number(v.commentsCount || 0) : cachedMeta.commentsCount;  
+      var lct = (v.lastCommentTime !== undefined && v.lastCommentTime !== null) ? Number(v.lastCommentTime || 0) : cachedMeta.lastCommentTime;  
 
       var item = {            
         id: id,            
         title: safeText(v.title),            
         text: safeText(v.text),            
-        author: author,            
+        author: safeText(v.author),            
         time: Number(v.time || 0),            
         likes: Number(v.likes || 0),            
-        commentsCount: Number(v.commentsCount || 0),  
-        lastCommentTime: Number(v.lastCommentTime || 0),  
-        image: imgUrl,  
-        hasImage: !!imgUrl,  
-        authorColor: col  
+        commentsCount: (cc === undefined ? null : Number(cc || 0)),  
+        lastCommentTime: (lct === undefined ? 0 : Number(lct || 0)),  
+        image: sanitizeImageUrl(v.image || "")            
       };            
 
       for (var i = 0; i < postsCacheData.length; i++) {            
         if (postsCacheData[i] && postsCacheData[i].id === id) return;            
       }            
 
-      postsCacheData.unshift(item);  
-
-      // update meta map immediately  
-      try {  
-        postsMetaMap[id] = {  
-          commentsCount: Number(item.commentsCount || 0),  
-          lastCommentTime: Number(item.lastCommentTime || 0),  
-          hasImage: !!item.hasImage,  
-          author: safeText(item.author || ""),  
-          authorColor: safeText(item.authorColor || ""),  
-          time: Number(item.time || 0)  
-        };  
-        scheduleSaveMeta();  
-      } catch (eM) { }  
-
-      // attach comments live for this new post  
-      attachLiveCommentsForPost(id);  
+      postsCacheData.unshift(item);            
 
       if (!isRefreshing) {            
         renderPostsFromCache();            
@@ -1815,35 +1923,28 @@ document.addEventListener("DOMContentLoaded", function () {
       if (idx === -1) return;            
 
       var prev = postsCacheData[idx] || {};  
-      var author = safeText(v.author || prev.author || "");  
-      var col = userColor(author);  
-      var imgUrl = sanitizeImageUrl(v.image || prev.image || "");  
+      var cachedMeta = getMetaForPost(id) || {};  
+
+      var cc = (v.commentsCount !== undefined && v.commentsCount !== null) ? Number(v.commentsCount || 0) : (prev.commentsCount !== undefined ? prev.commentsCount : cachedMeta.commentsCount);  
+      var lct = (v.lastCommentTime !== undefined && v.lastCommentTime !== null) ? Number(v.lastCommentTime || 0) : (prev.lastCommentTime !== undefined ? prev.lastCommentTime : cachedMeta.lastCommentTime);  
 
       postsCacheData[idx] = {            
         id: id,            
-        title: safeText(v.title || prev.title),            
-        text: safeText(v.text || prev.text),            
-        author: author,            
+        title: safeText(v.title),            
+        text: safeText(v.text),            
+        author: safeText(v.author),            
         time: Number(v.time || prev.time || 0),            
         likes: Number(v.likes || prev.likes || 0),            
-        commentsCount: Number(v.commentsCount || prev.commentsCount || 0),  
-        lastCommentTime: Number(v.lastCommentTime || prev.lastCommentTime || 0),  
-        image: imgUrl,  
-        hasImage: !!imgUrl,  
-        authorColor: col  
+        commentsCount: (cc === undefined ? null : Number(cc || 0)),  
+        lastCommentTime: (lct === undefined ? 0 : Number(lct || 0)),  
+        image: sanitizeImageUrl(v.image || prev.image || "")            
       };            
 
+      // keep meta cache in sync  
       try {  
-        postsMetaMap[id] = {  
-          commentsCount: Number(postsCacheData[idx].commentsCount || 0),  
-          lastCommentTime: Number(postsCacheData[idx].lastCommentTime || 0),  
-          hasImage: !!postsCacheData[idx].hasImage,  
-          author: safeText(postsCacheData[idx].author || ""),  
-          authorColor: safeText(postsCacheData[idx].authorColor || ""),  
-          time: Number(postsCacheData[idx].time || 0)  
-        };  
-        scheduleSaveMeta();  
-      } catch (eM2) { }  
+        if (cc !== undefined && cc !== null) setMetaForPost(id, { commentsCount: Number(cc || 0) });  
+        if (lct !== undefined && lct !== null) setMetaForPost(id, { lastCommentTime: Number(lct || 0) });  
+      } catch (eSync) { }  
 
       if (!isRefreshing) {            
         renderPostsFromCache();            
@@ -1852,15 +1953,334 @@ document.addEventListener("DOMContentLoaded", function () {
     });            
   }            
 
+  /* =========================================================================================  
+     THIRD ROUND FIXES: Meta fetching + lastComment sorting done right  
+     ========================================================================================= */  
+
+  function enqueueMeta(postId) {  
+    try {  
+      var id = safeText(postId || "");  
+      if (!id) return;  
+
+      // Avoid duplicates in queue  
+      for (var i = 0; i < metaQueue.length; i++) {  
+        if (metaQueue[i] === id) return;  
+      }  
+
+      metaQueue.push(id);  
+    } catch (e) { }  
+  }  
+
+  function drainMetaQueue() {  
+    try {  
+      while (metaInFlight < META_CONCURRENCY && metaQueue.length) {  
+        var id = metaQueue.shift();  
+        if (!id) continue;  
+        metaInFlight++;  
+
+        fetchMetaForPost(id)  
+          .catch(function () { })  
+          .finally(function () {  
+            metaInFlight--;  
+            drainMetaQueue();  
+
+            // If this was the "fetch all" run for lastComment: finish + resort once at the end  
+            if (metaFetchAllRunning) {  
+              if (metaInFlight === 0 && metaQueue.length === 0) {  
+                metaFetchAllRunning = false;  
+                setLastCommentMetaReady(true);  
+
+                // Now that ALL meta is ready, we can safely sort by lastCommentTime  
+                try {  
+                  renderPostsFromCache();  
+                  setStatus("עודכן מיון לפי תגובה אחרונה.", "ok");  
+                } catch (eEnd) { }  
+              }  
+            }  
+          });  
+      }  
+    } catch (e) { }  
+  }  
+
+  function fetchMetaForPost(postId) {  
+    return new Promise(function (resolve, reject) {  
+      try {  
+        if (!isAuthed) { resolve(); return; }  
+        var id = safeText(postId || "");  
+        if (!id) { resolve(); return; }  
+
+        // Load comments snapshot once => count + lastTime (single read)  
+        firebase.database()  
+          .ref("comments/" + id)  
+          .once("value")  
+          .then(function (snap) {  
+            var count = 0;  
+            var lastTime = 0;  
+            if (snap && snap.exists()) {  
+              count = snap.numChildren();  
+              snap.forEach(function (c) {  
+                try {  
+                  var v = c.val() || {};  
+                  var t = Number(v.time || 0);  
+                  if (t > lastTime) lastTime = t;  
+                } catch (eT) { }  
+              });  
+            }  
+
+            // Update cache  
+            setMetaForPost(id, { commentsCount: count, lastCommentTime: lastTime });  
+
+            // Update postsCacheData entry too  
+            for (var i = 0; i < postsCacheData.length; i++) {  
+              if (postsCacheData[i] && postsCacheData[i].id === id) {  
+                postsCacheData[i].commentsCount = count;  
+                postsCacheData[i].lastCommentTime = lastTime;  
+                break;  
+              }  
+            }  
+
+            resolve();  
+          })  
+          .catch(function (e2) {  
+            reject(e2);  
+          });  
+      } catch (e0) {  
+        reject(e0);  
+      }  
+    }).then(function () {  
+      // If current sort is lastComment and we're already ready, live resort works  
+      try {  
+        var sm = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);  
+        if (sm === "lastComment" && lastCommentMetaReady) {  
+          renderPostsFromCache();  
+        } else {  
+          // not lastComment: just rerender for count updates  
+          renderPostsFromCache();  
+        }  
+      } catch (eR) { }  
+    });  
+  }  
+
+  function ensureAllPostsMetaForLastCommentSort() {  
+    try {  
+      if (!isAuthed) return;  
+      if (metaFetchAllRunning) return;  
+
+      // If we already have lastCommentMetaReady, no need to full-pass again  
+      if (lastCommentMetaReady) return;  
+
+      // Start one full run: fetch meta for ALL posts  
+      metaFetchAllRunning = true;  
+      setStatus("מכין מיון לפי תגובה אחרונה… (טוען תגובות)", "info");  
+
+      for (var i = 0; i < postsCacheData.length; i++) {  
+        if (postsCacheData[i] && postsCacheData[i].id) {  
+          enqueueMeta(postsCacheData[i].id);  
+        }  
+      }  
+
+      drainMetaQueue();  
+    } catch (e) { }  
+  }  
+
+  function ensureVisibleMetaAndFetch() {  
+    try {  
+      if (!isAuthed) return;  
+
+      // Limit: we bind listeners only for top N visible posts to keep WebView stable  
+      var MAX_VISIBLE = 40;  
+      var ids = (lastRenderedListIds && lastRenderedListIds.length) ? lastRenderedListIds.slice(0, MAX_VISIBLE) : [];  
+
+      // Queue meta fetch for visible posts missing known count  
+      for (var i = 0; i < ids.length; i++) {  
+        var id = ids[i];  
+        var meta = getMetaForPost(id) || {};  
+
+        // If missing or stale, enqueue fetch  
+        var need = false;  
+        if (meta.commentsCount === undefined || meta.commentsCount === null) need = true;  
+        if (meta.lastCommentTime === undefined || meta.lastCommentTime === null) need = true;  
+
+        if (need) enqueueMeta(id);  
+      }  
+
+      drainMetaQueue();  
+
+      // Bind live update listeners for visible posts (count + lastCommentTime)  
+      bindVisibleMetaListeners(ids);  
+
+      // A light periodic tick to re-ensure visible listeners (after search/sort changes)  
+      if (!liveMetaTickTimer) {  
+        liveMetaTickTimer = setInterval(function () {  
+          try {  
+            if (!isAuthed) return;  
+            // refresh visible list ties  
+            var ids2 = (lastRenderedListIds && lastRenderedListIds.length) ? lastRenderedListIds.slice(0, MAX_VISIBLE) : [];  
+            bindVisibleMetaListeners(ids2);  
+          } catch (eT) { }  
+        }, 14000);  
+      }  
+    } catch (e0) { }  
+  }  
+
+  function bindVisibleMetaListeners(ids) {  
+    try {  
+      if (!ids) ids = [];  
+
+      // Detach old listeners not in visible set  
+      var keep = {};  
+      for (var i = 0; i < ids.length; i++) keep[ids[i]] = true;  
+
+      for (var k in visibleMetaListenerMap) {  
+        if (!keep[k]) {  
+          detachMetaListenersForPost(k);  
+        }  
+      }  
+
+      // Attach new listeners  
+      for (var j = 0; j < ids.length; j++) {  
+        var id = ids[j];  
+        if (!id) continue;  
+        if (visibleMetaListenerMap[id]) continue;  
+
+        attachMetaListenersForPost(id);  
+      }  
+    } catch (e1) { }  
+  }  
+
+  function detachMetaListenersForPost(postId) {  
+    try {  
+      var id = safeText(postId || "");  
+      if (!id) return;  
+
+      // value listener (count)  
+      try {  
+        var vref = visibleMetaValueRefMap[id];  
+        if (vref) vref.off();  
+      } catch (eV) { }  
+
+      // last comment listener  
+      try {  
+        var lref = visibleMetaLastRefMap[id];  
+        if (lref) lref.off();  
+      } catch (eL) { }  
+
+      delete visibleMetaValueRefMap[id];  
+      delete visibleMetaLastRefMap[id];  
+      delete visibleMetaListenerMap[id];  
+    } catch (e0) { }  
+  }  
+
+  function attachMetaListenersForPost(postId) {  
+    try {  
+      var id = safeText(postId || "");  
+      if (!id) return;  
+
+      visibleMetaListenerMap[id] = true;  
+
+      // Listener 1: count (value) - ensures not stuck after manual refresh  
+      var refCount = firebase.database().ref("comments/" + id);  
+      visibleMetaValueRefMap[id] = refCount;  
+
+      refCount.on("value", function (snap) {  
+        try {  
+          var count = 0;  
+          var lastTime = 0;  
+          if (snap && snap.exists()) {  
+            count = snap.numChildren();  
+            snap.forEach(function (c) {  
+              try {  
+                var v = c.val() || {};  
+                var t = Number(v.time || 0);  
+                if (t > lastTime) lastTime = t;  
+              } catch (eT) { }  
+            });  
+          }  
+
+          // Update caches  
+          setMetaForPost(id, { commentsCount: count, lastCommentTime: lastTime });  
+
+          for (var i = 0; i < postsCacheData.length; i++) {  
+            if (postsCacheData[i] && postsCacheData[i].id === id) {  
+              postsCacheData[i].commentsCount = count;  
+              postsCacheData[i].lastCommentTime = lastTime;  
+              break;  
+            }  
+          }  
+
+          // If current mode lastComment and ready => keep sorted live  
+          var sm = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);  
+          if (sm === "lastComment" && lastCommentMetaReady) {  
+            renderPostsFromCache();  
+          } else {  
+            // still re-render to update counts  
+            renderPostsFromCache();  
+          }  
+        } catch (eU) { }  
+      });  
+
+      // Listener 2: last comment (cheap-ish query) - reinforces order by last comment  
+      var refLast = firebase.database().ref("comments/" + id).orderByChild("time").limitToLast(1);  
+      visibleMetaLastRefMap[id] = refLast;  
+
+      refLast.on("child_added", function (snap) {  
+        try {  
+          var v = snap.val() || {};  
+          var t = Number(v.time || 0) || 0;  
+
+          // update lastCommentTime quickly  
+          setMetaForPost(id, { lastCommentTime: t });  
+
+          for (var i = 0; i < postsCacheData.length; i++) {  
+            if (postsCacheData[i] && postsCacheData[i].id === id) {  
+              postsCacheData[i].lastCommentTime = Math.max(Number(postsCacheData[i].lastCommentTime || 0), t);  
+              break;  
+            }  
+          }  
+
+          var sm = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);  
+          if (sm === "lastComment" && lastCommentMetaReady) {  
+            renderPostsFromCache();  
+          }  
+        } catch (eL2) { }  
+      });  
+
+    } catch (e0) { }  
+  }  
+
+  // Ensure: if page is loaded already with lastComment selected, start full run once  
+  try {  
+    var initMode = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);  
+    if (initMode === "lastComment") {  
+      ensureAllPostsMetaForLastCommentSort();  
+    }  
+  } catch (eInitLC) { }  
+
+  /* =====================================================================================  
+     Cleanup listeners on unload  
+     ===================================================================================== */  
+  window.addEventListener("beforeunload", function () {  
+    try {  
+      if (liveMetaTickTimer) clearInterval(liveMetaTickTimer);  
+    } catch (eT) { }  
+    liveMetaTickTimer = null;  
+
+    try {  
+      for (var k in visibleMetaListenerMap) {  
+        detachMetaListenersForPost(k);  
+      }  
+    } catch (eOff) { }  
+  });  
+
 });            
 
 /* =========================================================================================  
-   NEW: Upload File with progress + timeout (stable; no FileReader)  
+   FIX: Upload DataURL (stable in WebView) + progress + timeout  
    ========================================================================================= */  
-function uploadPostImageFileWithTimeoutEx(file, contentType, ext, postId, uid, onProgress) {  
+function uploadPostImageDataUrlEx(dataUrl, ext, postId, uid, onProgress) {  
   return new Promise(function (resolve, reject) {  
     try {  
-      if (!file || !postId || !uid) {  
+      if (!dataUrl || !postId || !uid) {  
         reject("missing params");  
         return;  
       }  
@@ -1872,26 +2292,15 @@ function uploadPostImageFileWithTimeoutEx(file, contentType, ext, postId, uid, o
       var name = Date.now() + "_" + uid + "." + safeExt;  
       var ref = firebase.storage().ref("post-images/" + postId + "/" + name);  
 
-      var meta = {};  
-      try {  
-        if (contentType) meta.contentType = contentType;  
-      } catch (eM) { }  
-
       var finished = false;  
-      var task = null;  
-
-      try {  
-        task = ref.put(file, meta);  
-      } catch (ePut) {  
-        task = ref.put(file);  
-      }  
+      var task = ref.putString(dataUrl, "data_url");  
 
       var timer = setTimeout(function () {  
         if (finished) return;  
         finished = true;  
         try { if (task && typeof task.cancel === "function") task.cancel(); } catch (eC) { }  
         reject("upload_timeout");  
-      }, 90000);  
+      }, 90000); // 90s watchdog  
 
       task.on("state_changed",  
         function (snap) {  
@@ -1934,7 +2343,6 @@ function uploadPostImageFileWithTimeoutEx(file, contentType, ext, postId, uid, o
           }  
         }  
       );  
-
     } catch (e0) {  
       reject(e0);  
     }  
@@ -1942,7 +2350,7 @@ function uploadPostImageFileWithTimeoutEx(file, contentType, ext, postId, uid, o
 }  
 
 /* =========================================================================================  
-   ORIGINAL helpers you had (kept; not required now but not removed to preserve code shape)  
+   Image upload (extended with progress) - keeps your original uploadPostImage untouched  
    ========================================================================================= */  
 function uploadPostImageEx(blobOrFile, contentType, ext, postId, uid, onProgress) {  
   return new Promise(function (resolve, reject) {  
@@ -1999,6 +2407,9 @@ function uploadPostImageEx(blobOrFile, contentType, ext, postId, uid, onProgress
   });  
 }  
 
+/* =========================================================================================  
+   ORIGINAL helper you added (unchanged)  
+   ========================================================================================= */  
 function uploadPostImage(file, postId, uid) {            
   return new Promise((resolve, reject) => {            
 
