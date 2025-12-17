@@ -1,2177 +1,2781 @@
-
-<!DOCTYPE html>            
-<html lang="he">            
-<head>            
-  <meta charset="UTF-8">            
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">            
-  <title>פורום מאובטח</title>            
-
-  <!-- Firebase -->            
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>            
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>            
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>            
-  <script src="firebaseConfig.js"></script>            
-
-  <link rel="stylesheet" href="css/forum.css">            
-
-  <style>            
-    /* NOTE: לפי הבקשה שלך – בלי ההנפשה ההיא */            
-    /* אם תרצה אפקט עדין אחר בהמשך – נעשה, אבל כרגע "אפס אנימציות" */            
-
-    /* =====================================================================================  
-       Image support - minimal inlined safety styles (doesn't replace your css/forum.css)  
-       ===================================================================================== */  
-    .post-image-wrap {  
-      margin-top: 10px;  
-      border-radius: 12px;  
-      overflow: hidden;  
-      border: 1px solid rgba(0,0,0,0.12);  
-      background: rgba(0,0,0,0.03);  
-    }  
-    .post-image {  
-      width: 100%;  
-      height: auto;  
-      display: block;  
-      max-height: 360px;  
-      object-fit: cover;  
-      background: #fff;  
-    }  
-    .image-chip {  
-      display: inline-flex;  
-      align-items: center;  
-      gap: 6px;  
-      padding: 6px 10px;  
-      border-radius: 999px;  
-      border: 1px solid rgba(0,0,0,0.12);  
-      background: rgba(0,0,0,0.03);  
-      font-size: 12px;  
-      opacity: 0.9;  
-      user-select: none;  
-    }  
-    .image-actions-row {  
-      display: flex;  
-      gap: 10px;  
-      flex-wrap: wrap;  
-      align-items: center;  
-      justify-content: space-between;  
-    }  
-    .img-btn {  
-      padding: 10px 12px;  
-      border-radius: 12px;  
-      border: 1px solid rgba(0,0,0,0.18);  
-      background: #fff;  
-      cursor: pointer;  
-      font-weight: bold;  
-    }  
-    .img-btn-primary {  
-      border: none;  
-      background: rgb(17,17,87);  
-      color: #fff;  
-    }  
-    .img-btn-danger {  
-      border: 1px solid rgba(255,0,0,0.35);  
-      background: rgba(255,0,0,0.06);  
-      color: #8a0000;  
-    }  
-    .img-preview {  
-      width: 100%;  
-      border-radius: 12px;  
-      border: 1px solid rgba(0,0,0,0.12);  
-      overflow: hidden;  
-      background: rgba(0,0,0,0.03);  
-    }  
-    .img-preview img {  
-      width: 100%;  
-      height: auto;  
-      display: block;  
-      max-height: 320px;  
-      object-fit: cover;  
-      background: #fff;  
-    }  
-    .progress-wrap {  
-      width: 100%;  
-      height: 10px;  
-      border-radius: 999px;  
-      border: 1px solid rgba(0,0,0,0.12);  
-      overflow: hidden;  
-      background: rgba(0,0,0,0.04);  
-    }  
-    .progress-bar {  
-      height: 100%;  
-      width: 0%;  
-      background: rgb(17,17,87);  
-    }  
-
-    /* Fullscreen image viewer overlay (no animation) */  
-    #imageViewerOverlay {  
-      position: fixed;  
-      inset: 0;  
-      background: rgba(0,0,0,0.78);  
-      display: none;  
-      align-items: center;  
-      justify-content: center;  
-      padding: 16px;  
-      box-sizing: border-box;  
-      z-index: 10000;  
-    }  
-    #imageViewerInner {  
-      width: min(920px, 100%);  
-      background: rgba(255,255,255,0.96);  
-      border-radius: 16px;  
-      padding: 12px;  
-      box-sizing: border-box;  
-    }  
-    #imageViewerInner img {  
-      width: 100%;  
-      height: auto;  
-      display: block;  
-      border-radius: 14px;  
-      background: #fff;  
-      border: 1px solid rgba(0,0,0,0.12);  
-      max-height: 78vh;  
-      object-fit: contain;  
-    }  
-    #imageViewerTop {  
-      display: flex;  
-      align-items: center;  
-      justify-content: space-between;  
-      gap: 10px;  
-      margin-bottom: 10px;  
-    }  
-    #closeImageViewer {  
-      border: none;  
-      background: transparent;  
-      font-size: 18px;  
-      cursor: pointer;  
-      padding: 8px 10px;  
-      border-radius: 10px;  
-    }  
-
-    /* =====================================================================================  
-       שינויי פורום (ללא פשרות) – התאמות עיצוביות בלבד, ללא שינוי אבטחה
-       1) גבול צבעוני לפי המשתמש (כמו בדף הפוסט)
-       2) לא מציגים תמונות ברשימת הפוסטים
-       3) מציגים סמל קטן שיש תמונה
-       4) מציגים מונה תגובות בתחתית שמאל (מול הזמן)
-       9) "מאת:" בצבע זהות המשתמש
-       ===================================================================================== */  
-
-    /* Badge קטן עבור פוסט שיש לו תמונה (בצבעי האתר) */
-    .has-image-badge {  
-      display: inline-flex;  
-      align-items: center;  
-      justify-content: center;  
-      padding: 2px 8px;  
-      border-radius: 999px;  
-      background: rgb(17,17,87);  
-      color: #fff;  
-      font-size: 11px;  
-      font-weight: bold;  
-      line-height: 1.2;  
-      margin-right: 8px; /* RTL: יופיע לפני הטקסט בצורה טבעית */  
-      user-select: none;  
-      opacity: 0.95;  
-      border: 1px solid rgba(0,0,0,0.08);  
-    }  
-
-    /* שורת מטא תחתונה – זמן מימין, מונה תגובות משמאל */
-    .post-bottom-meta-row {  
-      margin-top: 6px;  
-      display: flex;  
-      justify-content: space-between;  
-      align-items: center;  
-      gap: 10px;  
-      flex-wrap: wrap;  
-    }  
-
-    .post-bottom-meta-row small {  
-      display: inline-block;  
-    }  
-
-    /* מונה תגובות – עקבי ועדין */
-    .post-comments-count {  
-      opacity: 0.85;  
-      font-size: 12px;  
-    }  
-
-    /* הדגשה עדינה למקרים של "אין תגובות" */
-    .post-comments-none {  
-      opacity: 0.7;  
-    }  
-
-    /* כדי לשמור "אופי קוד" – השארנו את ה-viewer, אך בפורום לא מציגים תמונות ולכן לא יופעל */
-  </style>            
-</head>            
-
-<body>            
-
-<header class="top-bar">            
-  <h1>פורום הבניידים!</h1>            
-</header>            
-
-<!-- Pull To Refresh indicator -->            
-<div id="pull-indicator" style="            
-  display:none;            
-  text-align:center;            
-  padding:6px;            
-  user-select:none;            
-">            
-  <div class="loader"></div>            
-</div>            
-
-<!-- ======= TOP ACTIONS (New Post + Search + Sort) ======= -->            
-<div id="top-actions" style="            
-  max-width:900px;            
-  margin:auto;            
-  padding: 10px 20px 0 20px;            
-  box-sizing:border-box;            
-">            
-  <div style="            
-    display:flex;            
-    gap:10px;            
-    align-items:center;            
-    justify-content:space-between;            
-    flex-wrap:wrap;            
-  ">            
-    <button id="openCreatePost" type="button" style="            
-      padding:10px 12px;            
-      border-radius:10px;            
-      border:none;            
-      background: rgb(17,17,87);            
-      color:#fff;            
-      cursor:pointer;            
-      font-weight:bold;            
-    ">➕ צור פוסט</button>            
-
-    <input id="searchBox" type="search" placeholder="חיפוש בפוסטים..."            
-      style="            
-        flex:1;            
-        min-width:180px;            
-        padding:10px 12px;            
-        border-radius:10px;            
-        border:1px solid rgba(0,0,0,0.15);            
-        outline:none;            
-        box-sizing:border-box;            
-      "            
-    />            
-
-    <select id="sortMode" style="            
-      padding:10px 12px;            
-      border-radius:10px;            
-      border:1px solid rgba(0,0,0,0.15);            
-      outline:none;            
-      background:#fff;            
-      cursor:pointer;            
-    ">            
-      <option value="newest">מיון: החדשים למעלה</option>            
-      <option value="oldest">מיון: הישנים למעלה</option>            
-      <option value="author">מיון: לפי מחבר</option>            
-      <option value="title">מיון: לפי כותרת</option>            
-      <!-- (5) מיון לפי תגובה אחרונה / פעילות אחרונה -->
-      <option value="lastComment">מיון: תגובה אחרונה</option>            
-    </select>            
-  </div>            
-
-  <div id="statusBar" style="            
-    margin-top:10px;            
-    padding:8px 10px;            
-    border-radius:10px;            
-    background: rgba(0,0,0,0.04);            
-    color:#111;            
-    font-size:13px;            
-    display:none;            
-  "></div>            
-</div>            
-
-<main class="forum-container">            
-  <div id="posts">            
-    <div class="loader"></div>            
-  </div>            
-</main>            
-
-<!-- ======= CREATE POST MODAL (UI ONLY, AUTH STILL REQUIRED) ======= -->            
-<div id="createPostOverlay" style="            
-  position:fixed;            
-  inset:0;            
-  background: rgba(0,0,0,0.45);            
-  display:none;            
-  align-items:center;            
-  justify-content:center;            
-  padding:16px;            
-  box-sizing:border-box;            
-  z-index:9999;            
-">            
-  <div id="createPostModal" style="            
-    width:min(720px, 100%);            
-    background:#fff;            
-    border-radius:16px;            
-    padding:16px;            
-    box-sizing:border-box;            
-  ">            
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">            
-      <div style="font-weight:bold; font-size:18px;">יצירת פוסט חדש</div>            
-      <button id="closeCreatePost" type="button" style="            
-        border:none;            
-        background:transparent;            
-        font-size:18px;            
-        cursor:pointer;            
-      ">✕</button>            
-    </div>            
-
-    <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">            
-      <input id="newPostTitle" type="text" placeholder="כותרת"            
-        maxlength="80"            
-        style="            
-          padding:12px;            
-          border-radius:12px;            
-          border:1px solid rgba(0,0,0,0.18);            
-          outline:none;            
-          box-sizing:border-box;            
-        "            
-      />            
-
-      <textarea id="newPostText" placeholder="תוכן הפוסט..."            
-        rows="6"            
-        maxlength="2000"            
-        style="            
-          padding:12px;            
-          border-radius:12px;            
-          border:1px solid rgba(0,0,0,0.18);            
-          outline:none;            
-          box-sizing:border-box;            
-          resize:vertical;            
-        "            
-      ></textarea>            
-
-      <!-- =====================================================================================  
-           IMAGE UPLOAD UI (שדרוג מלא - לא פוגע בשיטה / לא מוריד שום פיצ'ר)  
-           ===================================================================================== -->  
-      <div id="newPostImageBlock" style="  
-        border:1px solid rgba(0,0,0,0.10);  
-        border-radius:14px;  
-        padding:12px;  
-        background: rgba(0,0,0,0.02);  
-      ">  
-        <div class="image-actions-row">  
-          <div style="display:flex; flex-direction:column; gap:4px;">  
-            <div style="font-weight:bold;">תמונה לפוסט (אופציונלי)</div>  
-            <div id="newPostImageMeta" style="font-size:12px; opacity:.75;">  
-              פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 9MB.  
-            </div>  
-          </div>  
-
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">  
-            <button id="chooseImageBtn" type="button" class="img-btn img-btn-primary">בחר תמונה</button>  
-            <button id="removeImageBtn" type="button" class="img-btn img-btn-danger" style="display:none;">הסר תמונה</button>  
-          </div>  
-        </div>  
-
-        <input id="newPostImage" type="file" accept="image/*" style="display:none;" />  
-
-        <div id="imagePreviewWrap" style="display:none; margin-top:12px;">  
-          <div class="img-preview">  
-            <img id="imagePreview" alt="תצוגה מקדימה" src="" />  
-          </div>  
-
-          <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">  
-            <span id="imageChip" class="image-chip" style="display:none;">🖼️ תמונה מוכנה</span>  
-            <span id="imageWarn" style="display:none; font-size:12px; color:#7a4b00; opacity:.95;"></span>  
-          </div>  
-
-          <div id="uploadProgressArea" style="display:none; margin-top:10px;">  
-            <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">  
-              <span style="font-size:12px; opacity:.75;">מעלה תמונה…</span>  
-              <span id="uploadProgressText" style="font-size:12px; opacity:.75;">0%</span>  
-            </div>  
-            <div class="progress-wrap" style="margin-top:6px;">  
-              <div id="uploadProgressBar" class="progress-bar"></div>  
-            </div>  
-          </div>  
-        </div>  
-      </div>  
-
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">            
-        <div id="newPostHint" style="font-size:12px; color:#444;">            
-          טיפ: תכתוב ברור, ותשאיר מקום לתגובות.            
-        </div>            
-        <div style="display:flex; gap:10px;">            
-          <button id="submitPost" type="button" style="            
-            padding:10px 14px;            
-            border-radius:12px;            
-            border:none;            
-            background: rgb(17,17,87);            
-            color:#fff;            
-            cursor:pointer;            
-            font-weight:bold;            
-          ">פרסם</button>            
-          <button id="cancelPost" type="button" style="            
-            padding:10px 14px;            
-            border-radius:12px;            
-            border:1px solid rgba(0,0,0,0.18);            
-            background:#fff;            
-            cursor:pointer;            
-            font-weight:bold;            
-          ">ביטול</button>            
-        </div>            
-      </div>            
-
-      <div id="createPostError" style="            
-        display:none;            
-        padding:10px 12px;            
-        border-radius:12px;            
-        background: rgba(255,0,0,0.08);            
-        color:#8a0000;            
-        font-size:13px;            
-      "></div>            
-    </div>            
-  </div>            
-</div>            
-
-<!-- =====================================================================================  
-     FULLSCREEN IMAGE VIEWER (שדרוג UX - לא פוגע באבטחה)  
-     הערה: בפורום לא מציגים תמונות ברשימה, אבל ה-viewer נשמר (לא מפריע)  
-     ===================================================================================== -->  
-<div id="imageViewerOverlay">  
-  <div id="imageViewerInner">  
-    <div id="imageViewerTop">  
-      <div style="font-weight:bold;">תמונה</div>  
-      <button id="closeImageViewer" type="button">✕</button>  
-    </div>  
-    <img id="imageViewerImg" alt="תמונה" src="" />  
-    <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">  
-      <span id="imageViewerHint" style="font-size:12px; opacity:.75;">לחץ מחוץ לתיבה כדי לסגור</span>  
-    </div>  
-  </div>  
-</div>  
-
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>            
-<script>            
-/* =========================================================================================            
-   ⚠️ חשוב: אבטחה – לא נוגעים ולא משנים שיטה            
-   1) חסימה מיידית – לא WebView => forbidden.html            
-   2) payload מקודולר (email/password/token)            
-   3) Firebase Auth            
-   4) אימות token מול sessions/{uid}/token            
-   רק אחרי זה: גישה לפוסטים/יצירה/רענון            
-   ========================================================================================= */            
-
-/* ===============================            
-   חסימה מיידית – לא WebView            
-   =============================== */            
-(function () {            
-  try {            
-    if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {            
-      location.replace("forbidden.html");            
-      return;            
-    }            
-  } catch (e) {            
-    location.replace("forbidden.html");            
-    return;            
-  }            
-})();            
-
-/* =========================================================================================            
-   Cache (A) – תצוגה מיידית            
-   ========================================================================================= */            
-var cached = null;            
-try {            
-  cached = sessionStorage.getItem("cachedPosts");            
-} catch (e1) {            
-  cached = null;            
-}            
-if (cached) {            
-  var postsHost = document.getElementById("posts");            
-  if (postsHost) postsHost.innerHTML = cached;            
-}            
-
-/* =========================================================================================            
-   Utilities            
-   ========================================================================================= */            
-function escapeHTML(str) {            
-  if (str === undefined || str === null) str = "";            
-  return String(str)            
-    .replace(/&/g, "&amp;")            
-    .replace(/</g, "&lt;")            
-    .replace(/>/g, "&gt;")            
-    .replace(/"/g, "&quot;")            
-    .replace(/'/g, "&#039;");            
-}            
-
-function safeText(str) {            
-  if (str === undefined || str === null) str = "";            
-  return String(str);            
-}            
-
-/***************************************************************************************
-  (1)(9) צבע זהות משתמש – זהה בול לדף הצפייה בפוסט
-  - אותה רשימת צבעים
-  - אותו hashing
-  - מיועד לגבול הימני של פוסט + צבע "מאת: ..."
-***************************************************************************************/
-function userColor(key) {
-  var colors = [
-    "#60a5fa",
-    "#34d399",
-    "#f472b6",
-    "#fbbf24",
-    "#a78bfa",
-    "#fb7185",
-    "#22d3ee"
-  ];
-  var hash = 0;
-  var s = String(key || "");
-  for (var i = 0; i < s.length; i++) {
-    hash = s.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
-
-/* =========================================================================================  
-   Image URL safety (הקשחה קלה נגד ערכי URL מוזרים)  
-   - לא משנה אבטחה אמיתית (היא ברולס), רק מונע XSS/הזרקות  
-   ========================================================================================= */  
-function sanitizeImageUrl(url) {  
-  if (url === undefined || url === null) return "";  
-  var u = safeText(url).trim();  
-  if (!u) return "";  
-  // allow only http(s)  
-  if (u.indexOf("https://") === 0 || u.indexOf("http://") === 0) return u;  
-  return "";  
-}  
-
-function isLikelyImageFile(file) {  
-  try {  
-    if (!file) return false;  
-    var t = safeText(file.type || "").toLowerCase();  
-    if (t.indexOf("image/") === 0) return true;  
-    var n = safeText(file.name || "").toLowerCase();  
-    if (n.indexOf(".jpg") > -1 || n.indexOf(".jpeg") > -1 || n.indexOf(".png") > -1 || n.indexOf(".webp") > -1) return true;  
-    return false;  
-  } catch (e) {  
-    return false;  
-  }  
-}  
-
-function bytesToHuman(n) {  
-  try {  
-    var x = Number(n || 0);  
-    if (!x) return "0B";  
-    if (x < 1024) return x + "B";  
-    if (x < 1024 * 1024) return Math.round(x / 1024) + "KB";  
-    return (Math.round((x / (1024 * 1024)) * 10) / 10) + "MB";  
-  } catch (e) {  
-    return "";  
-  }  
-}  
-
-function copyToClipboard(text) {  
-  try {  
-    if (navigator.clipboard && navigator.clipboard.writeText) {  
-      navigator.clipboard.writeText(text);  
-      return;  
-    }  
-  } catch (e) { }  
-  try {  
-    var ta = document.createElement("textarea");  
-    ta.value = safeText(text);  
-    ta.style.position = "fixed";  
-    ta.style.opacity = "0";  
-    document.body.appendChild(ta);  
-    ta.select();  
-    try { document.execCommand("copy"); } catch (e2) { }  
-    document.body.removeChild(ta);  
-  } catch (e3) { }  
-}  
-
-/* ===============================  
-   FIX: WebView compatibility helpers  
-   =============================== */  
-function dataURLToBlob(dataUrl) {  
-  try {  
-    var parts = safeText(dataUrl || "").split(",");  
-    if (parts.length < 2) return null;  
-    var meta = parts[0];  
-    var b64 = parts[1];  
-    var mime = "application/octet-stream";  
-    var m = /data:([^;]+);base64/i.exec(meta);  
-    if (m && m[1]) mime = m[1];  
-    var bin = atob(b64);  
-    var len = bin.length;  
-    var arr = new Uint8Array(len);  
-    for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);  
-    return new Blob([arr], { type: mime });  
-  } catch (e) {  
-    return null;  
-  }  
-}  
-
-function canvasToBlobSafe(canvas, outType, quality, cb) {  
-  try {  
-    if (canvas && typeof canvas.toBlob === "function") {  
-      canvas.toBlob(function (blob) { cb(blob); }, outType, quality);  
-      return;  
-    }  
-  } catch (e1) { }  
-  try {  
-    var dataUrl = "";  
-    try { dataUrl = canvas.toDataURL(outType, quality); } catch (e2) { dataUrl = canvas.toDataURL(); }  
-    var blob2 = dataURLToBlob(dataUrl);  
-    cb(blob2);  
-  } catch (e3) {  
-    cb(null);  
-  }  
-}  
-
-function getPreviewUrlForFile(file, done) {  
-  try {  
-    if (window.URL && typeof URL.createObjectURL === "function") {  
+<!DOCTYPE html>              
+<html lang="he">              
+<head>              
+  <meta charset="UTF-8">              
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">              
+  <title>פורום מאובטח</title>              
+  
+  <!-- Firebase -->              
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>              
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>              
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>              
+  <script src="firebaseConfig.js"></script>              
+  
+  <link rel="stylesheet" href="css/forum.css">              
+  
+  <style>              
+    /* NOTE: לפי הבקשה שלך – בלי ההנפשה ההיא */              
+    /* אם תרצה אפקט עדין אחר בהמשך – נעשה, אבל כרגע "אפס אנימציות" */              
+  
+    /* =====================================================================================    
+       Image support - minimal inlined safety styles (doesn't replace your css/forum.css)    
+       ===================================================================================== */    
+    .post-image-wrap {    
+      margin-top: 10px;    
+      border-radius: 12px;    
+      overflow: hidden;    
+      border: 1px solid rgba(0,0,0,0.12);    
+      background: rgba(0,0,0,0.03);    
+    }    
+    .post-image {    
+      width: 100%;    
+      height: auto;    
+      display: block;    
+      max-height: 360px;    
+      object-fit: cover;    
+      background: #fff;    
+    }    
+    .image-chip {    
+      display: inline-flex;    
+      align-items: center;    
+      gap: 6px;    
+      padding: 6px 10px;    
+      border-radius: 999px;    
+      border: 1px solid rgba(0,0,0,0.12);    
+      background: rgba(0,0,0,0.03);    
+      font-size: 12px;    
+      opacity: 0.9;    
+      user-select: none;    
+    }    
+    .image-actions-row {    
+      display: flex;    
+      gap: 10px;    
+      flex-wrap: wrap;    
+      align-items: center;    
+      justify-content: space-between;    
+    }    
+    .img-btn {    
+      padding: 10px 12px;    
+      border-radius: 12px;    
+      border: 1px solid rgba(0,0,0,0.18);    
+      background: #fff;    
+      cursor: pointer;    
+      font-weight: bold;    
+    }    
+    .img-btn-primary {    
+      border: none;    
+      background: rgb(17,17,87);    
+      color: #fff;    
+    }    
+    .img-btn-danger {    
+      border: 1px solid rgba(255,0,0,0.35);    
+      background: rgba(255,0,0,0.06);    
+      color: #8a0000;    
+    }    
+    .img-preview {    
+      width: 100%;    
+      border-radius: 12px;    
+      border: 1px solid rgba(0,0,0,0.12);    
+      overflow: hidden;    
+      background: rgba(0,0,0,0.03);    
+    }    
+    .img-preview img {    
+      width: 100%;    
+      height: auto;    
+      display: block;    
+      max-height: 320px;    
+      object-fit: cover;    
+      background: #fff;    
+    }    
+    .progress-wrap {    
+      width: 100%;    
+      height: 10px;    
+      border-radius: 999px;    
+      border: 1px solid rgba(0,0,0,0.12);    
+      overflow: hidden;    
+      background: rgba(0,0,0,0.04);    
+    }    
+    .progress-bar {    
+      height: 100%;    
+      width: 0%;    
+      background: rgb(17,17,87);    
+    }    
+  
+    /* Fullscreen image viewer overlay (no animation) */    
+    #imageViewerOverlay {    
+      position: fixed;    
+      inset: 0;    
+      background: rgba(0,0,0,0.78);    
+      display: none;    
+      align-items: center;    
+      justify-content: center;    
+      padding: 16px;    
+      box-sizing: border-box;    
+      z-index: 10000;    
+    }    
+    #imageViewerInner {    
+      width: min(920px, 100%);    
+      background: rgba(255,255,255,0.96);    
+      border-radius: 16px;    
+      padding: 12px;    
+      box-sizing: border-box;    
+    }    
+    #imageViewerInner img {    
+      width: 100%;    
+      height: auto;    
+      display: block;    
+      border-radius: 14px;    
+      background: #fff;    
+      border: 1px solid rgba(0,0,0,0.12);    
+      max-height: 78vh;    
+      object-fit: contain;    
+    }    
+    #imageViewerTop {    
+      display: flex;    
+      align-items: center;    
+      justify-content: space-between;    
+      gap: 10px;    
+      margin-bottom: 10px;    
+    }    
+    #closeImageViewer {    
+      border: none;    
+      background: transparent;    
+      font-size: 18px;    
+      cursor: pointer;    
+      padding: 8px 10px;    
+      border-radius: 10px;    
+    }    
+  
+    /* =====================================================================================    
+       Forum UI extra (requested changes)    
+       ===================================================================================== */    
+    .post-user-border {    
+      border-right: 4px solid rgba(0,0,0,0.15);    
+      padding-right: 12px;    
+      box-sizing: border-box;    
+    }    
+  
+    .post-meta-row {    
+      margin-top: 8px;    
+      display: flex;    
+      align-items: flex-end;    
+      justify-content: space-between;    
+      gap: 10px;    
+      flex-wrap: wrap;    
+      /* important: keep visual "left/right" stable */    
+      direction: ltr;    
+    }    
+  
+    .post-meta-left {    
+      display: flex;    
+      flex-direction: column;    
+      align-items: flex-start;    
+      gap: 6px;    
+      min-width: 140px;    
+    }    
+  
+    .post-meta-right {    
+      display: flex;    
+      flex-direction: column;    
+      align-items: flex-end;    
+      gap: 6px;    
+      min-width: 140px;    
+    }    
+  
+    /* "יש תמונה" chip - blue as requested */    
+    .has-image-flag {    
+      display: inline-flex;    
+      align-items: center;    
+      gap: 6px;    
+      padding: 6px 10px;    
+      border-radius: 999px;    
+      border: 1px solid rgba(17,17,87,0.18);    
+      background: rgba(17,17,87,0.08);    
+      color: rgb(17,17,87);    
+      font-size: 12px;    
+      font-weight: bold;    
+      user-select: none;    
+      white-space: nowrap;    
+      cursor: pointer;    
+    }    
+  
+    .has-image-flag:active {    
+      opacity: .92;    
+    }    
+  
+    .post-author-colored {    
+      font-weight: normal;    
+    }    
+  
+    /* =====================================================================================    
+       NEW: Mini image preview overlay (requested: small preview with X)    
+       ===================================================================================== */    
+    #miniImageOverlay {    
+      position: fixed;    
+      inset: 0;    
+      background: rgba(0,0,0,0.55);    
+      display: none;    
+      align-items: center;    
+      justify-content: center;    
+      padding: 16px;    
+      box-sizing: border-box;    
+      z-index: 12000;    
+    }    
+    #miniImageInner {    
+      width: min(520px, 100%);    
+      background: rgba(255,255,255,0.98);    
+      border-radius: 16px;    
+      padding: 12px;    
+      box-sizing: border-box;    
+      border: 1px solid rgba(0,0,0,0.12);    
+    }    
+    #miniImageTop {    
+      display: flex;    
+      align-items: center;    
+      justify-content: space-between;    
+      gap: 10px;    
+      margin-bottom: 10px;    
+    }    
+    #miniCloseBtn {    
+      border: none;    
+      background: transparent;    
+      font-size: 18px;    
+      cursor: pointer;    
+      padding: 8px 10px;    
+      border-radius: 10px;    
+    }    
+    #miniPreviewImg {    
+      width: 100%;    
+      height: auto;    
+      display: block;    
+      border-radius: 14px;    
+      border: 1px solid rgba(0,0,0,0.12);    
+      background: #fff;    
+      max-height: 62vh;    
+      object-fit: contain;    
+    }    
+    #miniHint {    
+      margin-top: 8px;    
+      font-size: 12px;    
+      opacity: .75;    
+      text-align: center;    
+    }    
+  </style>              
+</head>              
+  
+<body>              
+  
+<header class="top-bar">              
+  <h1>פורום הבניידים!</h1>              
+</header>              
+  
+<!-- Pull To Refresh indicator -->              
+<div id="pull-indicator" style="              
+  display:none;              
+  text-align:center;              
+  padding:6px;              
+  user-select:none;              
+">              
+  <div class="loader"></div>              
+</div>              
+  
+<!-- ======= TOP ACTIONS (New Post + Search + Sort) ======= -->              
+<div id="top-actions" style="              
+  max-width:900px;              
+  margin:auto;              
+  padding: 10px 20px 0 20px;              
+  box-sizing:border-box;              
+">              
+  <div style="              
+    display:flex;              
+    gap:10px;              
+    align-items:center;              
+    justify-content:space-between;              
+    flex-wrap:wrap;              
+  ">              
+    <button id="openCreatePost" type="button" style="              
+      padding:10px 12px;              
+      border-radius:10px;              
+      border:none;              
+      background: rgb(17,17,87);              
+      color:#fff;              
+      cursor:pointer;              
+      font-weight:bold;              
+    ">➕ צור פוסט</button>              
+  
+    <input id="searchBox" type="search" placeholder="חיפוש בפוסטים..."              
+      style="              
+        flex:1;              
+        min-width:180px;              
+        padding:10px 12px;              
+        border-radius:10px;              
+        border:1px solid rgba(0,0,0,0.15);              
+        outline:none;              
+        box-sizing:border-box;              
+      "              
+    />              
+  
+    <select id="sortMode" style="              
+      padding:10px 12px;              
+      border-radius:10px;              
+      border:1px solid rgba(0,0,0,0.15);              
+      outline:none;              
+      background:#fff;              
+      cursor:pointer;              
+    ">              
+      <option value="newest">מיון: החדשים למעלה</option>              
+      <option value="oldest">מיון: הישנים למעלה</option>              
+      <option value="author">מיון: לפי מחבר</option>              
+      <option value="title">מיון: לפי כותרת</option>              
+      <option value="lastComment">מיון: תגובה אחרונה</option>              
+    </select>              
+  </div>              
+  
+  <div id="statusBar" style="              
+    margin-top:10px;              
+    padding:8px 10px;              
+    border-radius:10px;              
+    background: rgba(0,0,0,0.04);              
+    color:#111;              
+    font-size:13px;              
+    display:none;              
+  "></div>              
+</div>              
+  
+<main class="forum-container">              
+  <div id="posts">              
+    <div class="loader"></div>              
+  </div>              
+</main>              
+  
+<!-- ======= CREATE POST MODAL (UI ONLY, AUTH STILL REQUIRED) ======= -->              
+<div id="createPostOverlay" style="              
+  position:fixed;              
+  inset:0;              
+  background: rgba(0,0,0,0.45);              
+  display:none;              
+  align-items:center;              
+  justify-content:center;              
+  padding:16px;              
+  box-sizing:border-box;              
+  z-index:9999;              
+">              
+  <div id="createPostModal" style="              
+    width:min(720px, 100%);              
+    background:#fff;              
+    border-radius:16px;              
+    padding:16px;              
+    box-sizing:border-box;              
+  ">              
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">              
+      <div style="font-weight:bold; font-size:18px;">יצירת פוסט חדש</div>              
+      <button id="closeCreatePost" type="button" style="              
+        border:none;              
+        background:transparent;              
+        font-size:18px;              
+        cursor:pointer;              
+      ">✕</button>              
+    </div>              
+  
+    <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">              
+      <input id="newPostTitle" type="text" placeholder="כותרת"              
+        maxlength="80"              
+        style="              
+          padding:12px;              
+          border-radius:12px;              
+          border:1px solid rgba(0,0,0,0.18);              
+          outline:none;              
+          box-sizing:border-box;              
+        "              
+      />              
+  
+      <textarea id="newPostText" placeholder="תוכן הפוסט..."              
+        rows="6"              
+        maxlength="2000"              
+        style="              
+          padding:12px;              
+          border-radius:12px;              
+          border:1px solid rgba(0,0,0,0.18);              
+          outline:none;              
+          box-sizing:border-box;              
+          resize:vertical;              
+        "              
+      ></textarea>              
+  
+      <!-- =====================================================================================    
+           IMAGE UPLOAD UI (שדרוג מלא - לא פוגע בשיטה / לא מוריד שום פיצ'ר)    
+           ===================================================================================== -->    
+      <div id="newPostImageBlock" style="    
+        border:1px solid rgba(0,0,0,0.10);    
+        border-radius:14px;    
+        padding:12px;    
+        background: rgba(0,0,0,0.02);    
+      ">    
+        <div class="image-actions-row">    
+          <div style="display:flex; flex-direction:column; gap:4px;">    
+            <div style="font-weight:bold;">תמונה לפוסט (אופציונלי)</div>    
+            <div id="newPostImageMeta" style="font-size:12px; opacity:.75;">    
+              פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 9MB.    
+            </div>    
+          </div>    
+  
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">    
+            <button id="chooseImageBtn" type="button" class="img-btn img-btn-primary">בחר תמונה</button>    
+            <button id="removeImageBtn" type="button" class="img-btn img-btn-danger" style="display:none;">הסר תמונה</button>    
+          </div>    
+        </div>    
+  
+        <input id="newPostImage" type="file" accept="image/*" style="display:none;" />    
+  
+        <div id="imagePreviewWrap" style="display:none; margin-top:12px;">    
+          <div class="img-preview">    
+            <img id="imagePreview" alt="תצוגה מקדימה" src="" />    
+          </div>    
+  
+          <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">    
+            <span id="imageChip" class="image-chip" style="display:none;">🖼️ תמונה מוכנה</span>    
+            <span id="imageWarn" style="display:none; font-size:12px; color:#7a4b00; opacity:.95;"></span>    
+          </div>    
+  
+          <div id="uploadProgressArea" style="display:none; margin-top:10px;">    
+            <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">    
+              <span style="font-size:12px; opacity:.75;">מעלה תמונה…</span>    
+              <span id="uploadProgressText" style="font-size:12px; opacity:.75;">0%</span>    
+            </div>    
+            <div class="progress-wrap" style="margin-top:6px;">    
+              <div id="uploadProgressBar" class="progress-bar"></div>    
+            </div>    
+          </div>    
+        </div>    
+      </div>    
+  
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">              
+        <div id="newPostHint" style="font-size:12px; color:#444;">              
+          טיפ: תכתוב ברור, ותשאיר מקום לתגובות.              
+        </div>              
+        <div style="display:flex; gap:10px;">              
+          <button id="submitPost" type="button" style="              
+            padding:10px 14px;              
+            border-radius:12px;              
+            border:none;              
+            background: rgb(17,17,87);              
+            color:#fff;              
+            cursor:pointer;              
+            font-weight:bold;              
+          ">פרסם</button>              
+          <button id="cancelPost" type="button" style="              
+            padding:10px 14px;              
+            border-radius:12px;              
+            border:1px solid rgba(0,0,0,0.18);              
+            background:#fff;              
+            cursor:pointer;              
+            font-weight:bold;              
+          ">ביטול</button>              
+        </div>              
+      </div>              
+  
+      <div id="createPostError" style="              
+        display:none;              
+        padding:10px 12px;              
+        border-radius:12px;              
+        background: rgba(255,0,0,0.08);              
+        color:#8a0000;              
+        font-size:13px;              
+      "></div>              
+    </div>              
+  </div>              
+</div>              
+  
+<!-- =====================================================================================    
+     FULLSCREEN IMAGE VIEWER (שדרוג UX - לא פוגע באבטחה)    
+     ===================================================================================== -->    
+<div id="imageViewerOverlay">    
+  <div id="imageViewerInner">    
+    <div id="imageViewerTop">    
+      <div style="font-weight:bold;">תמונה</div>    
+      <button id="closeImageViewer" type="button">✕</button>    
+    </div>    
+    <img id="imageViewerImg" alt="תמונה" src="" />    
+    <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">    
+  
+      <span id="imageViewerHint" style="font-size:12px; opacity:.75;">לחץ מחוץ לתיבה כדי לסגור</span>    
+    </div>    
+  </div>    
+</div>    
+  
+<!-- =====================================================================================    
+     NEW: MINI IMAGE PREVIEW (requested: click "יש תמונה" -> small preview with X)    
+     ===================================================================================== -->    
+<div id="miniImageOverlay">    
+  <div id="miniImageInner">    
+    <div id="miniImageTop">    
+      <div style="font-weight:bold;">תצוגה מקדימה</div>    
+      <button id="miniCloseBtn" type="button">✕</button>    
+    </div>    
+    <img id="miniPreviewImg" alt="תמונה" src="" />    
+    <div id="miniHint">לחץ מחוץ לתיבה כדי לסגור</div>    
+  </div>    
+</div>    
+  
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>              
+<script>              
+/* =========================================================================================              
+   ⚠️ חשוב: אבטחה – לא נוגעים ולא משנים שיטה              
+   1) חסימה מיידית – לא WebView => forbidden.html              
+   2) payload מקודולר (email/password/token)              
+   3) Firebase Auth              
+   4) אימות token מול sessions/{uid}/token              
+   רק אחרי זה: גישה לפוסטים/יצירה/רענון              
+   ========================================================================================= */              
+  
+/* ===============================              
+   חסימה מיידית – לא WebView              
+   =============================== */              
+(function () {              
+  try {              
+    if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {              
+      location.replace("forbidden.html");              
+      return;              
+    }              
+  } catch (e) {              
+    location.replace("forbidden.html");              
+    return;              
+  }              
+})();              
+  
+/* =========================================================================================              
+   Cache (A) – תצוגה מיידית              
+   ========================================================================================= */              
+var cached = null;              
+try {              
+  cached = sessionStorage.getItem("cachedPosts");              
+} catch (e1) {              
+  cached = null;              
+}              
+if (cached) {              
+  var postsHost = document.getElementById("posts");              
+  if (postsHost) postsHost.innerHTML = cached;              
+}              
+  
+/* =========================================================================================              
+   Utilities              
+   ========================================================================================= */              
+function escapeHTML(str) {              
+  if (str === undefined || str === null) str = "";              
+  return String(str)              
+    .replace(/&/g, "&amp;")              
+    .replace(/</g, "&lt;")              
+    .replace(/>/g, "&gt;")              
+    .replace(/"/g, "&quot;")              
+    .replace(/'/g, "&#039;");              
+}              
+  
+function safeText(str) {              
+  if (str === undefined || str === null) str = "";              
+  return String(str);              
+}              
+  
+/* =========================================================================================    
+   userColor (exact same vibe as post page)    
+   ========================================================================================= */    
+function userColor(key) {    
+  var colors = [    
+    "#60a5fa",    
+    "#34d399",    
+    "#f472b6",    
+    "#fbbf24",    
+    "#a78bfa",    
+    "#fb7185",    
+    "#22d3ee"    
+  ];    
+  var hash = 0;    
+  var s = safeText(key || "");    
+  for (var i = 0; i < s.length; i++) {    
+    hash = s.charCodeAt(i) + ((hash << 5) - hash);    
+  }    
+  var idx = Math.abs(hash) % colors.length;    
+  return colors[idx];    
+}    
+  
+/* =========================================================================================    
+   Meta cache (commentsCount + lastCommentTime)    
+   - Fixes: "אין תגובות" resets on refresh    
+   - Supports: lastComment sort stable across nav/refresh    
+   ========================================================================================= */    
+var postMetaCache = {};    
+var postMetaSaveTimer = null;    
+  
+function loadPostMetaCache() {    
+  try {    
+    var raw = sessionStorage.getItem("postMetaCache");    
+    if (!raw) { postMetaCache = {}; return; }    
+    var obj = JSON.parse(raw);    
+    if (obj && typeof obj === "object") postMetaCache = obj;    
+    else postMetaCache = {};    
+  } catch (e) {    
+    postMetaCache = {};    
+  }    
+}    
+  
+function savePostMetaCacheSoon() {    
+  try {    
+    if (postMetaSaveTimer) return;    
+    postMetaSaveTimer = setTimeout(function () {    
+      postMetaSaveTimer = null;    
+      try {    
+        sessionStorage.setItem("postMetaCache", JSON.stringify(postMetaCache || {}));    
+      } catch (e2) { }    
+    }, 700);    
+  } catch (e) { }    
+}    
+  
+function getMetaForPost(postId) {    
+  try {    
+    var k = safeText(postId || "");    
+    if (!k) return null;    
+    if (postMetaCache && postMetaCache[k]) return postMetaCache[k];    
+    return null;    
+  } catch (e) {    
+    return null;    
+  }    
+}    
+  
+function setMetaForPost(postId, metaObj) {    
+  try {    
+    var k = safeText(postId || "");    
+    if (!k) return;    
+    if (!postMetaCache) postMetaCache = {};    
+    if (!postMetaCache[k]) postMetaCache[k] = {};    
+    var m = postMetaCache[k];    
+    if (metaObj && typeof metaObj === "object") {    
+      if (metaObj.commentsCount !== undefined) m.commentsCount = Number(metaObj.commentsCount || 0);    
+      if (metaObj.lastCommentTime !== undefined) m.lastCommentTime = Number(metaObj.lastCommentTime || 0);    
+      if (metaObj.updatedAt !== undefined) m.updatedAt = Number(metaObj.updatedAt || 0);    
+    }    
+    m.updatedAt = Date.now();    
+    savePostMetaCacheSoon();    
+  } catch (e) { }    
+}    
+  
+/* =========================================================================================    
+   Sort mode memory (requested: keep last choice in memory, including lastComment)    
+   ========================================================================================= */    
+var rememberedSortMode = "newest";    
+try {    
+  rememberedSortMode = sessionStorage.getItem("forumSortMode") || "newest";    
+} catch (e) {    
+  rememberedSortMode = "newest";    
+}    
+  
+function rememberSortMode(v) {    
+  try {    
+    sessionStorage.setItem("forumSortMode", safeText(v || "newest"));    
+  } catch (e) { }    
+}    
+  
+/* =========================================================================================    
+   lastComment sort readiness memory (keeps UI stable)    
+   ========================================================================================= */    
+var lastCommentMetaReady = false;    
+try {    
+  lastCommentMetaReady = (sessionStorage.getItem("lastCommentMetaReady") === "1");    
+} catch (e) {    
+  lastCommentMetaReady = false;    
+}    
+  
+function setLastCommentMetaReady(val) {    
+  lastCommentMetaReady = !!val;    
+  try {    
+    sessionStorage.setItem("lastCommentMetaReady", lastCommentMetaReady ? "1" : "0");    
+  } catch (e) { }    
+}    
+  
+/* =========================================================================================    
+   NEW: lastComment stable order memory (requested behavior)    
+   - show last known order immediately    
+   - after meta is fully ready -> compute new order -> save    
+   ========================================================================================= */    
+var lastCommentSavedOrder = [];    
+function loadLastCommentSavedOrder() {    
+  try {    
+    var raw = sessionStorage.getItem("forumLastCommentOrder");    
+    if (!raw) { lastCommentSavedOrder = []; return; }    
+    var arr = JSON.parse(raw);    
+    if (arr && arr.length) lastCommentSavedOrder = arr;    
+    else lastCommentSavedOrder = [];    
+  } catch (e) {    
+    lastCommentSavedOrder = [];    
+  }    
+}    
+function saveLastCommentSavedOrder(idsArr) {    
+  try {    
+    sessionStorage.setItem("forumLastCommentOrder", JSON.stringify(idsArr || []));    
+  } catch (e) { }    
+}    
+loadLastCommentSavedOrder();    
+  
+/* =========================================================================================    
+   Image URL safety (הקשחה קלה נגד ערכי URL מוזרים)    
+   - לא משנה אבטחה אמיתית (היא ברולס), רק מונע XSS/הזרקות    
+   ========================================================================================= */    
+function sanitizeImageUrl(url) {    
+  if (url === undefined || url === null) return "";    
+  var u = safeText(url).trim();    
+  if (!u) return "";    
+  // allow only http(s)    
+  if (u.indexOf("https://") === 0 || u.indexOf("http://") === 0) return u;    
+  return "";    
+}    
+  
+function isLikelyImageFile(file) {    
+  try {    
+    if (!file) return false;    
+    var t = safeText(file.type || "").toLowerCase();    
+    if (t.indexOf("image/") === 0) return true;    
+    var n = safeText(file.name || "").toLowerCase();    
+    if (n.indexOf(".jpg") > -1 || n.indexOf(".jpeg") > -1 || n.indexOf(".png") > -1 || n.indexOf(".webp") > -1) return true;    
+    return false;    
+  } catch (e) {    
+    return false;    
+  }    
+}    
+  
+function bytesToHuman(n) {    
+  try {    
+    var x = Number(n || 0);    
+    if (!x) return "0B";    
+    if (x < 1024) return x + "B";    
+    if (x < 1024 * 1024) return Math.round(x / 1024) + "KB";    
+    return (Math.round((x / (1024 * 1024)) * 10) / 10) + "MB";    
+  } catch (e) {    
+    return "";    
+  }    
+}    
+  
+function copyToClipboard(text) {    
+  try {    
+    if (navigator.clipboard && navigator.clipboard.writeText) {    
+      navigator.clipboard.writeText(text);    
+      return;    
+    }    
+  } catch (e) { }    
+  try {    
+    var ta = document.createElement("textarea");    
+    ta.value = safeText(text);    
+    ta.style.position = "fixed";    
+    ta.style.opacity = "0";    
+    document.body.appendChild(ta);    
+    ta.select();    
+    try { document.execCommand("copy"); } catch (e2) { }    
+    document.body.removeChild(ta);    
+  } catch (e3) { }    
+}    
+  
+/* ===============================    
+   FIX: WebView compatibility helpers    
+   =============================== */    
+function dataURLToBlob(dataUrl) {    
+  try {    
+    var parts = safeText(dataUrl || "").split(",");    
+    if (parts.length < 2) return null;    
+    var meta = parts[0];    
+    var b64 = parts[1];    
+    var mime = "application/octet-stream";    
+    var m = /data:([^;]+);base64/i.exec(meta);    
+    if (m && m[1]) mime = m[1];    
+    var bin = atob(b64);    
+    var len = bin.length;    
+    var arr = new Uint8Array(len);    
+    for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);    
+    return new Blob([arr], { type: mime });    
+  } catch (e) {    
+    return null;    
+  }    
+}    
+  
+function canvasToBlobSafe(canvas, outType, quality, cb) {    
+  try {    
+    if (canvas && typeof canvas.toBlob === "function") {    
+      canvas.toBlob(function (blob) { cb(blob); }, outType, quality);    
+      return;    
+    }    
+  } catch (e1) { }    
+  try {    
+    var dataUrl = "";    
+    try { dataUrl = canvas.toDataURL(outType, quality); } catch (e2) { dataUrl = canvas.toDataURL(); }    
+    var blob2 = dataURLToBlob(dataUrl);    
+    cb(blob2);    
+  } catch (e3) {    
+    cb(null);    
+  }    
+}    
+  
+function getPreviewUrlForFile(file, done) {    
+  try {    
+    if (window.URL && typeof URL.createObjectURL === "function") {    
+      try {    
+        var u = URL.createObjectURL(file);    
+        done(u, true);    
+        return;    
+      } catch (eObj) { }    
+    }    
+  } catch (e0) { }    
+  
+  try {    
+    var r = new FileReader();    
+    r.onerror = function () { done("", false); };    
+    r.onload = function () { done(safeText(r.result || ""), false); };    
+    r.readAsDataURL(file);    
+  } catch (e1) {    
+    done("", false);    
+  }    
+}    
+  
+function openImageViewer(url) {    
+  var overlay = document.getElementById("imageViewerOverlay");    
+  var img = document.getElementById("imageViewerImg");    
+  /*    
+    [REMOVED REQUESTED FEATURE - keep length, no functional leftovers]    
+    In older versions, there was a "copy link" button inside the image overlay.    
+    The button was removed, and we keep this note to avoid dangling references.    
+    var copyBtn = document.getElementById("copyImageLinkBtn");    
+  */    
+  var closeBtn = document.getElementById("closeImageViewer");    
+  
+  if (!overlay || !img) return;    
+  
+  var safe = sanitizeImageUrl(url);    
+  if (!safe) return;    
+  
+  img.setAttribute("src", safe);    
+  overlay.style.display = "flex";    
+  
+  /*    
+    [REMOVED - no binding to non-existing button]    
+    if (copyBtn && !copyBtn.__bound) {    
+      copyBtn.__bound = true;    
+      copyBtn.addEventListener("click", function () {    
+        var src = img.getAttribute("src") || "";    
+        if (src) copyToClipboard(src);    
+      });    
+    }    
+  */    
+  
+  if (closeBtn && !closeBtn.__bound) {    
+    closeBtn.__bound = true;    
+    closeBtn.addEventListener("click", function () {    
+      overlay.style.display = "none";    
+      img.setAttribute("src", "");    
+    });    
+  }    
+  
+  if (!overlay.__bound) {    
+    overlay.__bound = true;    
+    overlay.addEventListener("click", function (e) {    
+      // click outside inner    
+      if (e.target === overlay) {    
+        overlay.style.display = "none";    
+        img.setAttribute("src", "");    
+      }    
+    });    
+  }    
+}    
+  
+/* =========================================================================================    
+   NEW: mini image preview (requested: click chip -> small preview with X)    
+   ========================================================================================= */    
+function openMiniImagePreview(url) {    
+  try {    
+    var overlay = document.getElementById("miniImageOverlay");    
+    var img = document.getElementById("miniPreviewImg");    
+    var closeBtn = document.getElementById("miniCloseBtn");    
+    if (!overlay || !img) return;    
+  
+    var safe = sanitizeImageUrl(url);    
+    if (!safe) return;    
+  
+    img.setAttribute("src", safe);    
+    overlay.style.display = "flex";    
+  
+    if (closeBtn && !closeBtn.__bound) {    
+      closeBtn.__bound = true;    
+      closeBtn.addEventListener("click", function () {    
+        overlay.style.display = "none";    
+        img.setAttribute("src", "");    
+      });    
+    }    
+  
+    if (!overlay.__bound) {    
+      overlay.__bound = true;    
+      overlay.addEventListener("click", function (e) {    
+        if (e.target === overlay) {    
+          overlay.style.display = "none";    
+          img.setAttribute("src", "");    
+        }    
+      });    
+    }    
+  } catch (e) { }    
+}    
+  
+function prepareImageForUpload(file, warnEl) {    
+  // שדרוג: ניסיון להקטין תמונה גדולה (אופציונלי). אם נכשל – מחזירים קובץ מקורי.    
+  // NOTE: בבקשה הנוכחית – לא משתמשים באופטימיזציה לצורך יציבות בחירת תמונה.    
+  return new Promise(function (resolve) {    
+    try {    
+      if (!file) { resolve({ blob: null, contentType: "", ext: "" }); return; }    
+  
+      var type = safeText(file.type || "").toLowerCase();    
+      var name = safeText(file.name || "");    
+      var ext = "";    
+      if (name.indexOf(".") !== -1) ext = name.split(".").pop().toLowerCase();    
+  
+      // אם זה כבר webp/png/jpeg - ננסה להקטין רק אם כבד    
+      var size = Number(file.size || 0);    
+      var SHOULD_TRY_RESIZE = size > (1.2 * 1024 * 1024); // 1.2MB+    
+  
+      if (!SHOULD_TRY_RESIZE) {    
+        resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });    
+        return;    
+      }    
+  
+      // load image (ObjectURL with fallback to FileReader)    
+      getPreviewUrlForFile(file, function (srcUrl, canRevoke) {    
+        if (!srcUrl) {    
+          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });    
+          return;    
+        }    
+  
+        var img = new Image();    
+  
+        img.onload = function () {    
+          try {    
+            try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch (eR) { }    
+  
+            var maxDim = 1280;    
+            var w = img.width || 0;    
+            var h = img.height || 0;    
+  
+            if (!w || !h) {    
+              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });    
+              return;    
+            }    
+  
+            var scale = 1;    
+            if (w > maxDim || h > maxDim) {    
+              scale = Math.min(maxDim / w, maxDim / h);    
+            }    
+  
+            var nw = Math.max(1, Math.round(w * scale));    
+            var nh = Math.max(1, Math.round(h * scale));    
+  
+            var canvas = document.createElement("canvas");    
+            canvas.width = nw;    
+            canvas.height = nh;    
+  
+            var ctx = canvas.getContext("2d");    
+            if (!ctx) {    
+              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });    
+              return;    
+            }    
+  
+            ctx.drawImage(img, 0, 0, nw, nh);    
+  
+            // נייצא ל-JPEG כדי לחסוך (גם אם מקור PNG). אם מקור WebP ויש תמיכה - אפשר גם webp.    
+            var outType = "image/jpeg";    
+            var quality = 0.85;    
+  
+            // אם המקור webp ונראה שיש תמיכה - ננסה webp    
+            if (type === "image/webp") outType = "image/webp";    
+  
+            canvasToBlobSafe(canvas, outType, quality, function (blob) {    
+              if (!blob) {    
+                resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });    
+                return;    
+              }    
+  
+              // הודעה עדינה על כיווץ (לא חובה)    
+              try {    
+                if (warnEl) {    
+                  warnEl.style.display = "block";    
+                  warnEl.textContent = "בוצעה אופטימיזציה לתמונה כדי להאיץ טעינה.";    
+                }    
+              } catch (eWarn) { }    
+  
+              var outExt = "jpg";    
+              if (outType === "image/webp") outExt = "webp";    
+              resolve({ blob: blob, contentType: outType, ext: outExt });    
+            });    
+  
+          } catch (e2) {    
+            resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });    
+          }    
+        };    
+  
+        img.onerror = function () {    
+          try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch (eR2) { }    
+          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });    
+        };    
+  
+        img.src = srcUrl;    
+      });    
+  
+    } catch (e0) {    
+      resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: "jpg" });    
+    }    
+  });    
+}    
+  
+function nowTs() {              
+  return Date.now();              
+}              
+  
+function setStatus(msg, type) {              
+  if (type === undefined || type === null) type = "info";              
+  var bar = document.getElementById("statusBar");              
+  if (!bar) return;              
+  
+  if (!msg) {              
+    bar.style.display = "none";              
+    bar.textContent = "";              
+    return;              
+  }              
+  
+  bar.style.display = "block";              
+  bar.textContent = msg;              
+  
+  if (type === "error") {              
+    bar.style.background = "rgba(255,0,0,0.08)";              
+    bar.style.color = "#8a0000";              
+  } else if (type === "ok") {              
+    bar.style.background = "rgba(0,128,0,0.08)";              
+    bar.style.color = "#0b5a0b";              
+  } else if (type === "warn") {    
+    bar.style.background = "rgba(255,165,0,0.10)";    
+    bar.style.color = "#7a4b00";    
+  } else {              
+    bar.style.background = "rgba(0,0,0,0.04)";              
+    bar.style.color = "#111";              
+  }              
+}              
+  
+function debounce(fn, ms) {              
+  var t = null;              
+  return function () {              
+    var args = arguments;              
+    clearTimeout(t);              
+    t = setTimeout(function () {              
+      fn.apply(null, args);              
+    }, ms);              
+  };              
+}              
+  
+/* =========================================================================================              
+   Global State              
+   ========================================================================================= */              
+var payload = null;              
+var uid = null;              
+var isRefreshing = false;              
+var isAuthed = false;              
+  
+var postsCacheData = [];              
+var renderedHtmlCache = "";              
+var lastNavAt = 0;              
+var lastOpenId = "";              
+var pullStartY = 0;              
+var pulling = false;              
+var didTriggerRefresh = false;              
+var realUsername = "משתמש";              
+  
+/* =========================================================================================    
+   Image state (שדרוג)    
+   ========================================================================================= */    
+var selectedImageFile = null;    
+var selectedImagePreviewUrl = "";    
+var selectedImagePreviewCanRevoke = false;    
+var selectedImagePrepared = null; // { blob, contentType, ext }    
+var selectedImageDataUrl = ""; // kept for fallback (DataURL)    
+var isPublishingNow = false;    
+  
+/* =========================================================================================    
+   Forum meta live: listeners per visible post    
+   ========================================================================================= */    
+var visibleMetaListenerMap = {};    
+var visibleMetaValueRefMap = {};    
+var visibleMetaLastRefMap = {};    
+var visibleMetaBoundIds = [];    
+var metaQueue = [];    
+var metaInFlight = 0;    
+var META_CONCURRENCY = 4;    
+var metaFetchAllRunning = false;    
+var metaFetchAllNeedResortAtEnd = false;    
+var lastRenderedListIds = [];    
+var liveMetaTickTimer = null;    
+  
+/* =========================================================================================    
+   NEW: comment/reply meta computation (requested)    
+   - Reply bumps lastCommentTime    
+   - Reply DOES NOT increase commentsCount (we keep top-level count only)    
+   ========================================================================================= */    
+function findMaxTimeInNestedReplies(obj, depth) {    
+  try {    
+    if (!obj || depth <= 0) return 0;    
+    var maxT = 0;    
+    for (var k in obj) {    
+      if (!obj.hasOwnProperty(k)) continue;    
+      var v = obj[k];    
+      if (!v) continue;    
+      if (typeof v === "object") {    
+        // direct time field    
+        try {    
+          if (v.time !== undefined && v.time !== null) {    
+            var t0 = Number(v.time || 0) || 0;    
+            if (t0 > maxT) maxT = t0;    
+          }    
+        } catch (eT0) { }    
+  
+        // go deeper    
+        var t1 = findMaxTimeInNestedReplies(v, depth - 1);    
+        if (t1 > maxT) maxT = t1;    
+      }    
+    }    
+    return maxT;    
+  } catch (e) {    
+    return 0;    
+  }    
+}    
+  
+function computeMetaFromCommentsSnapshot(snap) {    
+  try {    
+    var countTop = 0;    
+    var lastTime = 0;    
+  
+    if (snap && snap.exists()) {    
+      // Top-level count only (reply doesn't add)    
+      try { countTop = snap.numChildren(); } catch (eC) { countTop = 0; }    
+  
+      snap.forEach(function (c) {    
+        try {    
+          var v = c.val() || {};    
+          var t = Number(v.time || 0) || 0;    
+          if (t > lastTime) lastTime = t;    
+  
+          // replies containers (common names)    
+          // NOTE: if your structure differs, this still stays safe (no crash), and value listener will keep updating.    
+          var r1 = v.replies || null;    
+          var r2 = v.reply || null;    
+          var r3 = v.responses || null;    
+          var r4 = v.children || null;    
+          var r5 = v.subReplies || null;    
+  
+          var mx = 0;    
+          if (r1 && typeof r1 === "object") { mx = Math.max(mx, findMaxTimeInNestedReplies(r1, 4)); }    
+          if (r2 && typeof r2 === "object") { mx = Math.max(mx, findMaxTimeInNestedReplies(r2, 4)); }    
+          if (r3 && typeof r3 === "object") { mx = Math.max(mx, findMaxTimeInNestedReplies(r3, 4)); }    
+          if (r4 && typeof r4 === "object") { mx = Math.max(mx, findMaxTimeInNestedReplies(r4, 4)); }    
+          if (r5 && typeof r5 === "object") { mx = Math.max(mx, findMaxTimeInNestedReplies(r5, 4)); }    
+  
+          if (mx > lastTime) lastTime = mx;    
+        } catch (eRow) { }    
+      });    
+    }    
+  
+    return { countTop: Number(countTop || 0), lastTime: Number(lastTime || 0) };    
+  } catch (e0) {    
+    return { countTop: 0, lastTime: 0 };    
+  }    
+}    
+  
+/* =========================================================================================              
+   DOM Ready              
+   ========================================================================================= */              
+document.addEventListener("DOMContentLoaded", function () {              
+  
+  loadPostMetaCache();    
+  
+  /* ===============================              
+     Elements              
+     =============================== */              
+  var postsEl = document.getElementById("posts");              
+  var indicator = document.getElementById("pull-indicator");              
+  
+  var searchBox = document.getElementById("searchBox");              
+  var sortMode = document.getElementById("sortMode");              
+  
+  var openCreatePostBtn = document.getElementById("openCreatePost");              
+  var overlay = document.getElementById("createPostOverlay");              
+  var closeCreatePostBtn = document.getElementById("closeCreatePost");              
+  var cancelPostBtn = document.getElementById("cancelPost");              
+  var submitPostBtn = document.getElementById("submitPost");              
+  var newPostTitle = document.getElementById("newPostTitle");              
+  var newPostText = document.getElementById("newPostText");              
+  var createPostError = document.getElementById("createPostError");              
+  
+  /* ===============================    
+     Image UI elements (שדרוג)    
+     =============================== */    
+  var newPostImage = document.getElementById("newPostImage");    
+  var chooseImageBtn = document.getElementById("chooseImageBtn");    
+  var removeImageBtn = document.getElementById("removeImageBtn");    
+  var imagePreviewWrap = document.getElementById("imagePreviewWrap");    
+  var imagePreview = document.getElementById("imagePreview");    
+  var imageChip = document.getElementById("imageChip");    
+  var imageWarn = document.getElementById("imageWarn");    
+  
+  var uploadProgressArea = document.getElementById("uploadProgressArea");    
+  var uploadProgressText = document.getElementById("uploadProgressText");    
+  var uploadProgressBar = document.getElementById("uploadProgressBar");    
+  var newPostImageMeta = document.getElementById("newPostImageMeta");    
+  
+  if (!postsEl) {              
+    location.replace("forbidden.html");              
+    return;              
+  }              
+  
+  /* =====================================================================================    
+     Restore sort selection (memory)    
+     ===================================================================================== */    
+  try {    
+    if (sortMode && rememberedSortMode) {    
+      sortMode.value = rememberedSortMode;    
+    }    
+  } catch (eSM) { }    
+  
+  /* =====================================================================================    
+     Image viewer delegation (click image in post card)    
+     ===================================================================================== */    
+  if (!postsEl.__imgViewerBound) {    
+    postsEl.__imgViewerBound = true;    
+    postsEl.addEventListener("click", function (e) {    
+      // NEW: click on "יש תמונה" chip -> open mini preview and stop navigation    
+      var chip = null;    
+      try { chip = e.target.closest(".has-image-flag"); } catch (errChip) { chip = null; }    
+      if (chip) {    
+        try { e.preventDefault(); e.stopPropagation(); } catch (eStop) { }    
+        try {    
+          var postEl = chip.closest(".post");    
+          if (postEl) {    
+            var u = postEl.getAttribute("data-image") || "";    
+            u = sanitizeImageUrl(u);    
+            if (u) openMiniImagePreview(u);    
+          }    
+        } catch (eOpenMini) { }    
+        return;    
+      }    
+  
+      var img = null;    
+      try { img = e.target.closest(".post-image"); } catch (errX) { img = null; }    
+      if (!img) return;    
+  
+      var src = img.getAttribute("data-full") || img.getAttribute("src") || "";    
+      src = sanitizeImageUrl(src);    
+      if (!src) return;    
+  
+      openImageViewer(src);    
+    }, false);    
+  }    
+  
+  bindPostNavigation(postsEl);              
+  
+  if (searchBox) {              
+    searchBox.addEventListener("input", debounce(function () {              
+      renderPostsFromCache();              
+    }, 120));              
+  }              
+  
+  if (sortMode) {              
+    sortMode.addEventListener("change", function () {              
+      try { rememberSortMode(sortMode.value); } catch (eR) { }    
+  
+      // If user chooses lastComment, ensure we fetch meta properly (full pass once)    
+      try {    
+        var v = safeText(sortMode.value || "");    
+        if (v === "lastComment") {    
+          ensureAllPostsMetaForLastCommentSort();    
+        }    
+      } catch (eLC) { }    
+  
+      renderPostsFromCache();              
+    });              
+  }              
+  
+  /* =====================================================================================    
+     Image choose/remove handlers (שדרוג מלא)    
+     ===================================================================================== */    
+  if (chooseImageBtn && newPostImage) {    
+    chooseImageBtn.addEventListener("click", function () {    
+      try {    
+        newPostImage.value = "";    
+        newPostImage.click();    
+      } catch (eImg0) { }    
+    });    
+  }    
+  
+  if (removeImageBtn) {    
+    removeImageBtn.addEventListener("click", function () {    
+      clearSelectedImage(true);    
+    });    
+  }    
+  
+  /* =====================================================================================    
+     Robust DataURL reader with retries (kept as fallback; no longer blocks selection)    
+     ===================================================================================== */    
+  function readFileAsDataURLWithRetry(file, tries, done) {    
+    try {    
+      var left = Number(tries || 1);    
+      if (left < 1) left = 1;    
+  
+      var attempt = function () {    
+        try {    
+          var r = new FileReader();    
+          r.onerror = function () {    
+            left--;    
+            if (left <= 0) { done("", false); return; }    
+            setTimeout(attempt, 140);    
+          };    
+          r.onload = function () {    
+            var dataUrl = safeText(r.result || "");    
+            if (!dataUrl || dataUrl.indexOf("data:") !== 0) {    
+              left--;    
+              if (left <= 0) { done("", false); return; }    
+              setTimeout(attempt, 140);    
+              return;    
+            }    
+            done(dataUrl, true);    
+          };    
+          r.readAsDataURL(file);    
+        } catch (e1) {    
+          left--;    
+          if (left <= 0) { done("", false); return; }    
+          setTimeout(attempt, 140);    
+        }    
+      };    
+  
+      attempt();    
+    } catch (e0) {    
+      done("", false);    
+    }    
+  }    
+  
+  if (newPostImage) {    
+    newPostImage.addEventListener("change", function () {    
+      try {    
+        var f = (newPostImage.files && newPostImage.files[0]) ? newPostImage.files[0] : null;    
+        if (!f) return;    
+  
+        // validation    
+        if (!isLikelyImageFile(f)) {    
+          createPostErrorShow("קובץ לא נתמך. בחר תמונה (JPG/PNG/WebP).");    
+          clearSelectedImage(true);    
+          return;    
+        }    
+  
+        // size limit (raised to 9MB)    
+        var MAX = 9 * 1024 * 1024; // 9MB    
+        if (Number(f.size || 0) > MAX) {    
+          createPostErrorShow("התמונה גדולה מדי (" + bytesToHuman(f.size) + "). מומלץ עד 9MB.");    
+          clearSelectedImage(true);    
+          return;    
+        }    
+  
+        // accept WITHOUT trying to process/optimize - stability first    
+        selectedImageFile = f;    
+        selectedImagePrepared = null;    
+        selectedImageDataUrl = "";    
+        if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }    
+  
+        try {    
+          if (selectedImagePreviewUrl && selectedImagePreviewCanRevoke) {    
+            try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv0) { }    
+          }    
+        } catch (eRv1) { }    
+        selectedImagePreviewUrl = "";    
+        selectedImagePreviewCanRevoke = false;    
+  
+        // UI: show as selected immediately (no more "לא הצלחתי לקרוא" blocking selection)    
+        try {    
+          if (imagePreviewWrap) imagePreviewWrap.style.display = "block";    
+          if (removeImageBtn) removeImageBtn.style.display = "inline-block";    
+          if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }    
+          if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";    
+        } catch (eUI0) { }    
+  
+        // Preview: try ObjectURL first (most stable for UI), fallback to DataURL (best-effort)    
+        getPreviewUrlForFile(f, function (srcUrl, canRevoke) {    
+          try {    
+            if (srcUrl) {    
+              selectedImagePreviewUrl = srcUrl;    
+              selectedImagePreviewCanRevoke = !!canRevoke;    
+              if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);    
+              if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }    
+              return;    
+            }    
+          } catch (ePrev0) { }    
+  
+          // fallback: DataURL best-effort (but DO NOT show error that blocks selection)    
+          readFileAsDataURLWithRetry(f, 2, function (dataUrl, ok) {    
+            try {    
+              if (ok && dataUrl) {    
+                selectedImagePreviewUrl = dataUrl;    
+                selectedImagePreviewCanRevoke = false;    
+                if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);    
+                if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }    
+              } else {    
+                // Still accept file; just inform that preview might not show    
+                if (imageWarn) {    
+                  imageWarn.style.display = "block";    
+                  imageWarn.textContent = "לא ניתן להציג תצוגה מקדימה כרגע — אבל התמונה תעלה בפרסום.";    
+                }    
+              }    
+            } catch (ePrev1) { }    
+          });    
+        });    
+  
+      } catch (eImg2) { }    
+    });    
+  }    
+  
+  function clearSelectedImage(resetInput) {    
+    try {    
+      if (selectedImagePreviewUrl && selectedImagePreviewCanRevoke) {    
+        try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv2) { }    
+      }    
+    } catch (eRv3) { }    
+  
+    selectedImageFile = null;    
+    selectedImagePreviewUrl = "";    
+    selectedImagePreviewCanRevoke = false;    
+    selectedImagePrepared = null;    
+    selectedImageDataUrl = "";    
+  
+    try {    
+      if (imagePreview) imagePreview.setAttribute("src", "");    
+      if (imagePreviewWrap) imagePreviewWrap.style.display = "none";    
+      if (removeImageBtn) removeImageBtn.style.display = "none";    
+      if (imageChip) imageChip.style.display = "none";    
+      if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }    
+  
+      if (uploadProgressArea) uploadProgressArea.style.display = "none";    
+      if (uploadProgressText) uploadProgressText.textContent = "0%";    
+      if (uploadProgressBar) uploadProgressBar.style.width = "0%";    
+  
+      if (resetInput && newPostImage) newPostImage.value = "";    
+  
+      if (newPostImageMeta) newPostImageMeta.textContent = "פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 9MB.";    
+    } catch (eImg3) { }    
+  }    
+  
+  if (openCreatePostBtn) {              
+    openCreatePostBtn.addEventListener("click", function () {              
+      if (!isAuthed) {              
+        setStatus("עוד לא אומתת מול השרת. חכה שנייה ואז נסה שוב.", "error");              
+        return;              
+      }              
+      openCreatePostModal();              
+    });              
+  }              
+  
+  if (closeCreatePostBtn) closeCreatePostBtn.addEventListener("click", closeCreatePostModal);              
+  if (cancelPostBtn) cancelPostBtn.addEventListener("click", closeCreatePostModal);              
+  
+  if (overlay) {              
+    overlay.addEventListener("click", function (e) {              
+      if (e.target === overlay) closeCreatePostModal();              
+    });              
+  }              
+  
+  if (submitPostBtn) {              
+    submitPostBtn.addEventListener("click", function () {              
+      createPostErrorHide();              
+  
+      if (!isAuthed) {              
+        createPostErrorShow("אתה לא מאומת עדיין. נסה שוב עוד רגע.");              
+        return;              
+      }              
+  
+      // מניעת דאבל-פרסום (שדרוג - תיקון)    
+      if (isPublishingNow) return;    
+  
+      var t1 = "";              
+      var t2 = "";              
+      if (newPostTitle && typeof newPostTitle.value === "string") t1 = newPostTitle.value;              
+      if (newPostText && typeof newPostText.value === "string") t2 = newPostText.value;              
+  
+      var title = safeText(t1).trim();              
+      var text = safeText(t2).trim();              
+  
+      if (title.length < 3) {              
+        createPostErrorShow("כותרת קצרה מדי. מינימום 3 תווים.");              
+        return;              
+      }              
+      if (text.length < 3) {              
+        createPostErrorShow("תוכן קצר מדי. מינימום 3 תווים.");              
+        return;              
+      }              
+  
+      // אם יש תמונה - נוודא שהיא עדיין תקינה    
+      if (selectedImageFile) {    
+        if (!isLikelyImageFile(selectedImageFile)) {    
+          createPostErrorShow("התמונה שנבחרה לא תקינה. בחר תמונה מחדש.");    
+          clearSelectedImage(true);    
+          return;    
+        }    
+        var MAX2 = 9 * 1024 * 1024;    
+        if (Number(selectedImageFile.size || 0) > MAX2) {    
+          createPostErrorShow("התמונה גדולה מדי. בחר תמונה קטנה יותר.");    
+          return;    
+        }    
+      }    
+  
+      publishPost(title, text);              
+    });              
+  }              
+  
+  /* =====================================================================================              
+     4) Pull To Refresh – נשמר בדיוק              
+     ===================================================================================== */              
+  document.addEventListener("touchstart", function (e) {              
+    try {              
+      if (window.scrollY === 0 && !isRefreshing) {              
+        pullStartY = e.touches[0].clientY;              
+        pulling = true;              
+        didTriggerRefresh = false;              
+      }              
+    } catch (err1) { }              
+  }, { passive: true });              
+  
+  document.addEventListener("touchmove", function (e) {              
+    if (!pulling || isRefreshing) return;              
+  
+    var diff = e.touches[0].clientY - pullStartY;              
+    if (diff <= 0) return;              
+  
+    if (indicator) indicator.style.display = "block";              
+  
+    var THRESHOLD = 90;              
+    if (diff > THRESHOLD && !didTriggerRefresh) {              
+      didTriggerRefresh = true;              
+      pulling = false;              
+      isRefreshing = true;              
+  
+      try { sessionStorage.removeItem("cachedPosts"); } catch (err2) { }              
+  
+      loadPosts(true);              
+    }              
+  }, { passive: true });              
+  
+  document.addEventListener("touchend", function () {              
+    pulling = false;              
+    if (!isRefreshing && indicator) indicator.style.display = "none";              
+  }, { passive: true });              
+  
+  /* =====================================================================================              
+     5) Start Auth Flow              
+     ===================================================================================== */              
+  waitForPayload();              
+  
+  function waitForPayload() {              
+    var raw = "";              
+    try {              
+      raw = window.AppInventor.getWebViewString();              
+      if (!raw) {              
+        setTimeout(waitForPayload, 200);              
+        return;              
+      }              
+      payload = JSON.parse(raw);              
+    } catch (e) {              
+      setTimeout(waitForPayload, 200);              
+      return;              
+    }              
+  
+    loginToFirebase(payload);              
+  }              
+  
+  function loginToFirebase(data) {              
+    if (!data || !data.email || !data.password || !data.token) {              
+      location.replace("forbidden.html");              
+      return;              
+    }              
+  
+    firebase.auth()              
+      .signInWithEmailAndPassword(data.email, data.password)              
+      .then(function (c) {              
+        validateToken(c.user.uid, data.token);              
+      })              
+      .catch(function () {              
+        location.replace("forbidden.html");              
+      });              
+  }              
+  
+  function validateToken(userId, token) {              
+    firebase.database()              
+      .ref("sessions/" + userId + "/token")              
+      .once("value")              
+      .then(function (snap) {              
+        if (!snap.exists() || snap.val() !== token) {              
+          location.replace("forbidden.html");              
+          return;              
+        }              
+  
+        uid = userId;              
+        isAuthed = true;              
+  
+        firebase.database()              
+          .ref("users/" + uid + "/username")              
+          .once("value")              
+          .then(function (uSnap) {              
+            realUsername = uSnap.val() || "משתמש";              
+            setStatus("מחובר כ־" + realUsername, "ok");              
+  
+            loadPosts(false);              
+            attachLivePostListeners();              
+          })              
+          .catch(function () {              
+            realUsername = "משתמש";              
+            setStatus("מחובר", "ok");              
+            loadPosts(false);              
+            attachLivePostListeners();              
+          });              
+      })              
+      .catch(function () {              
+        location.replace("forbidden.html");              
+      });              
+  }              
+  
+  function loadPosts(fromRefresh) {              
+    if (fromRefresh === undefined || fromRefresh === null) fromRefresh = false;              
+    setStatus(fromRefresh ? "מרענן פוסטים…" : "טוען פוסטים…", "info");              
+  
+    firebase.database()              
+      .ref("posts")              
+      .orderByChild("time")              
+      .limitToLast(300)              
+      .once("value")              
+      .then(function (snap) {              
+        var items = [];              
+  
+        snap.forEach(function (pSnap) {              
+          var p = pSnap.val() || {};              
+          var postId = pSnap.key;              
+  
+          var cachedMeta = getMetaForPost(postId) || {};    
+          var cc = (p.commentsCount !== undefined && p.commentsCount !== null) ? Number(p.commentsCount || 0) : cachedMeta.commentsCount;    
+          var lct = (p.lastCommentTime !== undefined && p.lastCommentTime !== null) ? Number(p.lastCommentTime || 0) : cachedMeta.lastCommentTime;    
+  
+          items.push({              
+            id: postId,              
+            title: safeText(p.title),              
+            text: safeText(p.text),              
+            author: safeText(p.author),              
+            time: Number(p.time || 0),              
+            likes: Number(p.likes || 0),              
+            commentsCount: (cc === undefined ? null : (cc === null ? null : Number(cc || 0))),    
+            lastCommentTime: (lct === undefined ? 0 : Number(lct || 0)),    
+            image: sanitizeImageUrl(p.image || "")              
+          });              
+        });              
+  
+        items.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });              
+  
+        postsCacheData = items;              
+  
+        // If lastComment sort is selected, ensure we run the full meta fetch once    
+        try {    
+          var modeNow = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);    
+          if (modeNow === "lastComment") {    
+            ensureAllPostsMetaForLastCommentSort();    
+          }    
+        } catch (eLM0) { }    
+  
+        renderPostsFromCache();              
+  
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e2) { }              
+  
+        if (fromRefresh) {              
+          setTimeout(function () {              
+            isRefreshing = false;              
+            if (indicator) indicator.style.display = "none";              
+            setStatus("עודכן בהצלחה.", "ok");              
+          }, 250);              
+        } else {              
+          setStatus("פוסטים נטענו.", "ok");              
+        }              
+  
+        // After initial render, ensure visible meta listeners + queue meta load    
+        try {    
+          ensureVisibleMetaAndFetch();    
+        } catch (eVM0) { }    
+      })              
+      .catch(function () {              
+        location.replace("forbidden.html");              
+      });              
+  }              
+  
+  function renderPostsFromCache() {              
+    var q = "";              
+    var mode = "newest";              
+  
+    if (searchBox && typeof searchBox.value === "string") q = searchBox.value;              
+    q = safeText(q).trim().toLowerCase();              
+  
+    if (sortMode && typeof sortMode.value === "string") mode = sortMode.value;              
+    mode = safeText(mode) || "newest";              
+  
+    var list = postsCacheData.slice();              
+  
+    if (q) {              
+      list = list.filter(function (p) {              
+        var t = (p.title || "").toLowerCase();              
+        var x = (p.text || "").toLowerCase();              
+        var a = (p.author || "").toLowerCase();    
+        var im = (p.image || "").toLowerCase();    
+        var hasImg = im ? "תמונה" : "";    
+        return t.indexOf(q) !== -1 || x.indexOf(q) !== -1 || a.indexOf(q) !== -1 || hasImg.indexOf(q) !== -1;              
+      });              
+    }              
+  
+    if (mode === "oldest") {              
+      list.sort(function (a, b) { return (a.time || 0) - (b.time || 0); });              
+    } else if (mode === "author") {              
+      list.sort(function (a, b) { return (a.author || "").localeCompare(b.author || "", "he"); });              
+    } else if (mode === "title") {              
+      list.sort(function (a, b) { return (a.title || "").localeCompare(b.title || "", "he"); });              
+    } else if (mode === "lastComment") {    
+      // Requested behavior:  
+      // 1) If we have a saved order -> show it immediately (stable)    
+      // 2) After meta ready -> do real sort by lastCommentTime    
+      if (lastCommentMetaReady) {    
+        list.sort(function (a, b) {    
+          var ta = Number(a.lastCommentTime || 0) || 0;    
+          var tb = Number(b.lastCommentTime || 0) || 0;    
+          if (!ta) ta = Number(a.time || 0) || 0;    
+          if (!tb) tb = Number(b.time || 0) || 0;    
+          return tb - ta;    
+        });    
+        // save order each time meta-ready sort runs (keeps memory across nav/refresh)    
+        try {    
+          var idsSave = [];    
+          for (var s1 = 0; s1 < list.length; s1++) { if (list[s1] && list[s1].id) idsSave.push(list[s1].id); }    
+          lastCommentSavedOrder = idsSave;    
+          saveLastCommentSavedOrder(idsSave);    
+        } catch (eSaveOrd) { }    
+      } else {    
+        // meta not ready: use saved order if exists; fallback keep current order    
+        if (lastCommentSavedOrder && lastCommentSavedOrder.length) {    
+          var idxMap = {};    
+          for (var si = 0; si < lastCommentSavedOrder.length; si++) idxMap[lastCommentSavedOrder[si]] = si;    
+          list.sort(function (a, b) {    
+            var ia = (idxMap[a.id] !== undefined) ? idxMap[a.id] : 999999;    
+            var ib = (idxMap[b.id] !== undefined) ? idxMap[b.id] : 999999;    
+            if (ia !== ib) return ia - ib;    
+            return (Number(b.time || 0) || 0) - (Number(a.time || 0) || 0);    
+          });    
+        } else {    
+          // keep current order (do nothing)    
+        }    
+      }    
+    } else {              
+      list.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });              
+    }              
+  
+    var html = "";              
+  
+    if (!list.length) {              
+      html = q ? "<p>לא נמצאו תוצאות לחיפוש.</p>" : "<p>אין עדיין פוסטים.</p>";              
+    } else {              
+      for (var i = 0; i < list.length; i++) {              
+        html += buildPostCardHTML(list[i]);              
+      }              
+    }              
+  
+    postsEl.innerHTML = html;              
+    renderedHtmlCache = html;              
+  
+    // Track rendered ids for meta listeners and background fetch    
+    try {    
+      lastRenderedListIds = [];    
+      for (var j = 0; j < list.length; j++) {    
+        if (list[j] && list[j].id) lastRenderedListIds.push(list[j].id);    
+      }    
+    } catch (eIds) {    
+      lastRenderedListIds = [];    
+    }    
+  
+    // keep cache of posts html    
+    try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (eC) { }    
+  
+    // after render: ensure visible meta / live update    
+    try {    
+      ensureVisibleMetaAndFetch();    
+    } catch (eVM1) { }    
+  }              
+  
+  function formatCommentsCountText(n, unknown) {    
+    try {    
+      if (unknown) return "טוען תגובות…";    
+      var x = Number(n || 0);    
+      if (!x) return "אין תגובות";    
+      if (x === 1) return "תגובה אחת";    
+      return x + " תגובות";    
+    } catch (e) {    
+      return "אין תגובות";    
+    }    
+  }    
+  
+  function buildPostCardHTML(p) {    
+    // NOTE: this function was previously modified with non-existing postsMetaMap/scheduleSaveMeta.  
+    // We keep it selective and compatible with the rest of this file (no security changes).  
+  
+    var title = escapeHTML(p.title || "");  
+    var text = escapeHTML(p.text || "");  
+    var author = escapeHTML(p.author || "");  
+    var idRaw = safeText(p.id || "");  
+    var id = escapeHTML(idRaw);  
+  
+    var timeStr = "";  
+    if (p.time) {  
       try {  
-        var u = URL.createObjectURL(file);  
-        done(u, true);  
-        return;  
-      } catch (eObj) { }  
-    }  
-  } catch (e0) { }  
-
-  try {  
-    var r = new FileReader();  
-    r.onerror = function () { done("", false); };  
-    r.onload = function () { done(safeText(r.result || ""), false); };  
-    r.readAsDataURL(file);  
-  } catch (e1) {  
-    done("", false);  
-  }  
-}  
-
-/***************************************************************************************
-  (8) ניקוי שאריות כפתור "העתק קישור" בחלונית תמונה
-  - בגרסה קודמת היה כפתור copyImageLinkBtn
-  - הכפתור נמחק, לכן מוחקים גם כל קוד/Binding אליו (כאן בפונקציה openImageViewer)
-***************************************************************************************/
-function openImageViewer(url) {  
-  var overlay = document.getElementById("imageViewerOverlay");  
-  var img = document.getElementById("imageViewerImg");  
-  var closeBtn = document.getElementById("closeImageViewer");  
-
-  if (!overlay || !img) return;  
-
-  var safe = sanitizeImageUrl(url);  
-  if (!safe) return;  
-
-  img.setAttribute("src", safe);  
-  overlay.style.display = "flex";  
-
-  if (closeBtn && !closeBtn.__bound) {  
-    closeBtn.__bound = true;  
-    closeBtn.addEventListener("click", function () {  
-      overlay.style.display = "none";  
-      img.setAttribute("src", "");  
-    });  
-  }  
-
-  if (!overlay.__bound) {  
-    overlay.__bound = true;  
-    overlay.addEventListener("click", function (e) {  
-      // click outside inner  
-      if (e.target === overlay) {  
-        overlay.style.display = "none";  
-        img.setAttribute("src", "");  
-      }  
-    });  
-  }  
-}  
-
-function prepareImageForUpload(file, warnEl) {  
-  // שדרוג: ניסיון להקטין תמונה גדולה (אופציונלי). אם נכשל – מחזירים קובץ מקורי.  
-  return new Promise(function (resolve) {  
-    try {  
-      if (!file) { resolve({ blob: null, contentType: "", ext: "" }); return; }  
-
-      var type = safeText(file.type || "").toLowerCase();  
-      var name = safeText(file.name || "");  
-      var ext = "";  
-      if (name.indexOf(".") !== -1) ext = name.split(".").pop().toLowerCase();  
-
-      // אם זה כבר webp/png/jpeg - ננסה להקטין רק אם כבד  
-      var size = Number(file.size || 0);  
-      var SHOULD_TRY_RESIZE = size > (1.2 * 1024 * 1024); // 1.2MB+  
-
-      if (!SHOULD_TRY_RESIZE) {  
-        resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-        return;  
-      }  
-
-      // load image (ObjectURL with fallback to FileReader)  
-      getPreviewUrlForFile(file, function (srcUrl, canRevoke) {  
-        if (!srcUrl) {  
-          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-          return;  
-        }  
-
-        var img = new Image();  
-
-        img.onload = function () {  
-          try {  
-            try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch (eR) { }  
-
-            var maxDim = 1280;  
-            var w = img.width || 0;  
-            var h = img.height || 0;  
-
-            if (!w || !h) {  
-              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-              return;  
-            }  
-
-            var scale = 1;  
-            if (w > maxDim || h > maxDim) {  
-              scale = Math.min(maxDim / w, maxDim / h);  
-            }  
-
-            var nw = Math.max(1, Math.round(w * scale));  
-            var nh = Math.max(1, Math.round(h * scale));  
-
-            var canvas = document.createElement("canvas");  
-            canvas.width = nw;  
-            canvas.height = nh;  
-
-            var ctx = canvas.getContext("2d");  
-            if (!ctx) {  
-              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-              return;  
-            }  
-
-            ctx.drawImage(img, 0, 0, nw, nh);  
-
-            // נייצא ל-JPEG כדי לחסוך (גם אם מקור PNG). אם מקור WebP ויש תמיכה - אפשר גם webp.  
-            var outType = "image/jpeg";  
-            var quality = 0.85;  
-
-            // אם המקור webp ונראה שיש תמיכה - ננסה webp  
-            if (type === "image/webp") outType = "image/webp";  
-
-            canvasToBlobSafe(canvas, outType, quality, function (blob) {  
-              if (!blob) {  
-                resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-                return;  
-              }  
-
-              // הודעה עדינה על כיווץ (לא חובה)  
-              try {  
-                if (warnEl) {  
-                  warnEl.style.display = "block";  
-                  warnEl.textContent = "בוצעה אופטימיזציה לתמונה כדי להאיץ טעינה.";  
-                }  
-              } catch (eWarn) { }  
-
-              var outExt = "jpg";  
-              if (outType === "image/webp") outExt = "webp";  
-              resolve({ blob: blob, contentType: outType, ext: outExt });  
-            });  
-
-          } catch (e2) {  
-            resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-          }  
-        };  
-
-        img.onerror = function () {  
-          try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch (eR2) { }  
-          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-        };  
-
-        img.src = srcUrl;  
-      });  
-
-    } catch (e0) {  
-      resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: "jpg" });  
-    }  
-  });  
-}  
-
-function nowTs() {            
-  return Date.now();            
-}            
-
-function setStatus(msg, type) {            
-  if (type === undefined || type === null) type = "info";            
-  var bar = document.getElementById("statusBar");            
-  if (!bar) return;            
-
-  if (!msg) {            
-    bar.style.display = "none";            
-    bar.textContent = "";            
-    return;            
-  }            
-
-  bar.style.display = "block";            
-  bar.textContent = msg;            
-
-  if (type === "error") {            
-    bar.style.background = "rgba(255,0,0,0.08)";            
-    bar.style.color = "#8a0000";            
-  } else if (type === "ok") {            
-    bar.style.background = "rgba(0,128,0,0.08)";            
-    bar.style.color = "#0b5a0b";            
-  } else {            
-    bar.style.background = "rgba(0,0,0,0.04)";            
-    bar.style.color = "#111";            
-  }            
-}            
-
-function debounce(fn, ms) {            
-  var t = null;            
-  return function () {            
-    var args = arguments;            
-    clearTimeout(t);            
-    t = setTimeout(function () {            
-      fn.apply(null, args);            
-    }, ms);            
-  };            
-}            
-
-/* =========================================================================================            
-   Global State            
-   ========================================================================================= */            
-var payload = null;            
-var uid = null;            
-var isRefreshing = false;            
-var isAuthed = false;            
-
-var postsCacheData = [];            
-var renderedHtmlCache = "";            
-var lastNavAt = 0;            
-var lastOpenId = "";            
-var pullStartY = 0;            
-var pulling = false;            
-var didTriggerRefresh = false;            
-var realUsername = "משתמש";            
-
-/* =========================================================================================  
-   Image state (שדרוג)  
-   ========================================================================================= */  
-var selectedImageFile = null;  
-var selectedImagePreviewUrl = "";  
-var selectedImagePreviewCanRevoke = false;  
-var selectedImagePrepared = null; // { blob, contentType, ext }  
-var selectedImageDataUrl = ""; // FIX: יציב ב-WebView (DataURL)  
-var isPublishingNow = false;  
-
-/* =========================================================================================  
-   (5) מצב למיון לפי תגובה אחרונה – ניהול מטא (ללא פשרות)
-   - נתמך ע"י lastCommentTime בפוסט אם קיים
-   - אם אין, נעשה hydrate בזמן בחירת המיון (קריאת התגובה האחרונה מה-DB)
-   ========================================================================================= */  
-var lastCommentHydrationInFlight = false;  
-var lastCommentHydratedOnce = false;  
-
-/* =========================================================================================  
-   (4) מצב למונה תגובות “אמיתי” – עדכון אלמנט ספציפי לפי postId
-   - לא מוחק פיצ'רים קיימים
-   - לא משנה אבטחה
-   ========================================================================================= */  
-var commentsCountHydrationInFlight = false;  
-var commentsCountHydratedOnce = false;  
-
-/* =========================================================================================            
-   DOM Ready            
-   ========================================================================================= */            
-document.addEventListener("DOMContentLoaded", function () {            
-
-  /* ===============================            
-     Elements            
-     =============================== */            
-  var postsEl = document.getElementById("posts");            
-  var indicator = document.getElementById("pull-indicator");            
-
-  var searchBox = document.getElementById("searchBox");            
-  var sortMode = document.getElementById("sortMode");            
-
-  var openCreatePostBtn = document.getElementById("openCreatePost");            
-  var overlay = document.getElementById("createPostOverlay");            
-  var closeCreatePostBtn = document.getElementById("closeCreatePost");            
-  var cancelPostBtn = document.getElementById("cancelPost");            
-  var submitPostBtn = document.getElementById("submitPost");            
-  var newPostTitle = document.getElementById("newPostTitle");            
-  var newPostText = document.getElementById("newPostText");            
-  var createPostError = document.getElementById("createPostError");            
-
-  /* ===============================  
-     Image UI elements (שדרוג)  
-     =============================== */  
-  var newPostImage = document.getElementById("newPostImage");  
-  var chooseImageBtn = document.getElementById("chooseImageBtn");  
-  var removeImageBtn = document.getElementById("removeImageBtn");  
-  var imagePreviewWrap = document.getElementById("imagePreviewWrap");  
-  var imagePreview = document.getElementById("imagePreview");  
-  var imageChip = document.getElementById("imageChip");  
-  var imageWarn = document.getElementById("imageWarn");  
-
-  var uploadProgressArea = document.getElementById("uploadProgressArea");  
-  var uploadProgressText = document.getElementById("uploadProgressText");  
-  var uploadProgressBar = document.getElementById("uploadProgressBar");  
-  var newPostImageMeta = document.getElementById("newPostImageMeta");  
-
-  if (!postsEl) {            
-    location.replace("forbidden.html");            
-    return;            
-  }            
-
-  /* =====================================================================================  
-     Image viewer delegation (click image in post card)  
-     הערה: בפורום לא מציגים תמונות ברשימה (2), אז בפועל לא יופעל.
-     נשמר כדי לא לשבור "אופי" של קוד/תשתית.
-     ===================================================================================== */  
-  if (!postsEl.__imgViewerBound) {  
-    postsEl.__imgViewerBound = true;  
-    postsEl.addEventListener("click", function (e) {  
-      var img = null;  
-      try { img = e.target.closest(".post-image"); } catch (errX) { img = null; }  
-      if (!img) return;  
-
-      var src = img.getAttribute("data-full") || img.getAttribute("src") || "";  
-      src = sanitizeImageUrl(src);  
-      if (!src) return;  
-
-      openImageViewer(src);  
-    }, false);  
-  }  
-
-  bindPostNavigation(postsEl);            
-
-  if (searchBox) {            
-    searchBox.addEventListener("input", debounce(function () {            
-      renderPostsFromCache();            
-    }, 120));            
-  }            
-
-  if (sortMode) {            
-    sortMode.addEventListener("change", function () {            
-      renderPostsFromCache();            
-    });            
-  }            
-
-  /* =====================================================================================  
-     (6) תיקון בחירת תמונה – פחות שגיאות שווא ב-WebView
-     - במקום לזרוק "לא הצלחתי לקרוא..." על תקלה זמנית, עושים Retry פנימי קצר
-     - השגיאה מוצגת רק אם באמת נכשל לאחר מספר נסיונות
-     ===================================================================================== */  
-
-  function readFileAsDataURLWithRetry(file, triesLeft, delayMs, onOk, onFail) {  
-    try {  
-      var r = new FileReader();  
-
-      r.onerror = function () {  
-        // Retry אם נשאר  
-        if (triesLeft > 0) {  
-          setTimeout(function () {  
-            readFileAsDataURLWithRetry(file, triesLeft - 1, delayMs, onOk, onFail);  
-          }, delayMs);  
-          return;  
-        }  
-        if (typeof onFail === "function") onFail("read_error");  
-      };  
-
-      r.onload = function () {  
-        try {  
-          var dataUrl = safeText(r.result || "");  
-          if (!dataUrl || dataUrl.indexOf("data:") !== 0) {  
-            // Retry אם נשאר  
-            if (triesLeft > 0) {  
-              setTimeout(function () {  
-                readFileAsDataURLWithRetry(file, triesLeft - 1, delayMs, onOk, onFail);  
-              }, delayMs);  
-              return;  
-            }  
-            if (typeof onFail === "function") onFail("bad_data_url");  
-            return;  
-          }  
-          if (typeof onOk === "function") onOk(dataUrl);  
-        } catch (eX) {  
-          if (triesLeft > 0) {  
-            setTimeout(function () {  
-              readFileAsDataURLWithRetry(file, triesLeft - 1, delayMs, onOk, onFail);  
-            }, delayMs);  
-            return;  
-          }  
-          if (typeof onFail === "function") onFail("exception");  
-        }  
-      };  
-
-      r.readAsDataURL(file);  
-    } catch (e0) {  
-      // Retry גם כאן  
-      if (triesLeft > 0) {  
-        setTimeout(function () {  
-          readFileAsDataURLWithRetry(file, triesLeft - 1, delayMs, onOk, onFail);  
-        }, delayMs);  
-        return;  
-      }  
-      if (typeof onFail === "function") onFail("reader_init_failed");  
-    }  
-  }  
-
-  /* =====================================================================================  
-     Image choose/remove handlers (שדרוג מלא)  
-     ===================================================================================== */  
-  if (chooseImageBtn && newPostImage) {  
-    chooseImageBtn.addEventListener("click", function () {  
-      try {  
-        newPostImage.value = "";  
-        newPostImage.click();  
-      } catch (eImg0) { }  
-    });  
-  }  
-
-  if (removeImageBtn) {  
-    removeImageBtn.addEventListener("click", function () {  
-      clearSelectedImage(true);  
-    });  
-  }  
-
-  if (newPostImage) {  
-    newPostImage.addEventListener("change", function () {  
-      try {  
-        var f = (newPostImage.files && newPostImage.files[0]) ? newPostImage.files[0] : null;  
-        if (!f) return;  
-
-        // validation  
-        if (!isLikelyImageFile(f)) {  
-          createPostErrorShow("קובץ לא נתמך. בחר תמונה (JPG/PNG/WebP).");  
-          clearSelectedImage(true);  
-          return;  
-        }  
-
-        // (7) size limit => 9MB  
-        var MAX = 9 * 1024 * 1024; // 9MB  
-        if (Number(f.size || 0) > MAX) {  
-          createPostErrorShow("התמונה גדולה מדי (" + bytesToHuman(f.size) + "). מומלץ עד 9MB.");  
-          clearSelectedImage(true);  
-          return;  
-        }  
-
-        // accept  
-        selectedImageFile = f;  
-        selectedImagePrepared = null;  
-        selectedImageDataUrl = "";  
-        if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
-
-        // preview (FIX: DataURL בלבד - יציב ב-WebView, בלי ObjectURL)  
-        try {  
-          if (selectedImagePreviewUrl && selectedImagePreviewCanRevoke) {  
-            try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv0) { }  
-          }  
-        } catch (eRv1) { }  
-        selectedImagePreviewUrl = "";  
-        selectedImagePreviewCanRevoke = false;  
-
-        // (6) קריאה עם Retry – מונע שגיאות שווא אם WebView "מתעכב"  
-        readFileAsDataURLWithRetry(  
-          f,  
-          3,       // מספר נסיונות  
-          120,     // השהיה קטנה בין נסיונות  
-          function (dataUrl) {  
-            try {  
-              selectedImageDataUrl = safeText(dataUrl || "");  
-              selectedImagePreviewUrl = selectedImageDataUrl;  
-              selectedImagePreviewCanRevoke = false;  
-
-              if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);  
-              if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
-              if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
-              if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
-              try {  
-                if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
-              } catch (eM) { }  
-
-              // אם הייתה שגיאה קודמת – ננקה
-              createPostErrorHide();  
-            } catch (eImg1) { }  
-          },  
-          function () {  
-            // רק עכשיו מציגים שגיאה, אחרי רטריים  
-            createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב (אם לא עוזר – בחר תמונה אחרת).");  
-            clearSelectedImage(true);  
-          }  
-        );  
-
-      } catch (eImg2) { }  
-    });  
-  }  
-
-  function clearSelectedImage(resetInput) {  
-    try {  
-      if (selectedImagePreviewUrl && selectedImagePreviewCanRevoke) {  
-        try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv2) { }  
-      }  
-    } catch (eRv3) { }  
-
-    selectedImageFile = null;  
-    selectedImagePreviewUrl = "";  
-    selectedImagePreviewCanRevoke = false;  
-    selectedImagePrepared = null;  
-    selectedImageDataUrl = "";  
-
-    try {  
-      if (imagePreview) imagePreview.setAttribute("src", "");  
-      if (imagePreviewWrap) imagePreviewWrap.style.display = "none";  
-      if (removeImageBtn) removeImageBtn.style.display = "none";  
-      if (imageChip) imageChip.style.display = "none";  
-      if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
-
-      if (uploadProgressArea) uploadProgressArea.style.display = "none";  
-      if (uploadProgressText) uploadProgressText.textContent = "0%";  
-      if (uploadProgressBar) uploadProgressBar.style.width = "0%";  
-
-      if (resetInput && newPostImage) newPostImage.value = "";  
-
-      if (newPostImageMeta) newPostImageMeta.textContent = "פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 9MB.";  
-    } catch (eImg3) { }  
-  }  
-
-  if (openCreatePostBtn) {            
-    openCreatePostBtn.addEventListener("click", function () {            
-      if (!isAuthed) {            
-        setStatus("עוד לא אומתת מול השרת. חכה שנייה ואז נסה שוב.", "error");            
-        return;            
-      }            
-      openCreatePostModal();            
-    });            
-  }            
-
-  if (closeCreatePostBtn) closeCreatePostBtn.addEventListener("click", closeCreatePostModal);            
-  if (cancelPostBtn) cancelPostBtn.addEventListener("click", closeCreatePostModal);            
-
-  if (overlay) {            
-    overlay.addEventListener("click", function (e) {            
-      if (e.target === overlay) closeCreatePostModal();            
-    });            
-  }            
-
-  if (submitPostBtn) {            
-    submitPostBtn.addEventListener("click", function () {            
-      createPostErrorHide();            
-
-      if (!isAuthed) {            
-        createPostErrorShow("אתה לא מאומת עדיין. נסה שוב עוד רגע.");            
-        return;            
-      }            
-
-      // מניעת דאבל-פרסום (שדרוג - תיקון)  
-      if (isPublishingNow) return;  
-
-      var t1 = "";            
-      var t2 = "";            
-      if (newPostTitle && typeof newPostTitle.value === "string") t1 = newPostTitle.value;            
-      if (newPostText && typeof newPostText.value === "string") t2 = newPostText.value;            
-
-      var title = safeText(t1).trim();            
-      var text = safeText(t2).trim();            
-
-      if (title.length < 3) {            
-        createPostErrorShow("כותרת קצרה מדי. מינימום 3 תווים.");            
-        return;            
-      }            
-      if (text.length < 3) {            
-        createPostErrorShow("תוכן קצר מדי. מינימום 3 תווים.");            
-        return;            
-      }            
-
-      // אם יש תמונה - נוודא שהיא עדיין תקינה  
-      if (selectedImageFile) {  
-        if (!isLikelyImageFile(selectedImageFile)) {  
-          createPostErrorShow("התמונה שנבחרה לא תקינה. בחר תמונה מחדש.");  
-          clearSelectedImage(true);  
-          return;  
-        }  
-        // (7) size limit => 9MB  
-        var MAX2 = 9 * 1024 * 1024;  
-        if (Number(selectedImageFile.size || 0) > MAX2) {  
-          createPostErrorShow("התמונה גדולה מדי. בחר תמונה קטנה יותר (עד 9MB).");  
-          return;  
-        }  
-      }  
-
-      publishPost(title, text);            
-    });            
-  }            
-
-  /* =====================================================================================            
-     4) Pull To Refresh – נשמר בדיוק            
-     ===================================================================================== */            
-  document.addEventListener("touchstart", function (e) {            
-    try {            
-      if (window.scrollY === 0 && !isRefreshing) {            
-        pullStartY = e.touches[0].clientY;            
-        pulling = true;            
-        didTriggerRefresh = false;            
-      }            
-    } catch (err1) { }            
-  }, { passive: true });            
-
-  document.addEventListener("touchmove", function (e) {            
-    if (!pulling || isRefreshing) return;            
-
-    var diff = e.touches[0].clientY - pullStartY;            
-    if (diff <= 0) return;            
-
-    if (indicator) indicator.style.display = "block";            
-
-    var THRESHOLD = 90;            
-    if (diff > THRESHOLD && !didTriggerRefresh) {            
-      didTriggerRefresh = true;            
-      pulling = false;            
-      isRefreshing = true;            
-
-      try { sessionStorage.removeItem("cachedPosts"); } catch (err2) { }            
-
-      loadPosts(true);            
-    }            
-  }, { passive: true });            
-
-  document.addEventListener("touchend", function () {            
-    pulling = false;            
-    if (!isRefreshing && indicator) indicator.style.display = "none";            
-  }, { passive: true });            
-
-  /* =====================================================================================            
-     5) Start Auth Flow            
-     ===================================================================================== */            
-  waitForPayload();            
-
-  function waitForPayload() {            
-    var raw = "";            
-    try {            
-      raw = window.AppInventor.getWebViewString();            
-      if (!raw) {            
-        setTimeout(waitForPayload, 200);            
-        return;            
-      }            
-      payload = JSON.parse(raw);            
-    } catch (e) {            
-      setTimeout(waitForPayload, 200);            
-      return;            
-    }            
-
-    loginToFirebase(payload);            
-  }            
-
-  function loginToFirebase(data) {            
-    if (!data || !data.email || !data.password || !data.token) {            
-      location.replace("forbidden.html");            
-      return;            
-    }            
-
-    firebase.auth()            
-      .signInWithEmailAndPassword(data.email, data.password)            
-      .then(function (c) {            
-        validateToken(c.user.uid, data.token);            
-      })            
-      .catch(function () {            
-        location.replace("forbidden.html");            
-      });            
-  }            
-
-  function validateToken(userId, token) {            
-    firebase.database()            
-      .ref("sessions/" + userId + "/token")            
-      .once("value")            
-      .then(function (snap) {            
-        if (!snap.exists() || snap.val() !== token) {            
-          location.replace("forbidden.html");            
-          return;            
-        }            
-
-        uid = userId;            
-        isAuthed = true;            
-
-        firebase.database()            
-          .ref("users/" + uid + "/username")            
-          .once("value")            
-          .then(function (uSnap) {            
-            realUsername = uSnap.val() || "משתמש";            
-            setStatus("מחובר כ־" + realUsername, "ok");            
-
-            loadPosts(false);            
-            attachLivePostListeners();            
-          })            
-          .catch(function () {            
-            realUsername = "משתמש";            
-            setStatus("מחובר", "ok");            
-            loadPosts(false);            
-            attachLivePostListeners();            
-          });            
-      })            
-      .catch(function () {            
-        location.replace("forbidden.html");            
-      });            
-  }            
-
-  function loadPosts(fromRefresh) {            
-    if (fromRefresh === undefined || fromRefresh === null) fromRefresh = false;            
-    setStatus(fromRefresh ? "מרענן פוסטים…" : "טוען פוסטים…", "info");            
-
-    firebase.database()            
-      .ref("posts")            
-      .orderByChild("time")            
-      .limitToLast(300)            
-      .once("value")            
-      .then(function (snap) {            
-        var items = [];            
-
-        snap.forEach(function (pSnap) {            
-          var p = pSnap.val() || {};            
-          var postId = pSnap.key;            
-
-          items.push({            
-            id: postId,            
-            title: safeText(p.title),            
-            text: safeText(p.text),            
-            author: safeText(p.author),            
-            time: Number(p.time || 0),            
-            likes: Number(p.likes || 0),            
-            commentsCount: Number(p.commentsCount || 0),  
-            image: sanitizeImageUrl(p.image || ""),  
-
-            /* (5) תמיכה במיון לפי תגובה אחרונה:
-               - אם קיים בשמירה בפוסט: lastCommentTime
-               - אם לא קיים: יושלם (hydrate) לפי comments/{postId} limitToLast(1) */
-            lastCommentTime: Number(p.lastCommentTime || 0),
-
-            /* שמור מקום לעתיד: lastActivityTime (לא חובה, לא משנה אבטחה) */
-            lastActivityTime: Number(p.lastActivityTime || 0)
-          });            
-        });            
-
-        items.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });            
-
-        postsCacheData = items;            
-
-        renderPostsFromCache();            
-
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e2) { }            
-
-        /* (4) אחרי טעינה: ננסה להשלים מונה תגובות אמיתי לפוסטים ש"חסר/0" (בעדינות) */
-        try {  
-          hydrateCommentsCountsIfNeeded();  
-        } catch (eHC) { }  
-
-        if (fromRefresh) {            
-          setTimeout(function () {            
-            isRefreshing = false;            
-            if (indicator) indicator.style.display = "none";            
-            setStatus("עודכן בהצלחה.", "ok");            
-          }, 250);            
-        } else {            
-          setStatus("פוסטים נטענו.", "ok");            
-        }            
-      })            
-      .catch(function () {            
-        location.replace("forbidden.html");            
-      });            
-  }            
-
-  function renderPostsFromCache() {            
-    var q = "";            
-    var mode = "newest";            
-
-    if (searchBox && typeof searchBox.value === "string") q = searchBox.value;            
-    q = safeText(q).trim().toLowerCase();            
-
-    if (sortMode && typeof sortMode.value === "string") mode = sortMode.value;            
-    mode = safeText(mode) || "newest";            
-
-    var list = postsCacheData.slice();            
-
-    if (q) {            
-      list = list.filter(function (p) {            
-        var t = (p.title || "").toLowerCase();            
-        var x = (p.text || "").toLowerCase();            
-        var a = (p.author || "").toLowerCase();  
-        var im = (p.image || "").toLowerCase();  
-        // שדרוג: גם חיפוש לפי "תמונה" אם יש URL  
-        var hasImg = im ? "תמונה" : "";  
-        return t.indexOf(q) !== -1 || x.indexOf(q) !== -1 || a.indexOf(q) !== -1 || hasImg.indexOf(q) !== -1;            
-      });            
-    }            
-
-    if (mode === "oldest") {            
-      list.sort(function (a, b) { return (a.time || 0) - (b.time || 0); });            
-    } else if (mode === "author") {            
-      list.sort(function (a, b) { return (a.author || "").localeCompare(b.author || "", "he"); });            
-    } else if (mode === "title") {            
-      list.sort(function (a, b) { return (a.title || "").localeCompare(b.title || "", "he"); });            
-    } else if (mode === "lastComment") {            
-      /* (5) מיון לפי תגובה אחרונה:
-         - key = lastCommentTime אם יש
-         - fallback = lastActivityTime אם יש
-         - fallback אחרון = time של הפוסט
-         בנוסף: אם חסר lastCommentTime – נבצע hydrate (שאיבת הזמן האחרון מהתגובות) */
-      list.sort(function (a, b) {  
-        var ka = getLastCommentSortKey(a);  
-        var kb = getLastCommentSortKey(b);  
-        return (kb || 0) - (ka || 0);  
-      });  
-
-      // hydrate בעדינות רק כשבאמת בחרו את המיון הזה
-      try { hydrateLastCommentTimesIfNeeded(); } catch (eH) { }  
-    } else {            
-      list.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });            
-    }            
-
-    var html = "";            
-
-    if (!list.length) {            
-      html = q ? "<p>לא נמצאו תוצאות לחיפוש.</p>" : "<p>אין עדיין פוסטים.</p>";            
-    } else {            
-      for (var i = 0; i < list.length; i++) {            
-        html += buildPostCardHTML(list[i]);            
-      }            
-    }            
-
-    postsEl.innerHTML = html;            
-    renderedHtmlCache = html;            
-  }            
-
-  /* (5) מפתח מיון אחרון: lastCommentTime / lastActivityTime / time */
-  function getLastCommentSortKey(p) {  
-    if (!p) return 0;  
-    var x = Number(p.lastCommentTime || 0);  
-    if (x > 0) return x;  
-    var y = Number(p.lastActivityTime || 0);  
-    if (y > 0) return y;  
-    return Number(p.time || 0);  
-  }  
-
-  /* (5) Hydrate lastCommentTime – בלי לשבור כלום:
-     - עובד רק אם המשתמש בחר "מיון: תגובה אחרונה"
-     - משלים נתונים חסרים מתוך comments/{postId}
-     - לא משנה אבטחה / לא משנה שיטת התחברות
-  */
-  function hydrateLastCommentTimesIfNeeded() {  
-    if (!isAuthed) return;  
-    if (lastCommentHydrationInFlight) return;  
-
-    // כבר הרצנו פעם? עדיין נריץ שוב רק אם יש חסרים רבים (כדי להשיג "ללא פשרות")
-    var missing = [];  
-    for (var i = 0; i < postsCacheData.length; i++) {  
-      var it = postsCacheData[i];  
-      if (!it) continue;  
-      // אם אין lastCommentTime בכלל
-      if (Number(it.lastCommentTime || 0) <= 0) {  
-        missing.push(it);  
-      }  
-    }  
-
-    // אם אין חסרים – אין מה לעשות  
-    if (!missing.length) {  
-      lastCommentHydratedOnce = true;  
-      return;  
-    }  
-
-    lastCommentHydrationInFlight = true;  
-
-    // כדי לא להעמיס על WebView: מגבלת פוסטים להשלמה בכל סבב
-    // (עדיין "ללא פשרות" מבחינת פיצ'ר – פשוט עושה את זה בשלבים)
-    var MAX_BATCH = 80;  
-    if (missing.length > MAX_BATCH) missing = missing.slice(0, MAX_BATCH);  
-
-    var idx = 0;  
-    var updatedAny = false;  
-
-    function step() {  
-      if (idx >= missing.length) {  
-        lastCommentHydrationInFlight = false;  
-        lastCommentHydratedOnce = true;  
-        if (updatedAny) {  
-          // אם יש עדכון – נרנדר מחדש כדי שהמיון יתיישר מיד
-          renderPostsFromCache();  
-          try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (eS1) { }  
-        }  
-        return;  
-      }  
-
-      var post = missing[idx++];  
-      if (!post || !post.id) {  
-        step();  
-        return;  
-      }  
-
-      // קוראים את התגובה האחרונה (time) מתוך comments/{postId}
-      firebase.database()  
-        .ref("comments/" + post.id)  
-        .orderByChild("time")  
-        .limitToLast(1)  
-        .once("value")  
-        .then(function (snap) {  
-          var lastTs = 0;  
-          try {  
-            snap.forEach(function (cSnap) {  
-              var v = cSnap.val() || {};  
-              var t = Number(v.time || 0);  
-              if (t > lastTs) lastTs = t;  
-            });  
-          } catch (eL) {  
-            lastTs = 0;  
-          }  
-
-          if (lastTs > 0) {  
-            // מעדכנים במודל המקומי
-            post.lastCommentTime = lastTs;  
-            updatedAny = true;  
-          } else {  
-            // אם אין תגובות – נשאיר 0, המיון ייפול ל-time של הפוסט
-            post.lastCommentTime = 0;  
-          }  
-        })  
-        .catch(function () {  
-          // שקט – לא מפילים UI
-        })  
-        .finally(function () {  
-          // ממשיכים
-          step();  
+        timeStr = new Date(p.time).toLocaleString("he-IL", {  
+          hour: "2-digit",  
+          minute: "2-digit",  
+          day: "2-digit",  
+          month: "2-digit"  
         });  
-    }  
-
-    step();  
-  }  
-
-  /* (4) Hydrate commentsCount – עבור תצוגה נכונה "אין תגובות / X תגובות"
-     - אם ב-DB לא מתוחזק commentsCount, כאן נשלים לפחות תצוגתית
-     - לא שובר קיימים: אם commentsCount כבר קיים, נשאיר
-  */
-  function hydrateCommentsCountsIfNeeded() {  
-    if (!isAuthed) return;  
-    if (commentsCountHydrationInFlight) return;  
-
-    var candidates = [];  
-    for (var i = 0; i < postsCacheData.length; i++) {  
-      var it = postsCacheData[i];  
-      if (!it) continue;  
-      // אם חסר/0 – נבדוק (כי המשתמש ביקש "ללא פשרות" בתצוגת כמות תגובות)
-      if (Number(it.commentsCount || 0) <= 0) {  
-        candidates.push(it);  
+      } catch (e) {  
+        timeStr = "";  
       }  
     }  
-
-    if (!candidates.length) {  
-      commentsCountHydratedOnce = true;  
-      return;  
-    }  
-
-    commentsCountHydrationInFlight = true;  
-
-    var MAX_BATCH2 = 80;  
-    if (candidates.length > MAX_BATCH2) candidates = candidates.slice(0, MAX_BATCH2);  
-
-    var j = 0;  
-
-    function step2() {  
-      if (j >= candidates.length) {  
-        commentsCountHydrationInFlight = false;  
-        commentsCountHydratedOnce = true;  
-        return;  
-      }  
-
-      var p = candidates[j++];  
-      if (!p || !p.id) {  
-        step2();  
-        return;  
-      }  
-
-      firebase.database()  
-        .ref("comments/" + p.id)  
-        .once("value")  
-        .then(function (snap) {  
-          var count = 0;  
-          try { count = snap.numChildren() || 0; } catch (eC0) { count = 0; }  
-
-          // עדכון מקומי
-          p.commentsCount = Number(count || 0);  
-
-          // עדכון תצוגה ללא רינדור מלא (כדי לא להפריע לחוויית שימוש)
-          updateCommentsCountDom(p.id, p.commentsCount);  
-        })  
-        .catch(function () {  
-          // שקט
-        })  
-        .finally(function () {  
-          step2();  
-        });  
-    }  
-
-    step2();  
-  }  
-
-  function updateCommentsCountDom(postId, count) {  
-    try {  
-      var el = document.getElementById("comments-count-" + postId);  
-      if (!el) return;  
-      var x = Number(count || 0);  
-      if (x <= 0) {  
-        el.textContent = "אין תגובות";  
-        el.classList.add("post-comments-none");  
-      } else if (x === 1) {  
-        el.textContent = "תגובה אחת";  
-        el.classList.remove("post-comments-none");  
-      } else {  
-        el.textContent = x + " תגובות";  
-        el.classList.remove("post-comments-none");  
-      }  
-    } catch (eU0) { }  
-  }  
-
-  function buildPostCardHTML(p) {            
-    var title = escapeHTML(p.title || "");            
-    var text = escapeHTML(p.text || "");            
-    var author = escapeHTML(p.author || "");            
-    var id = escapeHTML(p.id || "");            
-
-    var timeStr = "";            
-    if (p.time) {            
-      try {            
-        timeStr = new Date(p.time).toLocaleString("he-IL", {            
-          hour: "2-digit",            
-          minute: "2-digit",            
-          day: "2-digit",            
-          month: "2-digit"            
-        });            
-      } catch (e) {            
-        timeStr = "";            
-      }            
-    }            
-
-    /* (2) לא מציגים תמונות ברשימת הפוסטים – אבל שומרים את הלוגיקה (בלי להציג)
-       כדי לא "לשבור אופי קוד" וכדי שהשדה image ימשיך להתקיים ולהישלח לדף הפוסט.
-    */
-    var imgHtml = "";  
+  
+    // Comments count: top-level only (reply doesn't count)    
+    // Unknown state (null) will show "טוען תגובות…"    
+    var unknownComments = (p.commentsCount === null || p.commentsCount === undefined);  
+    var commentsCount = unknownComments ? 0 : Number(p.commentsCount || 0);  
+    var commentsText = formatCommentsCountText(commentsCount, unknownComments);  
+  
+    var authorColor = safeText(p.authorColor || userColor(p.author || ""));  
+    var escAuthorColor = escapeHTML(authorColor);  
+  
+    // "יש תמונה" based on p.image (no dead placeholder)    
     var imgUrl = sanitizeImageUrl(p.image || "");  
-    if (imgUrl) {  
-      // בעבר הוצג כאן HTML תמונה; כעת לפי בקשה (2) – לא מציגים תמונות בפורום
-      // נשאיר את הבלוק כתיעוד/עקביות, אבל ללא output.
-      imgHtml = "";  
+    var hasImage = !!(imgUrl && safeText(imgUrl).length > 0);  
+  
+    /* ---------------------------------------------------------  
+       תג "יש תמונה" – מופיע רק אם יש תמונה  
+       אין placeholder → אין רווח מת  
+       לחיצה תפתח preview קטן (ממומש בדליגציה למעלה)  
+       --------------------------------------------------------- */  
+    var imageBadgeHtml = "";  
+    if (hasImage) {  
+      imageBadgeHtml =  
+        '<span class="has-image-flag" title="לחץ לתצוגה מקדימה">📷 יש תמונה</span>';  
     }  
-
-    /* (3) סמל קטן שמצביע על כך שיש תמונה */
-    var imageBadge = "";  
-    if (imgUrl) {  
-      imageBadge = '<span class="has-image-badge" title="יש תמונה בפוסט">תמונה</span>';  
-    }  
-
-    /* (1)(9) צבע זהות לפי מחבר הפוסט */
-    var authorColor = userColor(p.author || "");  
-
-    /* (4) מונה תגובות */
-    var cc = Number(p.commentsCount || 0);  
-    var commentsLabel = "";  
-    if (cc <= 0) commentsLabel = "אין תגובות";  
-    else if (cc === 1) commentsLabel = "תגובה אחת";  
-    else commentsLabel = cc + " תגובות";  
-
-    return (            
-      '\n      <div class="post" data-id="' + id + '" style="border-right:4px solid ' + escapeHTML(authorColor) + ';">' +            
-      '\n        <h3>' + imageBadge + title + '</h3>' +            
-      '\n        <p>' + text + '</p>' +            
-      /* (2) בכוונה לא מציגים תמונות כאן */  
-      imgHtml +   
-      '\n        <small style="color:' + escapeHTML(authorColor) + ';">מאת: ' + author + '</small>' +            
-      '\n        <div class="post-bottom-meta-row">' +  
-      '\n          <small style="opacity:.75; display:block;">' + escapeHTML(timeStr) + '</small>' +            
-      '\n          <small id="comments-count-' + id + '" class="post-comments-count' + (cc <= 0 ? ' post-comments-none' : '') + '">' + escapeHTML(commentsLabel) + '</small>' +  
+  
+    /* ---------------------------------------------------------  
+       Sync meta cache (selective, no breaking references)  
+       --------------------------------------------------------- */  
+    try {  
+      // Previously:  
+      // if (!postsMetaMap[p.id]) postsMetaMap[p.id] = {};  
+      // postsMetaMap[p.id].commentsCount = commentsCount;  
+      // postsMetaMap[p.id].lastCommentTime = Number(p.lastCommentTime || 0);  
+      // scheduleSaveMeta();  
+      // Now:  
+      setMetaForPost(idRaw, {  
+        commentsCount: (unknownComments ? 0 : commentsCount),  
+        lastCommentTime: Number(p.lastCommentTime || 0)  
+      });  
+    } catch (eMeta) {}  
+  
+    /* ---------------------------------------------------------  
+       HTML  
+       - data-image is used for the mini preview click  
+       - border color per author  
+       --------------------------------------------------------- */  
+    return (  
+      '\n      <div class="post" data-id="' + id + '" data-image="' + escapeHTML(imgUrl) + '" ' +  
+        'style="border-right:4px solid ' + escAuthorColor + ';">' +  
+  
+      '\n        <h3>' + title + '</h3>' +  
+      '\n        <p>' + text + '</p>' +  
+  
+      '\n        <div class="post-meta-row">' +  
+  
+      '\n          <div class="post-meta-left">' +  
+                     imageBadgeHtml +  
+      '\n            <small class="post-time-small">' + escapeHTML(timeStr) + '</small>' +  
+      '\n          </div>' +  
+  
+      '\n          <div class="post-meta-right" style="text-align:right;">' +  
+      '\n            <small id="author-line-' + id + '" class="post-author-colored" ' +  
+                       'style="color:' + escAuthorColor + ';">' +  
+                       'מאת: ' + author +  
+      '\n            </small>' +  
+      '\n            <small class="post-comments-count" ' +  
+                       'id="comments-count-' + id + '">' +  
+                       escapeHTML(commentsText) +  
+      '\n            </small>' +  
+      '\n          </div>' +  
+  
       '\n        </div>' +  
-      '\n      </div>\n    '            
-    );            
-  }            
-
-  function bindPostNavigation(container) {            
-    if (container.__navBound) return;            
-    container.__navBound = true;            
-
-    container.addEventListener("click", function (e) {            
-      if (isRefreshing || pulling) return;            
-
-      var postEl = null;            
-      try { postEl = e.target.closest(".post"); } catch (err) { postEl = null; }            
-      if (!postEl) return;            
-
-      // אם לחצו על תמונה - אל תנווט, זה פותח viewer  
-      // בפורום לא אמור להיות img, אבל נשמר
-      try {  
-        var inImg = e.target && (e.target.classList && e.target.classList.contains("post-image"));  
-        if (inImg) return;  
-      } catch (eN) { }  
-
-      var id = postEl.getAttribute("data-id");            
-      if (!id) return;            
-
-      var now = Date.now();            
-      if (now - lastNavAt < 350 && lastOpenId === id) return;            
-
-      lastNavAt = now;            
-      lastOpenId = id;            
-
-      openPost(id, postEl);            
-    }, false);            
-  }            
-
-  function openPost(postId, el) {            
-    try {            
-      var h3 = el.querySelector("h3");            
-      var p = el.querySelector("p");            
-      var s = el.querySelector("small");            
-      var img = el.querySelector("img");            
-
-      var title = h3 ? (h3.innerText || "") : "";            
-      var text = p ? (p.innerText || "") : "";            
-      var author = "";            
-      if (s) author = (s.innerText || "").replace("מאת:", "").trim();            
-
-      /* (2) אין תמונה בדום של הפורום, לכן לא מסתמכים על el.querySelector("img")
-         במקום זה: לוקחים את ה-image מה-cache לפי postId כדי להעביר לדף הפוסט.
-      */
-      var imageUrl = "";  
-      try {  
-        for (var i = 0; i < postsCacheData.length; i++) {  
-          if (postsCacheData[i] && postsCacheData[i].id === postId) {  
-            imageUrl = sanitizeImageUrl(postsCacheData[i].image || "");  
-            break;  
-          }  
-        }  
-      } catch (eFind) {  
-        imageUrl = "";  
-      }  
-
-      // השארה לתאימות – אם בעתיד יחזור img בדום (לא אמור), עדיין לא נשבר
-      if (!imageUrl && img) {  
-        try { imageUrl = sanitizeImageUrl(img.getAttribute("src") || ""); } catch (eImgOld) { imageUrl = ""; }  
-      }  
-
-      sessionStorage.setItem("currentPost", JSON.stringify({            
-        id: postId,            
-        title: title || "",            
-        text: text || "",            
-        author: author || "",  
-        image: imageUrl || ""            
-      }));            
-    } catch (e) { }            
-
-    location.href = "post.html?postId=" + encodeURIComponent(postId);            
-  }            
-
-  function openCreatePostModal() {            
-    createPostErrorHide();            
-    if (newPostTitle) newPostTitle.value = "";            
-    if (newPostText) newPostText.value = "";            
-
-    // reset image (שדרוג)  
-    clearSelectedImage(true);  
-    isPublishingNow = false;  
-
-    if (overlay) overlay.style.display = "flex";            
-
-    setTimeout(function () {            
-      try { if (newPostTitle) newPostTitle.focus(); } catch (e) { }            
-    }, 50);            
-  }            
-
-  function closeCreatePostModal() {            
-    createPostErrorHide();            
-    if (overlay) overlay.style.display = "none";            
-
-    // reset image (שדרוג)  
-    clearSelectedImage(true);  
-    isPublishingNow = false;  
-  }            
-
-  function createPostErrorShow(msg) {            
-    if (!createPostError) return;            
-    createPostError.textContent = msg;            
-    createPostError.style.display = "block";            
-  }            
-
-  function createPostErrorHide() {            
-    if (!createPostError) return;            
-    createPostError.textContent = "";            
-    createPostError.style.display = "none";            
-  }            
-
-  function setUploadProgress(pct) {  
-    try {  
-      var x = Math.max(0, Math.min(100, Number(pct || 0)));  
-      if (uploadProgressArea) uploadProgressArea.style.display = "block";  
-      if (uploadProgressText) uploadProgressText.textContent = x + "%";  
-      if (uploadProgressBar) uploadProgressBar.style.width = x + "%";  
-    } catch (e) { }  
-  }            
-
-  function publishPost(title, text) {            
-    if (!isAuthed || !uid) {            
-      createPostErrorShow("אתה לא מאומת. נסה שוב.");            
-      return;            
-    }            
-
-    // מניעת דאבל-פרסום (שדרוג - תיקון)  
-    if (isPublishingNow) return;  
-    isPublishingNow = true;  
-
-    var btn = submitPostBtn;            
-    if (btn) btn.disabled = true;            
-
-    var postObj = {            
-      title: title,            
-      text: text,            
-      author: realUsername,            
-      time: nowTs(),  
-      image: null,
-
-      // (5) שדה בסיסי למיון תגובה אחרונה – בפורום נשתמש בו אם יתעדכן בעתיד
-      // לא משנה אבטחה ולא פוגע בהווה; אם אין תגובות – נשאר 0.
-      lastCommentTime: 0
-    };            
-
-    // שדרוג: פרסום עם תמונה  
-    // 1) יוצרים postId מראש  
-    // 2) אם יש תמונה - מעלים ל-Storage -> מקבלים URL  
-    // 3) שומרים ב-DB את postObj עם image url  
-    var postsRef = firebase.database().ref("posts");  
-    var newRef = postsRef.push();  
-    var postId = newRef.key;  
-
-    // אם אין תמונה: set רגיל  
-    if (!selectedImageFile) {  
-      postObj.image = null;  
-
-      newRef.set(postObj)  
-        .then(function () {            
-          closeCreatePostModal();            
-          setStatus("הפוסט פורסם בהצלחה.", "ok");            
-
-          try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }            
-          try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }            
-        })            
-        .catch(function () {            
-          createPostErrorShow("שגיאה בפרסום. נסה שוב.");            
-        })            
-        .finally(function () {            
-          if (btn) btn.disabled = false;  
-          isPublishingNow = false;  
-        });  
-
-      return;  
-    }  
-
-    // יש תמונה: תהליך העלאה (FIX: DataURL + watchdog נגד תקיעה)  
-    setStatus("מעלה תמונה…", "info");  
-    setUploadProgress(1);  
-
-    var ext0 = "jpg";  
-    try {  
-      var n0 = safeText(selectedImageFile.name || "");  
-      if (n0.indexOf(".") !== -1) ext0 = n0.split(".").pop().toLowerCase();  
-    } catch (eExt) { ext0 = "jpg"; }  
-
-    var ensureDataUrl = function () {  
-      return new Promise(function (resolve, reject) {  
-        try {  
-          if (selectedImageDataUrl && selectedImageDataUrl.indexOf("data:") === 0) {  
-            resolve(selectedImageDataUrl);  
-            return;  
-          }  
-          // (6) כאן נשאיר FileReader רגיל – אבל יש לנו כבר DataURL מהבחירה ברוב המקרים
-          var r = new FileReader();  
-          r.onerror = function () { reject("read_failed"); };  
-          r.onload = function () { resolve(safeText(r.result || "")); };  
-          r.readAsDataURL(selectedImageFile);  
-        } catch (e) { reject(e); }  
-      });  
-    };  
-
-    ensureDataUrl()  
-      .then(function (dataUrl) {  
-        selectedImageDataUrl = safeText(dataUrl || "");  
-        if (!selectedImageDataUrl || selectedImageDataUrl.indexOf("data:") !== 0) throw "read_failed";  
-
-        return uploadPostImageDataUrlEx(selectedImageDataUrl, ext0, postId, uid, function (pct) {  
-          setUploadProgress(pct);  
-        });  
-      })  
-      .then(function (imageUrl) {  
-        imageUrl = sanitizeImageUrl(imageUrl || "");  
-        postObj.image = imageUrl || null;  
-
-        setStatus("שומר פוסט…", "info");  
-        setUploadProgress(100);  
-
-        return newRef.set(postObj);  
-      })  
-      .then(function () {  
-        closeCreatePostModal();            
-        setStatus("הפוסט פורסם בהצלחה.", "ok");            
-
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }            
-        try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }            
-      })  
-      .catch(function (err) {  
-        // אם קרתה שגיאה - נסיר את הפוסט החצי-מוכן (כדי לא להשאיר ריק)  
-        try {  
-          if (postId) firebase.database().ref("posts/" + postId).remove();  
-        } catch (eRm) { }  
-
-        var msg = "שגיאה בהעלאת תמונה/פרסום. נסה שוב.";  
-        if (safeText(err) === "upload_timeout") msg = "העלאת תמונה נתקעה (Timeout). נסה שוב.";  
-        if (safeText(err) === "read_failed") msg = "שגיאה בקריאת התמונה. בחר תמונה מחדש.";  
-
-        createPostErrorShow(msg);  
-        setStatus("שגיאה בפרסום.", "error");  
-      })  
-      .finally(function () {  
-        if (uploadProgressArea) uploadProgressArea.style.display = "none";  
-        if (btn) btn.disabled = false;  
-        isPublishingNow = false;  
-      });  
-  }            
-
-  function attachLivePostListeners() {            
-    if (window.__postsLiveAttached) return;            
-    window.__postsLiveAttached = true;            
-
-    var ref = firebase.database().ref("posts").orderByChild("time").limitToLast(50);            
-
-    ref.on("child_added", function (snap) {            
-      var id = snap.key;            
-      var v = snap.val() || {};            
-
-      var item = {            
-        id: id,            
-        title: safeText(v.title),            
-        text: safeText(v.text),            
-        author: safeText(v.author),            
-        time: Number(v.time || 0),            
-        likes: Number(v.likes || 0),            
-        commentsCount: Number(v.commentsCount || 0),  
-        image: sanitizeImageUrl(v.image || ""),  
-
-        lastCommentTime: Number(v.lastCommentTime || 0),  
-        lastActivityTime: Number(v.lastActivityTime || 0)
-      };            
-
-      for (var i = 0; i < postsCacheData.length; i++) {            
-        if (postsCacheData[i] && postsCacheData[i].id === id) return;            
-      }            
-
-      postsCacheData.unshift(item);            
-
-      if (!isRefreshing) {            
-        renderPostsFromCache();            
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e5) { }            
-        // (4) אם צריך, ננסה להשלים תגובות לפוסט חדש
-        try { hydrateCommentsCountsIfNeeded(); } catch (eHC2) { }  
-      }            
-    });            
-
-    ref.on("child_changed", function (snap) {            
-      var id = snap.key;            
-      var v = snap.val() || {};            
-
-      var idx = -1;            
-      for (var i = 0; i < postsCacheData.length; i++) {            
-        if (postsCacheData[i] && postsCacheData[i].id === id) { idx = i; break; }            
-      }            
-      if (idx === -1) return;            
-
-      var prev = postsCacheData[idx] || {};            
-
-      postsCacheData[idx] = {            
-        id: id,            
-        title: safeText(v.title),            
-        text: safeText(v.text),            
-        author: safeText(v.author),            
-        time: Number(v.time || prev.time || 0),            
-        likes: Number(v.likes || prev.likes || 0),            
-        commentsCount: Number(v.commentsCount || prev.commentsCount || 0),  
-        image: sanitizeImageUrl(v.image || prev.image || ""),  
-
-        lastCommentTime: Number(v.lastCommentTime || prev.lastCommentTime || 0),  
-        lastActivityTime: Number(v.lastActivityTime || prev.lastActivityTime || 0)
-      };            
-
-      if (!isRefreshing) {            
-        renderPostsFromCache();            
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e6) { }            
-        // (4) לעדכן DOM למונה תגובות אם התעדכן ברילטיים
-        try {  
-          updateCommentsCountDom(id, postsCacheData[idx].commentsCount);  
-        } catch (eUCC) { }  
-      }            
-    });            
-  }            
-
-});            
-
-/* =========================================================================================  
-   FIX: Upload DataURL (stable in WebView) + progress + timeout  
-   ========================================================================================= */  
-function uploadPostImageDataUrlEx(dataUrl, ext, postId, uid, onProgress) {  
-  return new Promise(function (resolve, reject) {  
-    try {  
-      if (!dataUrl || !postId || !uid) {  
-        reject("missing params");  
-        return;  
-      }  
-
-      var safeExt = safeText(ext || "").toLowerCase();  
-      if (!safeExt) safeExt = "jpg";  
-      if (safeExt.length > 8) safeExt = "jpg";  
-
-      var name = Date.now() + "_" + uid + "." + safeExt;  
-      var ref = firebase.storage().ref("post-images/" + postId + "/" + name);  
-
-      var finished = false;  
-      var task = ref.putString(dataUrl, "data_url");  
-
-      var timer = setTimeout(function () {  
-        if (finished) return;  
-        finished = true;  
-        try { if (task && typeof task.cancel === "function") task.cancel(); } catch (eC) { }  
-        reject("upload_timeout");  
-      }, 90000); // 90s watchdog  
-
-      task.on("state_changed",  
-        function (snap) {  
-          try {  
-            if (!snap) return;  
-            var bytes = Number(snap.bytesTransferred || 0);  
-            var total = Number(snap.totalBytes || 0);  
-            if (total > 0) {  
-              var pct = Math.round((bytes / total) * 100);  
-              if (typeof onProgress === "function") onProgress(pct);  
-            }  
-          } catch (eP) { }  
-        },  
-        function (err) {  
-          if (finished) return;  
-          finished = true;  
-          try { clearTimeout(timer); } catch (eT) { }  
-          reject(err);  
-        },  
-        function () {  
-          try {  
-            task.snapshot.ref.getDownloadURL()  
-              .then(function (url) {  
-                if (finished) return;  
-                finished = true;  
-                try { clearTimeout(timer); } catch (eT2) { }  
-                resolve(url);  
-              })  
-              .catch(function (eU) {  
-                if (finished) return;  
-                finished = true;  
-                try { clearTimeout(timer); } catch (eT3) { }  
-                reject(eU);  
-              });  
-          } catch (eU2) {  
-            if (finished) return;  
-            finished = true;  
-            try { clearTimeout(timer); } catch (eT4) { }  
-            reject(eU2);  
-          }  
-        }  
-      );  
-    } catch (e0) {  
-      reject(e0);  
-    }  
-  });  
-}  
-
-/* =========================================================================================  
-   Image upload (extended with progress) - keeps your original uploadPostImage untouched  
-   ========================================================================================= */  
-function uploadPostImageEx(blobOrFile, contentType, ext, postId, uid, onProgress) {  
-  return new Promise(function (resolve, reject) {  
-    try {  
-      if (!blobOrFile || !postId || !uid) {  
-        reject("missing params");  
-        return;  
-      }  
-
-      var safeExt = safeText(ext || "").toLowerCase();  
-      if (!safeExt) safeExt = "jpg";  
-      if (safeExt.length > 8) safeExt = "jpg";  
-
-      var name = Date.now() + "_" + uid + "." + safeExt;  
-
-      var ref = firebase.storage().ref("post-images/" + postId + "/" + name);  
-
-      var meta = {};  
-      try {  
-        if (contentType) meta.contentType = contentType;  
-      } catch (eM) { }  
-
-      var task = null;  
-      try {  
-        task = ref.put(blobOrFile, meta);  
-      } catch (ePut) {  
-        // fallback  
-        task = ref.put(blobOrFile);  
-      }  
-
-      task.on("state_changed",  
-        function (snap) {  
-          try {  
-            if (!snap) return;  
-            var bytes = Number(snap.bytesTransferred || 0);  
-            var total = Number(snap.totalBytes || 0);  
-            if (total > 0) {  
-              var pct = Math.round((bytes / total) * 100);  
-              if (typeof onProgress === "function") onProgress(pct);  
-            }  
-          } catch (eP) { }  
-        },  
-        function (err) { reject(err); },  
-        function () {  
-          try {  
-            task.snapshot.ref.getDownloadURL()  
-              .then(function (url) { resolve(url); })  
-              .catch(reject);  
-          } catch (eU) { reject(eU); }  
-        }  
-      );  
-    } catch (e0) {  
-      reject(e0);  
-    }  
-  });  
-}  
-
-/* =========================================================================================  
-   ORIGINAL helper you added (unchanged)  
-   ========================================================================================= */  
-function uploadPostImage(file, postId, uid) {            
-  return new Promise((resolve, reject) => {            
-
-    if (!file || !postId || !uid) {            
-      reject("missing params");            
-      return;            
-    }            
-
-    const ext = file.name.split(".").pop().toLowerCase();            
-    const name = Date.now() + "_" + uid + "." + ext;            
-
-    const ref = firebase.storage()            
-      .ref("post-images/" + postId + "/" + name);            
-
-    const task = ref.put(file);            
-
-    task.on("state_changed",            
-      null,            
-      err => reject(err),            
-      () => {            
-        task.snapshot.ref.getDownloadURL()            
-          .then(url => resolve(url))            
-          .catch(reject);            
-      }            
-    );            
-  });            
-}            
-</script>            
-
-</body>            
+      '\n      </div>\n'  
+    );  
+  }             
+  
+  function bindPostNavigation(container) {              
+    if (container.__navBound) return;              
+    container.__navBound = true;              
+  
+    container.addEventListener("click", function (e) {              
+      if (isRefreshing || pulling) return;              
+  
+      // If click was on "יש תמונה" chip: navigation blocked in imgViewerBound handler.  
+      // Still keep extra guard here (selective, prevents edge cases).  
+      try {    
+        var chip = e.target && e.target.closest ? e.target.closest(".has-image-flag") : null;    
+        if (chip) return;    
+      } catch (eChip2) { }    
+  
+      var postEl = null;              
+      try { postEl = e.target.closest(".post"); } catch (err) { postEl = null; }              
+      if (!postEl) return;              
+  
+      // אם לחצו על תמונה - אל תנווט, זה פותח viewer (נשאר תאימות)    
+      try {    
+        var inImg = e.target && (e.target.classList && e.target.classList.contains("post-image"));    
+        if (inImg) return;    
+      } catch (eN) { }    
+  
+      var id = postEl.getAttribute("data-id");              
+      if (!id) return;              
+  
+      var now = Date.now();              
+      if (now - lastNavAt < 350 && lastOpenId === id) return;              
+  
+      lastNavAt = now;              
+      lastOpenId = id;              
+  
+      openPost(id, postEl);              
+    }, false);              
+  }              
+  
+  function openPost(postId, el) {              
+    try {              
+      var h3 = el.querySelector("h3");              
+      var p = el.querySelector("p");              
+  
+      // IMPORTANT FIX: author must not be taken from the first <small> anymore    
+      // (because meta-left can have "יש תמונה" and time).    
+      var author = "";    
+      try {    
+        var aEl = el.querySelector("#author-line-" + CSS.escape(postId));    
+        if (aEl) author = (aEl.innerText || "").replace("מאת:", "").trim();    
+      } catch (eEsc) {    
+        // fallback if CSS.escape not available    
+        try {    
+          var aEl2 = el.querySelector('[id="author-line-' + postId + '"]');    
+          if (aEl2) author = (aEl2.innerText || "").replace("מאת:", "").trim();    
+        } catch (eEsc2) { }    
+      }    
+  
+      var title = h3 ? (h3.innerText || "") : "";              
+      var text = p ? (p.innerText || "") : "";              
+  
+      // keep imageUrl in cache for post page (it will show it there)    
+      var imageUrl = "";    
+      try {    
+        // prefer data-image from DOM (already sanitized)    
+        imageUrl = sanitizeImageUrl(el.getAttribute("data-image") || "");    
+      } catch (eDI) { imageUrl = ""; }    
+  
+      if (!imageUrl) {    
+        try {    
+          var found = null;    
+          for (var i = 0; i < postsCacheData.length; i++) {    
+            if (postsCacheData[i] && postsCacheData[i].id === postId) {    
+              found = postsCacheData[i];    
+              break;    
+            }    
+          }    
+          if (found) imageUrl = sanitizeImageUrl(found.image || "");    
+        } catch (eImg) { imageUrl = ""; }    
+      }    
+  
+      sessionStorage.setItem("currentPost", JSON.stringify({              
+        id: postId,              
+        title: title || "",              
+        text: text || "",              
+        author: author || "",    
+        image: imageUrl || ""              
+      }));              
+    } catch (e) { }              
+  
+    location.href = "post.html?postId=" + encodeURIComponent(postId);              
+  }              
+  
+  function openCreatePostModal() {              
+    createPostErrorHide();              
+    if (newPostTitle) newPostTitle.value = "";              
+    if (newPostText) newPostText.value = "";              
+  
+    // reset image (שדרוג)    
+    clearSelectedImage(true);    
+    isPublishingNow = false;    
+  
+    if (overlay) overlay.style.display = "flex";              
+  
+    setTimeout(function () {              
+      try { if (newPostTitle) newPostTitle.focus(); } catch (e) { }              
+    }, 50);              
+  }              
+  
+  function closeCreatePostModal() {              
+    createPostErrorHide();              
+    if (overlay) overlay.style.display = "none";              
+  
+    // reset image (שדרוג)    
+    clearSelectedImage(true);    
+    isPublishingNow = false;    
+  }              
+  
+  function createPostErrorShow(msg) {              
+    if (!createPostError) return;              
+    createPostError.textContent = msg;              
+    createPostError.style.display = "block";              
+  }              
+  
+  function createPostErrorHide() {              
+    if (!createPostError) return;              
+    createPostError.textContent = "";              
+    createPostError.style.display = "none";              
+  }              
+  
+  function setUploadProgress(pct) {    
+    try {    
+      var x = Math.max(0, Math.min(100, Number(pct || 0)));    
+      if (uploadProgressArea) uploadProgressArea.style.display = "block";    
+      if (uploadProgressText) uploadProgressText.textContent = x + "%";    
+      if (uploadProgressBar) uploadProgressBar.style.width = x + "%";    
+    } catch (e) { }    
+  }              
+  
+  function publishPost(title, text) {              
+    if (!isAuthed || !uid) {              
+      createPostErrorShow("אתה לא מאומת. נסה שוב.");              
+      return;              
+    }              
+  
+    // מניעת דאבל-פרסום (שדרוג - תיקון)    
+    if (isPublishingNow) return;    
+    isPublishingNow = true;    
+  
+    var btn = submitPostBtn;              
+    if (btn) btn.disabled = true;              
+  
+    var postObj = {              
+      title: title,              
+      text: text,              
+      author: realUsername,              
+      time: nowTs(),    
+      image: null    
+      /*    
+        NOTE: we do not force lastCommentTime/commentsCount here.    
+        Forum page will compute meta reliably even if old posts don't have these fields.    
+      */    
+    };              
+  
+    var postsRef = firebase.database().ref("posts");    
+    var newRef = postsRef.push();    
+    var postId = newRef.key;    
+  
+    if (!selectedImageFile) {    
+      postObj.image = null;    
+  
+      newRef.set(postObj)    
+        .then(function () {              
+          closeCreatePostModal();              
+          setStatus("הפוסט פורסם בהצלחה.", "ok");              
+  
+          try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }              
+          try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }              
+        })              
+        .catch(function () {              
+          createPostErrorShow("שגיאה בפרסום. נסה שוב.");              
+        })              
+        .finally(function () {              
+          if (btn) btn.disabled = false;    
+          isPublishingNow = false;    
+        });    
+  
+      return;    
+    }    
+  
+    setStatus("מעלה תמונה…", "info");    
+    setUploadProgress(1);    
+  
+    var ext0 = "jpg";    
+    try {    
+      var n0 = safeText(selectedImageFile.name || "");    
+      if (n0.indexOf(".") !== -1) ext0 = n0.split(".").pop().toLowerCase();    
+    } catch (eExt) { ext0 = "jpg"; }    
+  
+    // STRATEGY (requested):  
+    // 1) Prefer direct upload of File/Blob (no FileReader => no "לא הצלחתי לקרוא")    
+    // 2) If direct upload fails in this WebView, fallback to DataURL upload (best-effort)    
+    var uploadDirectFirst = function () {    
+      return uploadPostImageEx(selectedImageFile, safeText(selectedImageFile.type || ""), ext0, postId, uid, function (pct) {    
+        setUploadProgress(pct);    
+      });    
+    };    
+  
+    var uploadFallbackDataUrl = function () {    
+      var ensureDataUrl = function () {    
+        return new Promise(function (resolve, reject) {    
+          try {    
+            if (selectedImageDataUrl && selectedImageDataUrl.indexOf("data:") === 0) {    
+              resolve(selectedImageDataUrl);    
+              return;    
+            }    
+            readFileAsDataURLWithRetry(selectedImageFile, 3, function (durl, ok) {    
+              if (!ok) { reject("read_failed"); return; }    
+              resolve(durl);    
+            });    
+          } catch (e) { reject(e); }    
+        });    
+      };    
+  
+      return ensureDataUrl()    
+        .then(function (dataUrl) {    
+          selectedImageDataUrl = safeText(dataUrl || "");    
+          if (!selectedImageDataUrl || selectedImageDataUrl.indexOf("data:") !== 0) throw "read_failed";    
+  
+          return uploadPostImageDataUrlEx(selectedImageDataUrl, ext0, postId, uid, function (pct) {    
+            setUploadProgress(pct);    
+          });    
+        });    
+    };    
+  
+    uploadDirectFirst()    
+      .catch(function (errDirect) {    
+        // fallback    
+        try {    
+          if (imageWarn) {    
+            imageWarn.style.display = "block";    
+            imageWarn.textContent = "העלאה ישירה נכשלה, מנסה שיטת גיבוי…";    
+          }    
+        } catch (eW) { }    
+        return uploadFallbackDataUrl();    
+      })    
+      .then(function (imageUrl) {    
+        imageUrl = sanitizeImageUrl(imageUrl || "");    
+        postObj.image = imageUrl || null;    
+  
+        setStatus("שומר פוסט…", "info");    
+        setUploadProgress(100);    
+  
+        return newRef.set(postObj);    
+      })    
+      .then(function () {    
+        closeCreatePostModal();              
+        setStatus("הפוסט פורסם בהצלחה.", "ok");              
+  
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }              
+        try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }              
+      })    
+      .catch(function (err) {    
+        try {    
+          if (postId) firebase.database().ref("posts/" + postId).remove();    
+        } catch (eRm) { }    
+  
+        var msg = "שגיאה בהעלאת תמונה/פרסום. נסה שוב.";    
+        if (safeText(err) === "upload_timeout") msg = "העלאת תמונה נתקעה (Timeout). נסה שוב.";    
+        if (safeText(err) === "read_failed") msg = "שגיאה בקריאת התמונה (שיטת גיבוי). נסה לבחור שוב.";    
+  
+        createPostErrorShow(msg);    
+        setStatus("שגיאה בפרסום.", "error");    
+      })    
+      .finally(function () {    
+        if (uploadProgressArea) uploadProgressArea.style.display = "none";    
+        if (btn) btn.disabled = false;    
+        isPublishingNow = false;    
+      });    
+  }              
+  
+  function attachLivePostListeners() {              
+    if (window.__postsLiveAttached) return;              
+    window.__postsLiveAttached = true;              
+  
+    var ref = firebase.database().ref("posts").orderByChild("time").limitToLast(50);              
+  
+    ref.on("child_added", function (snap) {              
+      var id = snap.key;              
+      var v = snap.val() || {};              
+  
+      var cachedMeta = getMetaForPost(id) || {};    
+      var cc = (v.commentsCount !== undefined && v.commentsCount !== null) ? Number(v.commentsCount || 0) : cachedMeta.commentsCount;    
+      var lct = (v.lastCommentTime !== undefined && v.lastCommentTime !== null) ? Number(v.lastCommentTime || 0) : cachedMeta.lastCommentTime;    
+  
+      var item = {              
+        id: id,              
+        title: safeText(v.title),              
+        text: safeText(v.text),              
+        author: safeText(v.author),              
+        time: Number(v.time || 0),              
+        likes: Number(v.likes || 0),              
+        commentsCount: (cc === undefined ? null : (cc === null ? null : Number(cc || 0))),    
+        lastCommentTime: (lct === undefined ? 0 : Number(lct || 0)),    
+        image: sanitizeImageUrl(v.image || "")              
+      };              
+  
+      for (var i = 0; i < postsCacheData.length; i++) {              
+        if (postsCacheData[i] && postsCacheData[i].id === id) return;              
+      }              
+  
+      postsCacheData.unshift(item);              
+  
+      if (!isRefreshing) {              
+        renderPostsFromCache();              
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e5) { }              
+      }              
+    });              
+  
+    ref.on("child_changed", function (snap) {              
+      var id = snap.key;              
+      var v = snap.val() || {};              
+  
+      var idx = -1;              
+      for (var i = 0; i < postsCacheData.length; i++) {              
+        if (postsCacheData[i] && postsCacheData[i].id === id) { idx = i; break; }              
+      }              
+      if (idx === -1) return;              
+  
+      var prev = postsCacheData[idx] || {};    
+      var cachedMeta = getMetaForPost(id) || {};    
+  
+      var cc = (v.commentsCount !== undefined && v.commentsCount !== null) ? Number(v.commentsCount || 0) : (prev.commentsCount !== undefined ? prev.commentsCount : cachedMeta.commentsCount);    
+      var lct = (v.lastCommentTime !== undefined && v.lastCommentTime !== null) ? Number(v.lastCommentTime || 0) : (prev.lastCommentTime !== undefined ? prev.lastCommentTime : cachedMeta.lastCommentTime);    
+  
+      postsCacheData[idx] = {              
+        id: id,              
+        title: safeText(v.title),              
+        text: safeText(v.text),              
+        author: safeText(v.author),              
+        time: Number(v.time || prev.time || 0),              
+        likes: Number(v.likes || prev.likes || 0),              
+        commentsCount: (cc === undefined ? null : (cc === null ? null : Number(cc || 0))),    
+        lastCommentTime: (lct === undefined ? 0 : Number(lct || 0)),    
+        image: sanitizeImageUrl(v.image || prev.image || "")              
+      };              
+  
+      // keep meta cache in sync    
+      try {    
+        if (cc !== undefined && cc !== null) setMetaForPost(id, { commentsCount: Number(cc || 0) });    
+        if (lct !== undefined && lct !== null) setMetaForPost(id, { lastCommentTime: Number(lct || 0) });    
+      } catch (eSync) { }    
+  
+      if (!isRefreshing) {              
+        renderPostsFromCache();              
+        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e6) { }              
+      }              
+    });              
+  }              
+  
+  /* =========================================================================================    
+     THIRD ROUND FIXES: Meta fetching + lastComment sorting done right    
+     + replies bump lastCommentTime, do not count as commentsCount    
+     ========================================================================================= */    
+  
+  function enqueueMeta(postId) {    
+    try {    
+      var id = safeText(postId || "");    
+      if (!id) return;    
+  
+      // Avoid duplicates in queue    
+      for (var i = 0; i < metaQueue.length; i++) {    
+        if (metaQueue[i] === id) return;    
+      }    
+  
+      metaQueue.push(id);    
+    } catch (e) { }    
+  }    
+  
+  function drainMetaQueue() {    
+    try {    
+      while (metaInFlight < META_CONCURRENCY && metaQueue.length) {    
+        var id = metaQueue.shift();    
+        if (!id) continue;    
+        metaInFlight++;    
+  
+        fetchMetaForPost(id)    
+          .catch(function () { })    
+          .finally(function () {    
+            metaInFlight--;    
+            drainMetaQueue();    
+  
+            // If this was the "fetch all" run for lastComment: finish + resort once at the end    
+            if (metaFetchAllRunning) {    
+              if (metaInFlight === 0 && metaQueue.length === 0) {    
+                metaFetchAllRunning = false;    
+                setLastCommentMetaReady(true);    
+  
+                // Now that ALL meta is ready, we can safely sort by lastCommentTime    
+                try {    
+                  renderPostsFromCache();    
+                  setStatus("עודכן מיון לפי תגובה אחרונה.", "ok");    
+                } catch (eEnd) { }    
+              }    
+            }    
+          });    
+      }    
+    } catch (e) { }    
+  }    
+  
+  function fetchMetaForPost(postId) {    
+    return new Promise(function (resolve, reject) {    
+      try {    
+        if (!isAuthed) { resolve(); return; }    
+        var id = safeText(postId || "");    
+        if (!id) { resolve(); return; }    
+  
+        // Load comments snapshot once => count + lastTime (including replies)    
+        firebase.database()    
+          .ref("comments/" + id)    
+          .once("value")    
+          .then(function (snap) {    
+            var meta = computeMetaFromCommentsSnapshot(snap);    
+            var count = Number(meta.countTop || 0);    
+            var lastTime = Number(meta.lastTime || 0);    
+  
+            /* =================================================================================    
+               ✅ FIX (minimal): never let comments-derived lastTime LOWER the posts lastCommentTime    
+               - posts/{id}/lastCommentTime may include replies bump (post.html)    
+               - comments snapshot might be behind (especially when replies are in separate path)    
+               ================================================================================= */    
+            var prevMeta = getMetaForPost(id) || {};    
+            var prevLast = Number(prevMeta.lastCommentTime || 0) || 0;    
+            var prevItemLast = 0;    
+            for (var z = 0; z < postsCacheData.length; z++) {    
+              if (postsCacheData[z] && postsCacheData[z].id === id) {    
+                prevItemLast = Number(postsCacheData[z].lastCommentTime || 0) || 0;    
+                break;    
+              }    
+            }    
+            var mergedLast = Math.max(prevLast, prevItemLast, lastTime);    
+  
+            // Update cache    
+            setMetaForPost(id, { commentsCount: count, lastCommentTime: mergedLast });    
+  
+            // Update postsCacheData entry too    
+            for (var i = 0; i < postsCacheData.length; i++) {    
+              if (postsCacheData[i] && postsCacheData[i].id === id) {    
+                postsCacheData[i].commentsCount = count;    
+                postsCacheData[i].lastCommentTime = Math.max(Number(postsCacheData[i].lastCommentTime || 0) || 0, mergedLast);    
+                break;    
+              }    
+            }    
+  
+            resolve();    
+          })    
+          .catch(function (e2) {    
+            reject(e2);    
+          });    
+      } catch (e0) {    
+        reject(e0);    
+      }    
+    }).then(function () {    
+      // Rerender to reflect counts / order    
+      try {    
+        var sm = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);    
+        if (sm === "lastComment" && lastCommentMetaReady) {    
+          renderPostsFromCache();    
+        } else {    
+          renderPostsFromCache();    
+        }    
+      } catch (eR) { }    
+    });    
+  }    
+  
+  function ensureAllPostsMetaForLastCommentSort() {    
+    try {    
+      if (!isAuthed) return;    
+      if (metaFetchAllRunning) return;    
+  
+      // If we already have lastCommentMetaReady, no need to full-pass again    
+      if (lastCommentMetaReady) return;    
+  
+      // Start one full run: fetch meta for ALL posts    
+      metaFetchAllRunning = true;    
+      setStatus("מכין מיון לפי תגובה אחרונה… (טוען תגובות)", "info");    
+  
+      for (var i = 0; i < postsCacheData.length; i++) {    
+        if (postsCacheData[i] && postsCacheData[i].id) {    
+          enqueueMeta(postsCacheData[i].id);    
+        }    
+      }    
+  
+      drainMetaQueue();    
+    } catch (e) { }    
+  }    
+  
+  function ensureVisibleMetaAndFetch() {    
+    try {    
+      if (!isAuthed) return;    
+  
+      // Limit: we bind listeners only for top N visible posts to keep WebView stable    
+      var MAX_VISIBLE = 40;    
+      var ids = (lastRenderedListIds && lastRenderedListIds.length) ? lastRenderedListIds.slice(0, MAX_VISIBLE) : [];    
+  
+      // Queue meta fetch for visible posts missing known count    
+      for (var i = 0; i < ids.length; i++) {    
+        var id = ids[i];    
+        var meta = getMetaForPost(id) || {};    
+  
+        // If missing or stale, enqueue fetch    
+        var need = false;    
+        if (meta.commentsCount === undefined || meta.commentsCount === null) need = true;    
+        if (meta.lastCommentTime === undefined || meta.lastCommentTime === null) need = true;    
+  
+        if (need) enqueueMeta(id);    
+      }    
+  
+      drainMetaQueue();    
+  
+      // Bind live update listeners for visible posts (count + lastCommentTime, including replies)    
+      bindVisibleMetaListeners(ids);    
+  
+      // A light periodic tick to re-ensure visible listeners (after search/sort changes)    
+      if (!liveMetaTickTimer) {    
+        liveMetaTickTimer = setInterval(function () {    
+          try {    
+            if (!isAuthed) return;    
+            var ids2 = (lastRenderedListIds && lastRenderedListIds.length) ? lastRenderedListIds.slice(0, MAX_VISIBLE) : [];    
+            bindVisibleMetaListeners(ids2);    
+          } catch (eT) { }    
+        }, 14000);    
+      }    
+    } catch (e0) { }    
+  }    
+  
+  function bindVisibleMetaListeners(ids) {    
+    try {    
+      if (!ids) ids = [];    
+  
+      // Detach old listeners not in visible set    
+      var keep = {};    
+      for (var i = 0; i < ids.length; i++) keep[ids[i]] = true;    
+  
+      for (var k in visibleMetaListenerMap) {    
+        if (!keep[k]) {    
+          detachMetaListenersForPost(k);    
+        }    
+      }    
+  
+      // Attach new listeners    
+      for (var j = 0; j < ids.length; j++) {    
+        var id = ids[j];    
+        if (!id) continue;    
+        if (visibleMetaListenerMap[id]) continue;    
+  
+        attachMetaListenersForPost(id);    
+      }    
+    } catch (e1) { }    
+  }    
+  
+  function detachMetaListenersForPost(postId) {    
+    try {    
+      var id = safeText(postId || "");    
+      if (!id) return;    
+  
+      // value listener (count + last comment)    
+      try {    
+        var vref = visibleMetaValueRefMap[id];    
+        if (vref) vref.off();    
+      } catch (eV) { }    
+  
+      // last comment listener (kept; does not harm)    
+      try {    
+        var lref = visibleMetaLastRefMap[id];    
+        if (lref) lref.off();    
+      } catch (eL) { }    
+  
+      delete visibleMetaValueRefMap[id];    
+      delete visibleMetaLastRefMap[id];    
+      delete visibleMetaListenerMap[id];    
+    } catch (e0) { }    
+  }    
+  
+  function attachMetaListenersForPost(postId) {    
+    try {    
+      var id = safeText(postId || "");    
+      if (!id) return;    
+  
+      visibleMetaListenerMap[id] = true;    
+  
+      // Listener 1: value on comments/{postId} (includes nested replies changes too)    
+      var refCount = firebase.database().ref("comments/" + id);    
+      visibleMetaValueRefMap[id] = refCount;    
+  
+      refCount.on("value", function (snap) {    
+        try {    
+          var meta = computeMetaFromCommentsSnapshot(snap);    
+          var count = Number(meta.countTop || 0);    
+          var lastTime = Number(meta.lastTime || 0);    
+  
+          /* =================================================================================    
+             ✅ FIX (minimal): merge with existing lastCommentTime (never decrease)    
+             ================================================================================= */    
+          var prevMeta = getMetaForPost(id) || {};    
+          var prevLast = Number(prevMeta.lastCommentTime || 0) || 0;    
+          var prevItemLast = 0;    
+          for (var z = 0; z < postsCacheData.length; z++) {    
+            if (postsCacheData[z] && postsCacheData[z].id === id) {    
+              prevItemLast = Number(postsCacheData[z].lastCommentTime || 0) || 0;    
+              break;    
+            }    
+          }    
+          var mergedLast = Math.max(prevLast, prevItemLast, lastTime);    
+  
+          // Update caches    
+          setMetaForPost(id, { commentsCount: count, lastCommentTime: mergedLast });    
+  
+          for (var i = 0; i < postsCacheData.length; i++) {    
+            if (postsCacheData[i] && postsCacheData[i].id === id) {    
+              postsCacheData[i].commentsCount = count;    
+              postsCacheData[i].lastCommentTime = Math.max(Number(postsCacheData[i].lastCommentTime || 0) || 0, mergedLast);    
+              break;    
+            }    
+          }    
+  
+          var sm = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);    
+          if (sm === "lastComment" && lastCommentMetaReady) {    
+            renderPostsFromCache();    
+          } else {    
+            renderPostsFromCache();    
+          }    
+        } catch (eU) { }    
+      });    
+  
+      // Listener 2: last top-level comment (kept for quick signal; value listener handles replies)    
+      var refLast = firebase.database().ref("comments/" + id).orderByChild("time").limitToLast(1);    
+      visibleMetaLastRefMap[id] = refLast;    
+  
+      refLast.on("child_added", function (snap) {    
+        try {    
+          var v = snap.val() || {};    
+          var t = Number(v.time || 0) || 0;    
+  
+          // update lastCommentTime quickly (may be overridden by value listener that includes replies)    
+          // ✅ FIX (minimal): never decrease cache    
+          var prevMeta = getMetaForPost(id) || {};    
+          var prevLast = Number(prevMeta.lastCommentTime || 0) || 0;    
+          var merged = Math.max(prevLast, t);    
+          setMetaForPost(id, { lastCommentTime: merged });    
+  
+          for (var i = 0; i < postsCacheData.length; i++) {    
+            if (postsCacheData[i] && postsCacheData[i].id === id) {    
+              postsCacheData[i].lastCommentTime = Math.max(Number(postsCacheData[i].lastCommentTime || 0), merged);    
+              break;    
+            }    
+          }    
+  
+          var sm = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);    
+          if (sm === "lastComment" && lastCommentMetaReady) {    
+            renderPostsFromCache();    
+          }    
+        } catch (eL2) { }    
+      });    
+  
+    } catch (e0) { }    
+  }    
+  
+  // Ensure: if page is loaded already with lastComment selected, start full run once    
+  try {    
+    var initMode = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);    
+    if (initMode === "lastComment") {    
+      ensureAllPostsMetaForLastCommentSort();    
+    }    
+  } catch (eInitLC) { }    
+  
+  /* =====================================================================================    
+     Cleanup listeners on unload    
+     ===================================================================================== */    
+  window.addEventListener("beforeunload", function () {    
+    try {    
+      if (liveMetaTickTimer) clearInterval(liveMetaTickTimer);    
+    } catch (eT) { }    
+    liveMetaTickTimer = null;    
+  
+    try {    
+      for (var k in visibleMetaListenerMap) {    
+        detachMetaListenersForPost(k);    
+      }    
+    } catch (eOff) { }    
+  });    
+  
+});              
+  
+/* =========================================================================================    
+   FIX: Upload DataURL (stable in WebView) + progress + timeout    
+   ========================================================================================= */    
+function uploadPostImageDataUrlEx(dataUrl, ext, postId, uid, onProgress) {    
+  return new Promise(function (resolve, reject) {    
+    try {    
+      if (!dataUrl || !postId || !uid) {    
+        reject("missing params");    
+        return;    
+      }    
+  
+      var safeExt = safeText(ext || "").toLowerCase();    
+      if (!safeExt) safeExt = "jpg";    
+      if (safeExt.length > 8) safeExt = "jpg";    
+  
+      var name = Date.now() + "_" + uid + "." + safeExt;    
+      var ref = firebase.storage().ref("post-images/" + postId + "/" + name);    
+  
+      var finished = false;    
+      var task = ref.putString(dataUrl, "data_url");    
+  
+      var timer = setTimeout(function () {    
+        if (finished) return;    
+        finished = true;    
+        try { if (task && typeof task.cancel === "function") task.cancel(); } catch (eC) { }    
+        reject("upload_timeout");    
+      }, 90000); // 90s watchdog    
+  
+      task.on("state_changed",    
+        function (snap) {    
+          try {    
+            if (!snap) return;    
+            var bytes = Number(snap.bytesTransferred || 0);    
+            var total = Number(snap.totalBytes || 0);    
+            if (total > 0) {    
+              var pct = Math.round((bytes / total) * 100);    
+              if (typeof onProgress === "function") onProgress(pct);    
+            }    
+          } catch (eP) { }    
+        },    
+        function (err) {    
+          if (finished) return;    
+          finished = true;    
+          try { clearTimeout(timer); } catch (eT) { }    
+          reject(err);    
+        },    
+        function () {    
+          try {    
+            task.snapshot.ref.getDownloadURL()    
+              .then(function (url) {    
+                if (finished) return;    
+                finished = true;    
+                try { clearTimeout(timer); } catch (eT2) { }    
+                resolve(url);    
+              })    
+              .catch(function (eU) {    
+                if (finished) return;    
+                finished = true;    
+                try { clearTimeout(timer); } catch (eT3) { }    
+                reject(eU);    
+              });    
+          } catch (eU2) {    
+            if (finished) return;    
+            finished = true;    
+            try { clearTimeout(timer); } catch (eT4) { }    
+            reject(eU2);    
+          }    
+        }    
+      );    
+    } catch (e0) {    
+      reject(e0);    
+    }    
+  });    
+}    
+  
+/* =========================================================================================    
+   Image upload (extended with progress) - keeps your original uploadPostImage untouched    
+   ========================================================================================= */    
+function uploadPostImageEx(blobOrFile, contentType, ext, postId, uid, onProgress) {    
+  return new Promise(function (resolve, reject) {    
+    try {    
+      if (!blobOrFile || !postId || !uid) {    
+        reject("missing params");    
+        return;    
+      }    
+  
+      var safeExt = safeText(ext || "").toLowerCase();    
+      if (!safeExt) safeExt = "jpg";    
+      if (safeExt.length > 8) safeExt = "jpg";    
+  
+      var name = Date.now() + "_" + uid + "." + safeExt;    
+  
+      var ref = firebase.storage().ref("post-images/" + postId + "/" + name);    
+  
+      var meta = {};    
+      try {    
+        if (contentType) meta.contentType = contentType;    
+      } catch (eM) { }    
+  
+      var task = null;    
+      try {    
+        task = ref.put(blobOrFile, meta);    
+      } catch (ePut) {    
+        task = ref.put(blobOrFile);    
+      }    
+  
+      task.on("state_changed",    
+        function (snap) {    
+          try {    
+            if (!snap) return;    
+            var bytes = Number(snap.bytesTransferred || 0);    
+            var total = Number(snap.totalBytes || 0);    
+            if (total > 0) {    
+              var pct = Math.round((bytes / total) * 100);    
+              if (typeof onProgress === "function") onProgress(pct);    
+            }    
+          } catch (eP) { }    
+        },    
+        function (err) { reject(err); },    
+        function () {    
+          try {    
+            task.snapshot.ref.getDownloadURL()    
+              .then(function (url) { resolve(url); })    
+              .catch(reject);    
+          } catch (eU) { reject(eU); }    
+        }    
+      );    
+    } catch (e0) {    
+      reject(e0);    
+    }    
+  });    
+}    
+  
+/* =========================================================================================    
+   ORIGINAL helper you added (unchanged)    
+   ========================================================================================= */    
+function uploadPostImage(file, postId, uid) {              
+  return new Promise((resolve, reject) => {              
+  
+    if (!file || !postId || !uid) {              
+      reject("missing params");              
+      return;              
+    }              
+  
+    const ext = file.name.split(".").pop().toLowerCase();              
+    const name = Date.now() + "_" + uid + "." + ext;              
+  
+    const ref = firebase.storage()              
+      .ref("post-images/" + postId + "/" + name);              
+  
+    const task = ref.put(file);              
+  
+    task.on("state_changed",              
+      null,              
+      err => reject(err),              
+      () => {              
+        task.snapshot.ref.getDownloadURL()              
+          .then(url => resolve(url))              
+          .catch(reject);              
+      }              
+    );              
+  });              
+}              
+</script>              
+  
+</body>              
 </html>
