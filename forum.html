@@ -101,7 +101,52 @@
       background: rgb(17,17,87);  
     }  
 
-    /* Fullscreen image viewer overlay (no animation) */  
+    /* =====================================================================================  
+       NEW: Post meta row + image badge + stable layout (no pushing text)  
+       ===================================================================================== */  
+    .post-meta-row {  
+      display: flex;  
+      justify-content: space-between;  
+      align-items: flex-end;  
+      gap: 10px;  
+      margin-top: 8px;  
+      flex-direction: row-reverse; /* time on right, meta-left on left - stable */  
+    }  
+    .post-meta-left {  
+      display: flex;  
+      flex-direction: column;  
+      align-items: flex-start;  
+      gap: 4px;  
+      min-width: 120px;  
+    }  
+    .post-img-badge {  
+      display: inline-flex;  
+      align-items: center;  
+      gap: 6px;  
+      padding: 4px 8px;  
+      border-radius: 999px;  
+      border: 1px solid rgba(17,17,87,0.30);  
+      background: rgba(17,17,87,0.06);  
+      color: rgb(17,17,87);  
+      font-size: 12px;  
+      user-select: none;  
+      line-height: 1.2;  
+      min-height: 22px; /* keep layout fixed */  
+    }  
+    .post-comments-count {  
+      font-size: 12px;  
+      opacity: 0.85;  
+      line-height: 1.2;  
+      min-height: 16px;  
+    }  
+    .post-time-small {  
+      font-size: 12px;  
+      opacity: 0.75;  
+      line-height: 1.2;  
+      min-height: 16px;  
+    }  
+
+    /* Fullscreen image viewer overlay (kept; no animation) */  
     #imageViewerOverlay {  
       position: fixed;  
       inset: 0;  
@@ -145,60 +190,6 @@
       padding: 8px 10px;  
       border-radius: 10px;  
     }  
-
-    /* =====================================================================================  
-       שינויי פורום (ללא פשרות) – התאמות עיצוביות בלבד, ללא שינוי אבטחה
-       1) גבול צבעוני לפי המשתמש (כמו בדף הפוסט)
-       2) לא מציגים תמונות ברשימת הפוסטים
-       3) מציגים סמל קטן שיש תמונה
-       4) מציגים מונה תגובות בתחתית שמאל (מול הזמן)
-       9) "מאת:" בצבע זהות המשתמש
-       ===================================================================================== */  
-
-    /* Badge קטן עבור פוסט שיש לו תמונה (בצבעי האתר) */
-    .has-image-badge {  
-      display: inline-flex;  
-      align-items: center;  
-      justify-content: center;  
-      padding: 2px 8px;  
-      border-radius: 999px;  
-      background: rgb(17,17,87);  
-      color: #fff;  
-      font-size: 11px;  
-      font-weight: bold;  
-      line-height: 1.2;  
-      margin-right: 8px; /* RTL: יופיע לפני הטקסט בצורה טבעית */  
-      user-select: none;  
-      opacity: 0.95;  
-      border: 1px solid rgba(0,0,0,0.08);  
-    }  
-
-    /* שורת מטא תחתונה – זמן מימין, מונה תגובות משמאל */
-    .post-bottom-meta-row {  
-      margin-top: 6px;  
-      display: flex;  
-      justify-content: space-between;  
-      align-items: center;  
-      gap: 10px;  
-      flex-wrap: wrap;  
-    }  
-
-    .post-bottom-meta-row small {  
-      display: inline-block;  
-    }  
-
-    /* מונה תגובות – עקבי ועדין */
-    .post-comments-count {  
-      opacity: 0.85;  
-      font-size: 12px;  
-    }  
-
-    /* הדגשה עדינה למקרים של "אין תגובות" */
-    .post-comments-none {  
-      opacity: 0.7;  
-    }  
-
-    /* כדי לשמור "אופי קוד" – השארנו את ה-viewer, אך בפורום לא מציגים תמונות ולכן לא יופעל */
   </style>            
 </head>            
 
@@ -266,8 +257,7 @@
       <option value="oldest">מיון: הישנים למעלה</option>            
       <option value="author">מיון: לפי מחבר</option>            
       <option value="title">מיון: לפי כותרת</option>            
-      <!-- (5) מיון לפי תגובה אחרונה / פעילות אחרונה -->
-      <option value="lastComment">מיון: תגובה אחרונה</option>            
+      <option value="lastComment">מיון: לפי תגובה אחרונה</option>            
     </select>            
   </div>            
 
@@ -343,7 +333,7 @@
       ></textarea>            
 
       <!-- =====================================================================================  
-           IMAGE UPLOAD UI (שדרוג מלא - לא פוגע בשיטה / לא מוריד שום פיצ'ר)  
+           IMAGE UPLOAD UI (שמור, אבל יציב ב-WebView: בלי עיבוד/קריאה תוקפנית)  
            ===================================================================================== -->  
       <div id="newPostImageBlock" style="  
         border:1px solid rgba(0,0,0,0.10);  
@@ -373,7 +363,7 @@
           </div>  
 
           <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">  
-            <span id="imageChip" class="image-chip" style="display:none;">🖼️ תמונה מוכנה</span>  
+            <span id="imageChip" class="image-chip" style="display:none;">🖼️ תמונה נבחרה</span>  
             <span id="imageWarn" style="display:none; font-size:12px; color:#7a4b00; opacity:.95;"></span>  
           </div>  
 
@@ -427,8 +417,7 @@
 </div>            
 
 <!-- =====================================================================================  
-     FULLSCREEN IMAGE VIEWER (שדרוג UX - לא פוגע באבטחה)  
-     הערה: בפורום לא מציגים תמונות ברשימה, אבל ה-viewer נשמר (לא מפריע)  
+     FULLSCREEN IMAGE VIEWER (נשמר; כרגע לא מוצגות תמונות בפורום לפי דרישה)  
      ===================================================================================== -->  
 <div id="imageViewerOverlay">  
   <div id="imageViewerInner">  
@@ -501,33 +490,8 @@ function safeText(str) {
   return String(str);            
 }            
 
-/***************************************************************************************
-  (1)(9) צבע זהות משתמש – זהה בול לדף הצפייה בפוסט
-  - אותה רשימת צבעים
-  - אותו hashing
-  - מיועד לגבול הימני של פוסט + צבע "מאת: ..."
-***************************************************************************************/
-function userColor(key) {
-  var colors = [
-    "#60a5fa",
-    "#34d399",
-    "#f472b6",
-    "#fbbf24",
-    "#a78bfa",
-    "#fb7185",
-    "#22d3ee"
-  ];
-  var hash = 0;
-  var s = String(key || "");
-  for (var i = 0; i < s.length; i++) {
-    hash = s.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
-
 /* =========================================================================================  
    Image URL safety (הקשחה קלה נגד ערכי URL מוזרים)  
-   - לא משנה אבטחה אמיתית (היא ברולס), רק מונע XSS/הזרקות  
    ========================================================================================= */  
 function sanitizeImageUrl(url) {  
   if (url === undefined || url === null) return "";  
@@ -582,71 +546,31 @@ function copyToClipboard(text) {
   } catch (e3) { }  
 }  
 
-/* ===============================  
-   FIX: WebView compatibility helpers  
-   =============================== */  
-function dataURLToBlob(dataUrl) {  
-  try {  
-    var parts = safeText(dataUrl || "").split(",");  
-    if (parts.length < 2) return null;  
-    var meta = parts[0];  
-    var b64 = parts[1];  
-    var mime = "application/octet-stream";  
-    var m = /data:([^;]+);base64/i.exec(meta);  
-    if (m && m[1]) mime = m[1];  
-    var bin = atob(b64);  
-    var len = bin.length;  
-    var arr = new Uint8Array(len);  
-    for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);  
-    return new Blob([arr], { type: mime });  
-  } catch (e) {  
-    return null;  
+/* =========================================================================================  
+   NEW: userColor (כמו בדף צפייה בפוסט)  
+   ========================================================================================= */  
+function userColor(key) {  
+  var colors = [  
+    "#60a5fa",  
+    "#34d399",  
+    "#f472b6",  
+    "#fbbf24",  
+    "#a78bfa",  
+    "#fb7185",  
+    "#22d3ee"  
+  ];  
+  var hash = 0;  
+  var s = String(key || "");  
+  for (var i = 0; i < s.length; i++) {  
+    hash = s.charCodeAt(i) + ((hash << 5) - hash);  
   }  
+  var idx = Math.abs(hash) % colors.length;  
+  return colors[idx];  
 }  
 
-function canvasToBlobSafe(canvas, outType, quality, cb) {  
-  try {  
-    if (canvas && typeof canvas.toBlob === "function") {  
-      canvas.toBlob(function (blob) { cb(blob); }, outType, quality);  
-      return;  
-    }  
-  } catch (e1) { }  
-  try {  
-    var dataUrl = "";  
-    try { dataUrl = canvas.toDataURL(outType, quality); } catch (e2) { dataUrl = canvas.toDataURL(); }  
-    var blob2 = dataURLToBlob(dataUrl);  
-    cb(blob2);  
-  } catch (e3) {  
-    cb(null);  
-  }  
-}  
-
-function getPreviewUrlForFile(file, done) {  
-  try {  
-    if (window.URL && typeof URL.createObjectURL === "function") {  
-      try {  
-        var u = URL.createObjectURL(file);  
-        done(u, true);  
-        return;  
-      } catch (eObj) { }  
-    }  
-  } catch (e0) { }  
-
-  try {  
-    var r = new FileReader();  
-    r.onerror = function () { done("", false); };  
-    r.onload = function () { done(safeText(r.result || ""), false); };  
-    r.readAsDataURL(file);  
-  } catch (e1) {  
-    done("", false);  
-  }  
-}  
-
-/***************************************************************************************
-  (8) ניקוי שאריות כפתור "העתק קישור" בחלונית תמונה
-  - בגרסה קודמת היה כפתור copyImageLinkBtn
-  - הכפתור נמחק, לכן מוחקים גם כל קוד/Binding אליו (כאן בפונקציה openImageViewer)
-***************************************************************************************/
+/* =========================================================================================  
+   Image viewer (נשמר, אבל הוסר לגמרי כל שריד של "העתק קישור" בתוך הוייבר)  
+   ========================================================================================= */  
 function openImageViewer(url) {  
   var overlay = document.getElementById("imageViewerOverlay");  
   var img = document.getElementById("imageViewerImg");  
@@ -671,120 +595,12 @@ function openImageViewer(url) {
   if (!overlay.__bound) {  
     overlay.__bound = true;  
     overlay.addEventListener("click", function (e) {  
-      // click outside inner  
       if (e.target === overlay) {  
         overlay.style.display = "none";  
         img.setAttribute("src", "");  
       }  
     });  
   }  
-}  
-
-function prepareImageForUpload(file, warnEl) {  
-  // שדרוג: ניסיון להקטין תמונה גדולה (אופציונלי). אם נכשל – מחזירים קובץ מקורי.  
-  return new Promise(function (resolve) {  
-    try {  
-      if (!file) { resolve({ blob: null, contentType: "", ext: "" }); return; }  
-
-      var type = safeText(file.type || "").toLowerCase();  
-      var name = safeText(file.name || "");  
-      var ext = "";  
-      if (name.indexOf(".") !== -1) ext = name.split(".").pop().toLowerCase();  
-
-      // אם זה כבר webp/png/jpeg - ננסה להקטין רק אם כבד  
-      var size = Number(file.size || 0);  
-      var SHOULD_TRY_RESIZE = size > (1.2 * 1024 * 1024); // 1.2MB+  
-
-      if (!SHOULD_TRY_RESIZE) {  
-        resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-        return;  
-      }  
-
-      // load image (ObjectURL with fallback to FileReader)  
-      getPreviewUrlForFile(file, function (srcUrl, canRevoke) {  
-        if (!srcUrl) {  
-          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-          return;  
-        }  
-
-        var img = new Image();  
-
-        img.onload = function () {  
-          try {  
-            try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch (eR) { }  
-
-            var maxDim = 1280;  
-            var w = img.width || 0;  
-            var h = img.height || 0;  
-
-            if (!w || !h) {  
-              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-              return;  
-            }  
-
-            var scale = 1;  
-            if (w > maxDim || h > maxDim) {  
-              scale = Math.min(maxDim / w, maxDim / h);  
-            }  
-
-            var nw = Math.max(1, Math.round(w * scale));  
-            var nh = Math.max(1, Math.round(h * scale));  
-
-            var canvas = document.createElement("canvas");  
-            canvas.width = nw;  
-            canvas.height = nh;  
-
-            var ctx = canvas.getContext("2d");  
-            if (!ctx) {  
-              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-              return;  
-            }  
-
-            ctx.drawImage(img, 0, 0, nw, nh);  
-
-            // נייצא ל-JPEG כדי לחסוך (גם אם מקור PNG). אם מקור WebP ויש תמיכה - אפשר גם webp.  
-            var outType = "image/jpeg";  
-            var quality = 0.85;  
-
-            // אם המקור webp ונראה שיש תמיכה - ננסה webp  
-            if (type === "image/webp") outType = "image/webp";  
-
-            canvasToBlobSafe(canvas, outType, quality, function (blob) {  
-              if (!blob) {  
-                resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-                return;  
-              }  
-
-              // הודעה עדינה על כיווץ (לא חובה)  
-              try {  
-                if (warnEl) {  
-                  warnEl.style.display = "block";  
-                  warnEl.textContent = "בוצעה אופטימיזציה לתמונה כדי להאיץ טעינה.";  
-                }  
-              } catch (eWarn) { }  
-
-              var outExt = "jpg";  
-              if (outType === "image/webp") outExt = "webp";  
-              resolve({ blob: blob, contentType: outType, ext: outExt });  
-            });  
-
-          } catch (e2) {  
-            resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-          }  
-        };  
-
-        img.onerror = function () {  
-          try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch (eR2) { }  
-          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });  
-        };  
-
-        img.src = srcUrl;  
-      });  
-
-    } catch (e0) {  
-      resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: "jpg" });  
-    }  
-  });  
 }  
 
 function nowTs() {            
@@ -828,6 +644,116 @@ function debounce(fn, ms) {
   };            
 }            
 
+/* =========================================================================================  
+   NEW: cache meta (commentsCount + lastCommentTime + hasImage + authorColor)  
+   - כדי שלא יתאפס כשחוזרים מפוסט  
+   ========================================================================================= */  
+var META_CACHE_KEY = "cachedPostsMetaV2";  
+var SORT_CACHE_KEY = "forumSortModeV2";  
+
+var postsMetaMap = {}; // { postId: { commentsCount, lastCommentTime, hasImage, author, authorColor, time } }  
+var metaSaveTimer = null;  
+
+function safeJsonParse(s) {  
+  try { return JSON.parse(s); } catch (e) { return null; }  
+}  
+
+function scheduleSaveMeta() {  
+  try {  
+    if (metaSaveTimer) clearTimeout(metaSaveTimer);  
+    metaSaveTimer = setTimeout(function () {  
+      try {  
+        sessionStorage.setItem(META_CACHE_KEY, JSON.stringify(postsMetaMap || {}));  
+      } catch (e1) { }  
+    }, 180);  
+  } catch (e2) { }  
+}  
+
+function applyCachedMetaToDomIfAny() {  
+  try {  
+    var raw = sessionStorage.getItem(META_CACHE_KEY);  
+    if (!raw) return;  
+    var obj = safeJsonParse(raw);  
+    if (!obj) return;  
+    postsMetaMap = obj || {};  
+
+    // Update DOM nodes (even if only cached HTML is shown)  
+    for (var id in postsMetaMap) {  
+      if (!postsMetaMap.hasOwnProperty(id)) continue;  
+      var m = postsMetaMap[id] || {};  
+      try {  
+        applyMetaToSinglePostDom(id, m);  
+      } catch (eU) { }  
+    }  
+  } catch (e0) { }  
+}  
+
+function applyMetaToSinglePostDom(postId, m) {  
+  // comments text  
+  try {  
+    var cEl = document.getElementById("comments-count-" + postId);  
+    if (cEl) {  
+      var cc = Number(m.commentsCount || 0);  
+      cEl.textContent = cc > 0 ? (cc + " תגובות") : "אין תגובות";  
+    }  
+  } catch (e1) { }  
+
+  // image badge (stable position: keep space even if hidden)  
+  try {  
+    var bEl = document.getElementById("img-badge-" + postId);  
+    if (bEl) {  
+      var has = !!m.hasImage;  
+      bEl.textContent = "📷 יש תמונה";  
+      bEl.style.visibility = has ? "visible" : "hidden";  
+    }  
+  } catch (e2) { }  
+
+  // author color + border color  
+  try {  
+    var aEl = document.getElementById("author-line-" + postId);  
+    if (aEl) {  
+      var col = safeText(m.authorColor || "");  
+      if (col) aEl.style.color = col;  
+    }  
+  } catch (e3) { }  
+
+  try {  
+    var postNode = null;  
+    try { postNode = document.querySelector('.post[data-id="' + postId + '"]'); } catch (eQ) { postNode = null; }  
+    if (postNode) {  
+      var col2 = safeText(m.authorColor || "");  
+      if (col2) {  
+        postNode.style.borderRightColor = col2;  
+        // אם אין border בכלל ב-css, נוסיף אחד  
+        if (!postNode.style.borderRightWidth) postNode.style.borderRightWidth = "4px";  
+        if (!postNode.style.borderRightStyle) postNode.style.borderRightStyle = "solid";  
+      }  
+    }  
+  } catch (e4) { }  
+}  
+
+function loadRememberedSortModeIntoSelect() {  
+  try {  
+    var sel = document.getElementById("sortMode");  
+    if (!sel) return;  
+    var s = sessionStorage.getItem(SORT_CACHE_KEY) || "";  
+    s = safeText(s);  
+    if (!s) return;  
+    // validate allowed values  
+    var ok = (s === "newest" || s === "oldest" || s === "author" || s === "title" || s === "lastComment");  
+    if (ok) sel.value = s;  
+  } catch (e0) { }  
+}  
+
+function saveSortModeFromSelect() {  
+  try {  
+    var sel = document.getElementById("sortMode");  
+    if (!sel) return;  
+    var v = safeText(sel.value || "");  
+    sessionStorage.setItem(SORT_CACHE_KEY, v);  
+  } catch (e0) { }  
+}  
+
 /* =========================================================================================            
    Global State            
    ========================================================================================= */            
@@ -846,30 +772,209 @@ var didTriggerRefresh = false;
 var realUsername = "משתמש";            
 
 /* =========================================================================================  
-   Image state (שדרוג)  
+   Image state (בחירה יציבה: בלי FileReader/Canvas; העלאה גולמית)  
    ========================================================================================= */  
 var selectedImageFile = null;  
 var selectedImagePreviewUrl = "";  
 var selectedImagePreviewCanRevoke = false;  
-var selectedImagePrepared = null; // { blob, contentType, ext }  
-var selectedImageDataUrl = ""; // FIX: יציב ב-WebView (DataURL)  
 var isPublishingNow = false;  
 
 /* =========================================================================================  
-   (5) מצב למיון לפי תגובה אחרונה – ניהול מטא (ללא פשרות)
-   - נתמך ע"י lastCommentTime בפוסט אם קיים
-   - אם אין, נעשה hydrate בזמן בחירת המיון (קריאת התגובה האחרונה מה-DB)
+   Live comments tracking (count + lastCommentTime)  
    ========================================================================================= */  
-var lastCommentHydrationInFlight = false;  
-var lastCommentHydratedOnce = false;  
+var liveCommentsAttachedMap = {};   // postId => true  
+var liveCommentsRefMap = {};        // postId => base ref  
+var liveCommentsAddRefMap = {};     // postId => query ref (startAt)  
+var lastActivityRerenderTimer = null;  
 
-/* =========================================================================================  
-   (4) מצב למונה תגובות “אמיתי” – עדכון אלמנט ספציפי לפי postId
-   - לא מוחק פיצ'רים קיימים
-   - לא משנה אבטחה
-   ========================================================================================= */  
-var commentsCountHydrationInFlight = false;  
-var commentsCountHydratedOnce = false;  
+function getActivityTimeForPost(p) {  
+  try {  
+    var t0 = Number(p.time || 0);  
+    var lc = Number(p.lastCommentTime || 0);  
+    var x = lc > t0 ? lc : t0;  
+    return x;  
+  } catch (e) {  
+    return Number(p.time || 0);  
+  }  
+}  
+
+function scheduleRerenderIfNeededForLastCommentSort() {  
+  try {  
+    if (lastActivityRerenderTimer) clearTimeout(lastActivityRerenderTimer);  
+    lastActivityRerenderTimer = setTimeout(function () {  
+      try {  
+        var sel = document.getElementById("sortMode");  
+        var mode = sel ? safeText(sel.value || "newest") : "newest";  
+        if (mode === "lastComment") {  
+          renderPostsFromCache();  
+        } else {  
+          // לא מזיזים סדר אם המשתמש לא בחר מיון כזה  
+        }  
+      } catch (e2) { }  
+    }, 160);  
+  } catch (e0) { }  
+}  
+
+function setCommentsCountForPost(postId, count) {  
+  // update cache  
+  try {  
+    count = Math.max(0, Number(count || 0));  
+  } catch (e0) {  
+    count = 0;  
+  }  
+
+  // update postsCacheData  
+  try {  
+    for (var i = 0; i < postsCacheData.length; i++) {  
+      if (postsCacheData[i] && postsCacheData[i].id === postId) {  
+        postsCacheData[i].commentsCount = count;  
+        break;  
+      }  
+    }  
+  } catch (e1) { }  
+
+  // update meta map  
+  try {  
+    if (!postsMetaMap[postId]) postsMetaMap[postId] = {};  
+    postsMetaMap[postId].commentsCount = count;  
+    scheduleSaveMeta();  
+  } catch (e2) { }  
+
+  // update DOM  
+  try {  
+    var el = document.getElementById("comments-count-" + postId);  
+    if (el) el.textContent = count > 0 ? (count + " תגובות") : "אין תגובות";  
+  } catch (e3) { }  
+}  
+
+function setLastCommentTimeForPost(postId, ts) {  
+  try {  
+    ts = Math.max(0, Number(ts || 0));  
+  } catch (e0) { ts = 0; }  
+
+  try {  
+    for (var i = 0; i < postsCacheData.length; i++) {  
+      if (postsCacheData[i] && postsCacheData[i].id === postId) {  
+        postsCacheData[i].lastCommentTime = ts;  
+        break;  
+      }  
+    }  
+  } catch (e1) { }  
+
+  try {  
+    if (!postsMetaMap[postId]) postsMetaMap[postId] = {};  
+    postsMetaMap[postId].lastCommentTime = ts;  
+    scheduleSaveMeta();  
+  } catch (e2) { }  
+}  
+
+function attachLiveCommentsForPost(postId) {  
+  try {  
+    if (!postId) return;  
+    if (liveCommentsAttachedMap[postId]) return;  
+    liveCommentsAttachedMap[postId] = true;  
+
+    var baseRef = firebase.database().ref("comments/" + postId);  
+    liveCommentsRefMap[postId] = baseRef;  
+
+    // 1) initial: get count + max time once (כן, זה קורא את כל התגובות של אותו פוסט; זה כדי שלא יתאפס)  
+    baseRef.once("value")  
+      .then(function (snap) {  
+        var cnt = 0;  
+        var maxT = 0;  
+        try {  
+          cnt = snap.numChildren();  
+          snap.forEach(function (cs) {  
+            var v = cs.val() || {};  
+            var tt = Number(v.time || 0);  
+            if (tt > maxT) maxT = tt;  
+          });  
+        } catch (eX) {  
+          cnt = 0;  
+          maxT = 0;  
+        }  
+
+        setCommentsCountForPost(postId, cnt);  
+        setLastCommentTimeForPost(postId, maxT);  
+
+        // 2) attach for new comments only (startAt maxT+1)  
+        try {  
+          var addQuery = baseRef.orderByChild("time").startAt(maxT + 1);  
+          liveCommentsAddRefMap[postId] = addQuery;  
+
+          addQuery.on("child_added", function (s2) {  
+            try {  
+              var v2 = s2.val() || {};  
+              var t2 = Number(v2.time || 0);  
+
+              // increment count  
+              var cur = 0;  
+              try {  
+                cur = Number((postsMetaMap[postId] && postsMetaMap[postId].commentsCount) || 0);  
+              } catch (eC) { cur = 0; }  
+              setCommentsCountForPost(postId, cur + 1);  
+
+              // last comment time  
+              var curMax = 0;  
+              try {  
+                curMax = Number((postsMetaMap[postId] && postsMetaMap[postId].lastCommentTime) || 0);  
+              } catch (eM) { curMax = 0; }  
+              if (t2 > curMax) {  
+                setLastCommentTimeForPost(postId, t2);  
+                scheduleRerenderIfNeededForLastCommentSort();  
+              } else {  
+                // אם לא חדש יותר, לא משנים מיון  
+              }  
+            } catch (eA) { }  
+          });  
+        } catch (eQ) { }  
+
+        // 3) removals (rare; keep correctness)  
+        try {  
+          baseRef.on("child_removed", function () {  
+            try {  
+              // decrement count  
+              var cur2 = 0;  
+              try {  
+                cur2 = Number((postsMetaMap[postId] && postsMetaMap[postId].commentsCount) || 0);  
+              } catch (eC2) { cur2 = 0; }  
+              setCommentsCountForPost(postId, Math.max(0, cur2 - 1));  
+
+              // recompute last comment time cheaply (only last one)  
+              baseRef.orderByChild("time").limitToLast(1).once("value")  
+                .then(function (sLast) {  
+                  var mx = 0;  
+                  try {  
+                    sLast.forEach(function (x) {  
+                      var vv = x.val() || {};  
+                      var tt2 = Number(vv.time || 0);  
+                      if (tt2 > mx) mx = tt2;  
+                    });  
+                  } catch (eLL) { mx = 0; }  
+                  setLastCommentTimeForPost(postId, mx);  
+                  scheduleRerenderIfNeededForLastCommentSort();  
+                })  
+                .catch(function () { });  
+            } catch (eR) { }  
+          });  
+        } catch (eRm) { }  
+
+      })  
+      .catch(function () {  
+        // אם נכשל – לא חוסמים, רק משאירים ספירה לפי מה שיש  
+      });  
+
+  } catch (e0) { }  
+}  
+
+function attachLiveCommentsForAllLoadedPosts() {  
+  try {  
+    for (var i = 0; i < postsCacheData.length; i++) {  
+      var p = postsCacheData[i] || {};  
+      if (p && p.id) attachLiveCommentsForPost(p.id);  
+    }  
+  } catch (e0) { }  
+}  
 
 /* =========================================================================================            
    DOM Ready            
@@ -895,7 +1000,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var createPostError = document.getElementById("createPostError");            
 
   /* ===============================  
-     Image UI elements (שדרוג)  
+     Image UI elements  
      =============================== */  
   var newPostImage = document.getElementById("newPostImage");  
   var chooseImageBtn = document.getElementById("chooseImageBtn");  
@@ -916,24 +1021,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }            
 
   /* =====================================================================================  
-     Image viewer delegation (click image in post card)  
-     הערה: בפורום לא מציגים תמונות ברשימה (2), אז בפועל לא יופעל.
-     נשמר כדי לא לשבור "אופי" של קוד/תשתית.
+     Load remembered sort mode + apply cached meta to cached HTML (לפני כל דבר)  
      ===================================================================================== */  
-  if (!postsEl.__imgViewerBound) {  
-    postsEl.__imgViewerBound = true;  
-    postsEl.addEventListener("click", function (e) {  
-      var img = null;  
-      try { img = e.target.closest(".post-image"); } catch (errX) { img = null; }  
-      if (!img) return;  
-
-      var src = img.getAttribute("data-full") || img.getAttribute("src") || "";  
-      src = sanitizeImageUrl(src);  
-      if (!src) return;  
-
-      openImageViewer(src);  
-    }, false);  
-  }  
+  loadRememberedSortModeIntoSelect();  
+  applyCachedMetaToDomIfAny();  
 
   bindPostNavigation(postsEl);            
 
@@ -945,72 +1036,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (sortMode) {            
     sortMode.addEventListener("change", function () {            
+      saveSortModeFromSelect();  
       renderPostsFromCache();            
     });            
   }            
 
   /* =====================================================================================  
-     (6) תיקון בחירת תמונה – פחות שגיאות שווא ב-WebView
-     - במקום לזרוק "לא הצלחתי לקרוא..." על תקלה זמנית, עושים Retry פנימי קצר
-     - השגיאה מוצגת רק אם באמת נכשל לאחר מספר נסיונות
-     ===================================================================================== */  
-
-  function readFileAsDataURLWithRetry(file, triesLeft, delayMs, onOk, onFail) {  
-    try {  
-      var r = new FileReader();  
-
-      r.onerror = function () {  
-        // Retry אם נשאר  
-        if (triesLeft > 0) {  
-          setTimeout(function () {  
-            readFileAsDataURLWithRetry(file, triesLeft - 1, delayMs, onOk, onFail);  
-          }, delayMs);  
-          return;  
-        }  
-        if (typeof onFail === "function") onFail("read_error");  
-      };  
-
-      r.onload = function () {  
-        try {  
-          var dataUrl = safeText(r.result || "");  
-          if (!dataUrl || dataUrl.indexOf("data:") !== 0) {  
-            // Retry אם נשאר  
-            if (triesLeft > 0) {  
-              setTimeout(function () {  
-                readFileAsDataURLWithRetry(file, triesLeft - 1, delayMs, onOk, onFail);  
-              }, delayMs);  
-              return;  
-            }  
-            if (typeof onFail === "function") onFail("bad_data_url");  
-            return;  
-          }  
-          if (typeof onOk === "function") onOk(dataUrl);  
-        } catch (eX) {  
-          if (triesLeft > 0) {  
-            setTimeout(function () {  
-              readFileAsDataURLWithRetry(file, triesLeft - 1, delayMs, onOk, onFail);  
-            }, delayMs);  
-            return;  
-          }  
-          if (typeof onFail === "function") onFail("exception");  
-        }  
-      };  
-
-      r.readAsDataURL(file);  
-    } catch (e0) {  
-      // Retry גם כאן  
-      if (triesLeft > 0) {  
-        setTimeout(function () {  
-          readFileAsDataURLWithRetry(file, triesLeft - 1, delayMs, onOk, onFail);  
-        }, delayMs);  
-        return;  
-      }  
-      if (typeof onFail === "function") onFail("reader_init_failed");  
-    }  
-  }  
-
-  /* =====================================================================================  
-     Image choose/remove handlers (שדרוג מלא)  
+     Image choose/remove handlers (יציב: אין FileReader/Canvas; בחירה תמיד מתקבלת אם לא חורגת מגודל)  
      ===================================================================================== */  
   if (chooseImageBtn && newPostImage) {  
     chooseImageBtn.addEventListener("click", function () {  
@@ -1030,6 +1062,8 @@ document.addEventListener("DOMContentLoaded", function () {
   if (newPostImage) {  
     newPostImage.addEventListener("change", function () {  
       try {  
+        createPostErrorHide();  
+
         var f = (newPostImage.files && newPostImage.files[0]) ? newPostImage.files[0] : null;  
         if (!f) return;  
 
@@ -1040,7 +1074,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return;  
         }  
 
-        // (7) size limit => 9MB  
+        // size limit (9MB)  
         var MAX = 9 * 1024 * 1024; // 9MB  
         if (Number(f.size || 0) > MAX) {  
           createPostErrorShow("התמונה גדולה מדי (" + bytesToHuman(f.size) + "). מומלץ עד 9MB.");  
@@ -1048,13 +1082,10 @@ document.addEventListener("DOMContentLoaded", function () {
           return;  
         }  
 
-        // accept  
+        // accept: ALWAYS accept selection (no read attempts)  
         selectedImageFile = f;  
-        selectedImagePrepared = null;  
-        selectedImageDataUrl = "";  
-        if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
 
-        // preview (FIX: DataURL בלבד - יציב ב-WebView, בלי ObjectURL)  
+        // reset preview url  
         try {  
           if (selectedImagePreviewUrl && selectedImagePreviewCanRevoke) {  
             try { URL.revokeObjectURL(selectedImagePreviewUrl); } catch (eRv0) { }  
@@ -1063,35 +1094,41 @@ document.addEventListener("DOMContentLoaded", function () {
         selectedImagePreviewUrl = "";  
         selectedImagePreviewCanRevoke = false;  
 
-        // (6) קריאה עם Retry – מונע שגיאות שווא אם WebView "מתעכב"  
-        readFileAsDataURLWithRetry(  
-          f,  
-          3,       // מספר נסיונות  
-          120,     // השהיה קטנה בין נסיונות  
-          function (dataUrl) {  
-            try {  
-              selectedImageDataUrl = safeText(dataUrl || "");  
-              selectedImagePreviewUrl = selectedImageDataUrl;  
-              selectedImagePreviewCanRevoke = false;  
+        // show UI (chip always, preview best-effort)  
+        try {  
+          if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
+          if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
+          if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
+          if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
+          if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
+        } catch (eUI) { }  
 
-              if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);  
-              if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
-              if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
-              if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
-              try {  
-                if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
-              } catch (eM) { }  
-
-              // אם הייתה שגיאה קודמת – ננקה
-              createPostErrorHide();  
-            } catch (eImg1) { }  
-          },  
-          function () {  
-            // רק עכשיו מציגים שגיאה, אחרי רטריים  
-            createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה שוב (אם לא עוזר – בחר תמונה אחרת).");  
-            clearSelectedImage(true);  
+        // preview: ObjectURL only (no FileReader). If fails, we still keep selection without error.  
+        try {  
+          if (window.URL && typeof URL.createObjectURL === "function") {  
+            var u = URL.createObjectURL(f);  
+            selectedImagePreviewUrl = u;  
+            selectedImagePreviewCanRevoke = true;  
+            if (imagePreview) {  
+              imagePreview.style.display = "block";  
+              imagePreview.setAttribute("src", u);  
+            }  
+          } else {  
+            // no preview support - keep chip only  
+            if (imagePreview) {  
+              imagePreview.style.display = "none";  
+              imagePreview.setAttribute("src", "");  
+            }  
           }  
-        );  
+        } catch (ePrev) {  
+          // preview failed - NO error; keep chip only  
+          try {  
+            if (imagePreview) {  
+              imagePreview.style.display = "none";  
+              imagePreview.setAttribute("src", "");  
+            }  
+          } catch (ePrev2) { }  
+        }  
 
       } catch (eImg2) { }  
     });  
@@ -1107,11 +1144,12 @@ document.addEventListener("DOMContentLoaded", function () {
     selectedImageFile = null;  
     selectedImagePreviewUrl = "";  
     selectedImagePreviewCanRevoke = false;  
-    selectedImagePrepared = null;  
-    selectedImageDataUrl = "";  
 
     try {  
-      if (imagePreview) imagePreview.setAttribute("src", "");  
+      if (imagePreview) {  
+        imagePreview.setAttribute("src", "");  
+        imagePreview.style.display = "block";  
+      }  
       if (imagePreviewWrap) imagePreviewWrap.style.display = "none";  
       if (removeImageBtn) removeImageBtn.style.display = "none";  
       if (imageChip) imageChip.style.display = "none";  
@@ -1155,7 +1193,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;            
       }            
 
-      // מניעת דאבל-פרסום (שדרוג - תיקון)  
+      // מניעת דאבל-פרסום  
       if (isPublishingNow) return;  
 
       var t1 = "";            
@@ -1175,14 +1213,13 @@ document.addEventListener("DOMContentLoaded", function () {
         return;            
       }            
 
-      // אם יש תמונה - נוודא שהיא עדיין תקינה  
+      // אם יש תמונה - רק בדיקת גודל וסוג (בלי עיבוד/קריאה)  
       if (selectedImageFile) {  
         if (!isLikelyImageFile(selectedImageFile)) {  
           createPostErrorShow("התמונה שנבחרה לא תקינה. בחר תמונה מחדש.");  
           clearSelectedImage(true);  
           return;  
         }  
-        // (7) size limit => 9MB  
         var MAX2 = 9 * 1024 * 1024;  
         if (Number(selectedImageFile.size || 0) > MAX2) {  
           createPostErrorShow("התמונה גדולה מדי. בחר תמונה קטנה יותר (עד 9MB).");  
@@ -1321,38 +1358,54 @@ document.addEventListener("DOMContentLoaded", function () {
           var p = pSnap.val() || {};            
           var postId = pSnap.key;            
 
+          var author = safeText(p.author);  
+          var col = userColor(author);  
+          var imgUrl = sanitizeImageUrl(p.image || "");  
+
           items.push({            
             id: postId,            
             title: safeText(p.title),            
             text: safeText(p.text),            
-            author: safeText(p.author),            
+            author: author,            
             time: Number(p.time || 0),            
             likes: Number(p.likes || 0),            
             commentsCount: Number(p.commentsCount || 0),  
-            image: sanitizeImageUrl(p.image || ""),  
-
-            /* (5) תמיכה במיון לפי תגובה אחרונה:
-               - אם קיים בשמירה בפוסט: lastCommentTime
-               - אם לא קיים: יושלם (hydrate) לפי comments/{postId} limitToLast(1) */
-            lastCommentTime: Number(p.lastCommentTime || 0),
-
-            /* שמור מקום לעתיד: lastActivityTime (לא חובה, לא משנה אבטחה) */
-            lastActivityTime: Number(p.lastActivityTime || 0)
+            lastCommentTime: Number(p.lastCommentTime || 0),  
+            image: imgUrl,  
+            hasImage: !!imgUrl,  
+            authorColor: col  
           });            
         });            
 
         items.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });            
 
-        postsCacheData = items;            
+        postsCacheData = items;  
+
+        // build meta map for persistence (so back-from-post doesn't reset)  
+        try {  
+          var mm = {};  
+          for (var i = 0; i < postsCacheData.length; i++) {  
+            var it = postsCacheData[i] || {};  
+            if (!it.id) continue;  
+            mm[it.id] = {  
+              commentsCount: Number(it.commentsCount || 0),  
+              lastCommentTime: Number(it.lastCommentTime || 0),  
+              hasImage: !!it.hasImage,  
+              author: safeText(it.author || ""),  
+              authorColor: safeText(it.authorColor || ""),  
+              time: Number(it.time || 0)  
+            };  
+          }  
+          postsMetaMap = mm;  
+          scheduleSaveMeta();  
+        } catch (eMM) { }  
 
         renderPostsFromCache();            
 
         try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e2) { }            
 
-        /* (4) אחרי טעינה: ננסה להשלים מונה תגובות אמיתי לפוסטים ש"חסר/0" (בעדינות) */
-        try {  
-          hydrateCommentsCountsIfNeeded();  
-        } catch (eHC) { }  
+        // attach live comments tracking (count + lastCommentTime)  
+        attachLiveCommentsForAllLoadedPosts();  
 
         if (fromRefresh) {            
           setTimeout(function () {            
@@ -1387,7 +1440,6 @@ document.addEventListener("DOMContentLoaded", function () {
         var x = (p.text || "").toLowerCase();            
         var a = (p.author || "").toLowerCase();  
         var im = (p.image || "").toLowerCase();  
-        // שדרוג: גם חיפוש לפי "תמונה" אם יש URL  
         var hasImg = im ? "תמונה" : "";  
         return t.indexOf(q) !== -1 || x.indexOf(q) !== -1 || a.indexOf(q) !== -1 || hasImg.indexOf(q) !== -1;            
       });            
@@ -1399,20 +1451,13 @@ document.addEventListener("DOMContentLoaded", function () {
       list.sort(function (a, b) { return (a.author || "").localeCompare(b.author || "", "he"); });            
     } else if (mode === "title") {            
       list.sort(function (a, b) { return (a.title || "").localeCompare(b.title || "", "he"); });            
-    } else if (mode === "lastComment") {            
-      /* (5) מיון לפי תגובה אחרונה:
-         - key = lastCommentTime אם יש
-         - fallback = lastActivityTime אם יש
-         - fallback אחרון = time של הפוסט
-         בנוסף: אם חסר lastCommentTime – נבצע hydrate (שאיבת הזמן האחרון מהתגובות) */
+    } else if (mode === "lastComment") {  
       list.sort(function (a, b) {  
-        var ka = getLastCommentSortKey(a);  
-        var kb = getLastCommentSortKey(b);  
-        return (kb || 0) - (ka || 0);  
+        var ta = getActivityTimeForPost(a);  
+        var tb = getActivityTimeForPost(b);  
+        if (tb !== ta) return tb - ta;  
+        return (b.time || 0) - (a.time || 0);  
       });  
-
-      // hydrate בעדינות רק כשבאמת בחרו את המיון הזה
-      try { hydrateLastCommentTimesIfNeeded(); } catch (eH) { }  
     } else {            
       list.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });            
     }            
@@ -1428,196 +1473,16 @@ document.addEventListener("DOMContentLoaded", function () {
     }            
 
     postsEl.innerHTML = html;            
-    renderedHtmlCache = html;            
-  }            
+    renderedHtmlCache = html;  
 
-  /* (5) מפתח מיון אחרון: lastCommentTime / lastActivityTime / time */
-  function getLastCommentSortKey(p) {  
-    if (!p) return 0;  
-    var x = Number(p.lastCommentTime || 0);  
-    if (x > 0) return x;  
-    var y = Number(p.lastActivityTime || 0);  
-    if (y > 0) return y;  
-    return Number(p.time || 0);  
-  }  
-
-  /* (5) Hydrate lastCommentTime – בלי לשבור כלום:
-     - עובד רק אם המשתמש בחר "מיון: תגובה אחרונה"
-     - משלים נתונים חסרים מתוך comments/{postId}
-     - לא משנה אבטחה / לא משנה שיטת התחברות
-  */
-  function hydrateLastCommentTimesIfNeeded() {  
-    if (!isAuthed) return;  
-    if (lastCommentHydrationInFlight) return;  
-
-    // כבר הרצנו פעם? עדיין נריץ שוב רק אם יש חסרים רבים (כדי להשיג "ללא פשרות")
-    var missing = [];  
-    for (var i = 0; i < postsCacheData.length; i++) {  
-      var it = postsCacheData[i];  
-      if (!it) continue;  
-      // אם אין lastCommentTime בכלל
-      if (Number(it.lastCommentTime || 0) <= 0) {  
-        missing.push(it);  
-      }  
-    }  
-
-    // אם אין חסרים – אין מה לעשות  
-    if (!missing.length) {  
-      lastCommentHydratedOnce = true;  
-      return;  
-    }  
-
-    lastCommentHydrationInFlight = true;  
-
-    // כדי לא להעמיס על WebView: מגבלת פוסטים להשלמה בכל סבב
-    // (עדיין "ללא פשרות" מבחינת פיצ'ר – פשוט עושה את זה בשלבים)
-    var MAX_BATCH = 80;  
-    if (missing.length > MAX_BATCH) missing = missing.slice(0, MAX_BATCH);  
-
-    var idx = 0;  
-    var updatedAny = false;  
-
-    function step() {  
-      if (idx >= missing.length) {  
-        lastCommentHydrationInFlight = false;  
-        lastCommentHydratedOnce = true;  
-        if (updatedAny) {  
-          // אם יש עדכון – נרנדר מחדש כדי שהמיון יתיישר מיד
-          renderPostsFromCache();  
-          try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (eS1) { }  
-        }  
-        return;  
-      }  
-
-      var post = missing[idx++];  
-      if (!post || !post.id) {  
-        step();  
-        return;  
-      }  
-
-      // קוראים את התגובה האחרונה (time) מתוך comments/{postId}
-      firebase.database()  
-        .ref("comments/" + post.id)  
-        .orderByChild("time")  
-        .limitToLast(1)  
-        .once("value")  
-        .then(function (snap) {  
-          var lastTs = 0;  
-          try {  
-            snap.forEach(function (cSnap) {  
-              var v = cSnap.val() || {};  
-              var t = Number(v.time || 0);  
-              if (t > lastTs) lastTs = t;  
-            });  
-          } catch (eL) {  
-            lastTs = 0;  
-          }  
-
-          if (lastTs > 0) {  
-            // מעדכנים במודל המקומי
-            post.lastCommentTime = lastTs;  
-            updatedAny = true;  
-          } else {  
-            // אם אין תגובות – נשאיר 0, המיון ייפול ל-time של הפוסט
-            post.lastCommentTime = 0;  
-          }  
-        })  
-        .catch(function () {  
-          // שקט – לא מפילים UI
-        })  
-        .finally(function () {  
-          // ממשיכים
-          step();  
-        });  
-    }  
-
-    step();  
-  }  
-
-  /* (4) Hydrate commentsCount – עבור תצוגה נכונה "אין תגובות / X תגובות"
-     - אם ב-DB לא מתוחזק commentsCount, כאן נשלים לפחות תצוגתית
-     - לא שובר קיימים: אם commentsCount כבר קיים, נשאיר
-  */
-  function hydrateCommentsCountsIfNeeded() {  
-    if (!isAuthed) return;  
-    if (commentsCountHydrationInFlight) return;  
-
-    var candidates = [];  
-    for (var i = 0; i < postsCacheData.length; i++) {  
-      var it = postsCacheData[i];  
-      if (!it) continue;  
-      // אם חסר/0 – נבדוק (כי המשתמש ביקש "ללא פשרות" בתצוגת כמות תגובות)
-      if (Number(it.commentsCount || 0) <= 0) {  
-        candidates.push(it);  
-      }  
-    }  
-
-    if (!candidates.length) {  
-      commentsCountHydratedOnce = true;  
-      return;  
-    }  
-
-    commentsCountHydrationInFlight = true;  
-
-    var MAX_BATCH2 = 80;  
-    if (candidates.length > MAX_BATCH2) candidates = candidates.slice(0, MAX_BATCH2);  
-
-    var j = 0;  
-
-    function step2() {  
-      if (j >= candidates.length) {  
-        commentsCountHydrationInFlight = false;  
-        commentsCountHydratedOnce = true;  
-        return;  
-      }  
-
-      var p = candidates[j++];  
-      if (!p || !p.id) {  
-        step2();  
-        return;  
-      }  
-
-      firebase.database()  
-        .ref("comments/" + p.id)  
-        .once("value")  
-        .then(function (snap) {  
-          var count = 0;  
-          try { count = snap.numChildren() || 0; } catch (eC0) { count = 0; }  
-
-          // עדכון מקומי
-          p.commentsCount = Number(count || 0);  
-
-          // עדכון תצוגה ללא רינדור מלא (כדי לא להפריע לחוויית שימוש)
-          updateCommentsCountDom(p.id, p.commentsCount);  
-        })  
-        .catch(function () {  
-          // שקט
-        })  
-        .finally(function () {  
-          step2();  
-        });  
-    }  
-
-    step2();  
-  }  
-
-  function updateCommentsCountDom(postId, count) {  
+    // after render, apply meta map to DOM to ensure cached/updated values show (counts + badge + colors)  
     try {  
-      var el = document.getElementById("comments-count-" + postId);  
-      if (!el) return;  
-      var x = Number(count || 0);  
-      if (x <= 0) {  
-        el.textContent = "אין תגובות";  
-        el.classList.add("post-comments-none");  
-      } else if (x === 1) {  
-        el.textContent = "תגובה אחת";  
-        el.classList.remove("post-comments-none");  
-      } else {  
-        el.textContent = x + " תגובות";  
-        el.classList.remove("post-comments-none");  
+      for (var id in postsMetaMap) {  
+        if (!postsMetaMap.hasOwnProperty(id)) continue;  
+        applyMetaToSinglePostDom(id, postsMetaMap[id] || {});  
       }  
-    } catch (eU0) { }  
-  }  
+    } catch (eA) { }  
+  }            
 
   function buildPostCardHTML(p) {            
     var title = escapeHTML(p.title || "");            
@@ -1639,43 +1504,40 @@ document.addEventListener("DOMContentLoaded", function () {
       }            
     }            
 
-    /* (2) לא מציגים תמונות ברשימת הפוסטים – אבל שומרים את הלוגיקה (בלי להציג)
-       כדי לא "לשבור אופי קוד" וכדי שהשדה image ימשיך להתקיים ולהישלח לדף הפוסט.
-    */
-    var imgHtml = "";  
-    var imgUrl = sanitizeImageUrl(p.image || "");  
-    if (imgUrl) {  
-      // בעבר הוצג כאן HTML תמונה; כעת לפי בקשה (2) – לא מציגים תמונות בפורום
-      // נשאיר את הבלוק כתיעוד/עקביות, אבל ללא output.
-      imgHtml = "";  
-    }  
+    // NEW: no images in forum feed (לפי הדרישה)  
+    // Instead: stable badge in meta-left  
+    var hasImg = !!p.hasImage;  
+    var commentsCount = Number(p.commentsCount || 0);  
+    var commentsText = (commentsCount > 0) ? (commentsCount + " תגובות") : "אין תגובות";  
+    var col = safeText(p.authorColor || userColor(p.author || ""));  
+    var escCol = escapeHTML(col);  
 
-    /* (3) סמל קטן שמצביע על כך שיש תמונה */
-    var imageBadge = "";  
-    if (imgUrl) {  
-      imageBadge = '<span class="has-image-badge" title="יש תמונה בפוסט">תמונה</span>';  
-    }  
+    // IMPORTANT: badge keeps its place even if hidden (visibility)  
+    var badgeVis = hasImg ? "visible" : "hidden";  
 
-    /* (1)(9) צבע זהות לפי מחבר הפוסט */
-    var authorColor = userColor(p.author || "");  
-
-    /* (4) מונה תגובות */
-    var cc = Number(p.commentsCount || 0);  
-    var commentsLabel = "";  
-    if (cc <= 0) commentsLabel = "אין תגובות";  
-    else if (cc === 1) commentsLabel = "תגובה אחת";  
-    else commentsLabel = cc + " תגובות";  
+    // Save to meta map for persistence  
+    try {  
+      if (!postsMetaMap[p.id]) postsMetaMap[p.id] = {};  
+      postsMetaMap[p.id].commentsCount = commentsCount;  
+      postsMetaMap[p.id].lastCommentTime = Number(p.lastCommentTime || 0);  
+      postsMetaMap[p.id].hasImage = hasImg;  
+      postsMetaMap[p.id].author = safeText(p.author || "");  
+      postsMetaMap[p.id].authorColor = col;  
+      postsMetaMap[p.id].time = Number(p.time || 0);  
+      scheduleSaveMeta();  
+    } catch (eM) { }  
 
     return (            
-      '\n      <div class="post" data-id="' + id + '" style="border-right:4px solid ' + escapeHTML(authorColor) + ';">' +            
-      '\n        <h3>' + imageBadge + title + '</h3>' +            
+      '\n      <div class="post" data-id="' + id + '" style="border-right:4px solid ' + escCol + '; border-right-color:' + escCol + ';">' +            
+      '\n        <h3>' + title + '</h3>' +            
       '\n        <p>' + text + '</p>' +            
-      /* (2) בכוונה לא מציגים תמונות כאן */  
-      imgHtml +   
-      '\n        <small style="color:' + escapeHTML(authorColor) + ';">מאת: ' + author + '</small>' +            
-      '\n        <div class="post-bottom-meta-row">' +  
-      '\n          <small style="opacity:.75; display:block;">' + escapeHTML(timeStr) + '</small>' +            
-      '\n          <small id="comments-count-' + id + '" class="post-comments-count' + (cc <= 0 ? ' post-comments-none' : '') + '">' + escapeHTML(commentsLabel) + '</small>' +  
+      '\n        <small id="author-line-' + id + '" style="color:' + escCol + ';">מאת: ' + author + '</small>' +            
+      '\n        <div class="post-meta-row">' +  
+      '\n          <small class="post-time-small" id="post-time-' + id + '">' + escapeHTML(timeStr) + '</small>' +  
+      '\n          <div class="post-meta-left">' +  
+      '\n            <span class="post-img-badge" id="img-badge-' + id + '" style="visibility:' + badgeVis + ';">📷 יש תמונה</span>' +  
+      '\n            <span class="post-comments-count" id="comments-count-' + id + '">' + escapeHTML(commentsText) + '</span>' +  
+      '\n          </div>' +  
       '\n        </div>' +  
       '\n      </div>\n    '            
     );            
@@ -1692,13 +1554,6 @@ document.addEventListener("DOMContentLoaded", function () {
       try { postEl = e.target.closest(".post"); } catch (err) { postEl = null; }            
       if (!postEl) return;            
 
-      // אם לחצו על תמונה - אל תנווט, זה פותח viewer  
-      // בפורום לא אמור להיות img, אבל נשמר
-      try {  
-        var inImg = e.target && (e.target.classList && e.target.classList.contains("post-image"));  
-        if (inImg) return;  
-      } catch (eN) { }  
-
       var id = postEl.getAttribute("data-id");            
       if (!id) return;            
 
@@ -1713,43 +1568,41 @@ document.addEventListener("DOMContentLoaded", function () {
   }            
 
   function openPost(postId, el) {            
-    try {            
+    // NEW: מקור אמת לתמונה/מטא = postsCacheData (כי אין תמונה ב-DOM לפי דרישה)  
+    var imageUrlFromCache = "";  
+    var authorFromCache = "";  
+    var titleFromCache = "";  
+    var textFromCache = "";  
+
+    try {  
+      for (var i = 0; i < postsCacheData.length; i++) {  
+        if (postsCacheData[i] && postsCacheData[i].id === postId) {  
+          imageUrlFromCache = sanitizeImageUrl(postsCacheData[i].image || "");  
+          authorFromCache = safeText(postsCacheData[i].author || "");  
+          titleFromCache = safeText(postsCacheData[i].title || "");  
+          textFromCache = safeText(postsCacheData[i].text || "");  
+          break;  
+        }  
+      }  
+    } catch (eC) { }  
+
+    try {  
+      // fallback DOM reading for title/text/author (kept)  
       var h3 = el.querySelector("h3");            
       var p = el.querySelector("p");            
       var s = el.querySelector("small");            
-      var img = el.querySelector("img");            
 
       var title = h3 ? (h3.innerText || "") : "";            
       var text = p ? (p.innerText || "") : "";            
       var author = "";            
       if (s) author = (s.innerText || "").replace("מאת:", "").trim();            
 
-      /* (2) אין תמונה בדום של הפורום, לכן לא מסתמכים על el.querySelector("img")
-         במקום זה: לוקחים את ה-image מה-cache לפי postId כדי להעביר לדף הפוסט.
-      */
-      var imageUrl = "";  
-      try {  
-        for (var i = 0; i < postsCacheData.length; i++) {  
-          if (postsCacheData[i] && postsCacheData[i].id === postId) {  
-            imageUrl = sanitizeImageUrl(postsCacheData[i].image || "");  
-            break;  
-          }  
-        }  
-      } catch (eFind) {  
-        imageUrl = "";  
-      }  
-
-      // השארה לתאימות – אם בעתיד יחזור img בדום (לא אמור), עדיין לא נשבר
-      if (!imageUrl && img) {  
-        try { imageUrl = sanitizeImageUrl(img.getAttribute("src") || ""); } catch (eImgOld) { imageUrl = ""; }  
-      }  
-
       sessionStorage.setItem("currentPost", JSON.stringify({            
         id: postId,            
-        title: title || "",            
-        text: text || "",            
-        author: author || "",  
-        image: imageUrl || ""            
+        title: titleFromCache || title || "",            
+        text: textFromCache || text || "",            
+        author: authorFromCache || author || "",  
+        image: imageUrlFromCache || ""            
       }));            
     } catch (e) { }            
 
@@ -1761,7 +1614,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (newPostTitle) newPostTitle.value = "";            
     if (newPostText) newPostText.value = "";            
 
-    // reset image (שדרוג)  
+    // reset image  
     clearSelectedImage(true);  
     isPublishingNow = false;  
 
@@ -1776,7 +1629,7 @@ document.addEventListener("DOMContentLoaded", function () {
     createPostErrorHide();            
     if (overlay) overlay.style.display = "none";            
 
-    // reset image (שדרוג)  
+    // reset image  
     clearSelectedImage(true);  
     isPublishingNow = false;  
   }            
@@ -1808,7 +1661,6 @@ document.addEventListener("DOMContentLoaded", function () {
       return;            
     }            
 
-    // מניעת דאבל-פרסום (שדרוג - תיקון)  
     if (isPublishingNow) return;  
     isPublishingNow = true;  
 
@@ -1820,17 +1672,11 @@ document.addEventListener("DOMContentLoaded", function () {
       text: text,            
       author: realUsername,            
       time: nowTs(),  
-      image: null,
-
-      // (5) שדה בסיסי למיון תגובה אחרונה – בפורום נשתמש בו אם יתעדכן בעתיד
-      // לא משנה אבטחה ולא פוגע בהווה; אם אין תגובות – נשאר 0.
-      lastCommentTime: 0
+      image: null,  
+      commentsCount: 0,  
+      lastCommentTime: 0  
     };            
 
-    // שדרוג: פרסום עם תמונה  
-    // 1) יוצרים postId מראש  
-    // 2) אם יש תמונה - מעלים ל-Storage -> מקבלים URL  
-    // 3) שומרים ב-DB את postObj עם image url  
     var postsRef = firebase.database().ref("posts");  
     var newRef = postsRef.push();  
     var postId = newRef.key;  
@@ -1858,7 +1704,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return;  
     }  
 
-    // יש תמונה: תהליך העלאה (FIX: DataURL + watchdog נגד תקיעה)  
+    // יש תמונה: העלאה גולמית ל-Storage (בלי FileReader/Canvas)  
     setStatus("מעלה תמונה…", "info");  
     setUploadProgress(1);  
 
@@ -1868,31 +1714,9 @@ document.addEventListener("DOMContentLoaded", function () {
       if (n0.indexOf(".") !== -1) ext0 = n0.split(".").pop().toLowerCase();  
     } catch (eExt) { ext0 = "jpg"; }  
 
-    var ensureDataUrl = function () {  
-      return new Promise(function (resolve, reject) {  
-        try {  
-          if (selectedImageDataUrl && selectedImageDataUrl.indexOf("data:") === 0) {  
-            resolve(selectedImageDataUrl);  
-            return;  
-          }  
-          // (6) כאן נשאיר FileReader רגיל – אבל יש לנו כבר DataURL מהבחירה ברוב המקרים
-          var r = new FileReader();  
-          r.onerror = function () { reject("read_failed"); };  
-          r.onload = function () { resolve(safeText(r.result || "")); };  
-          r.readAsDataURL(selectedImageFile);  
-        } catch (e) { reject(e); }  
-      });  
-    };  
-
-    ensureDataUrl()  
-      .then(function (dataUrl) {  
-        selectedImageDataUrl = safeText(dataUrl || "");  
-        if (!selectedImageDataUrl || selectedImageDataUrl.indexOf("data:") !== 0) throw "read_failed";  
-
-        return uploadPostImageDataUrlEx(selectedImageDataUrl, ext0, postId, uid, function (pct) {  
-          setUploadProgress(pct);  
-        });  
-      })  
+    uploadPostImageFileWithTimeoutEx(selectedImageFile, selectedImageFile.type || "", ext0, postId, uid, function (pct) {  
+      setUploadProgress(pct);  
+    })  
       .then(function (imageUrl) {  
         imageUrl = sanitizeImageUrl(imageUrl || "");  
         postObj.image = imageUrl || null;  
@@ -1909,17 +1733,12 @@ document.addEventListener("DOMContentLoaded", function () {
         try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }            
         try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }            
       })  
-      .catch(function (err) {  
-        // אם קרתה שגיאה - נסיר את הפוסט החצי-מוכן (כדי לא להשאיר ריק)  
+      .catch(function () {  
         try {  
           if (postId) firebase.database().ref("posts/" + postId).remove();  
         } catch (eRm) { }  
 
-        var msg = "שגיאה בהעלאת תמונה/פרסום. נסה שוב.";  
-        if (safeText(err) === "upload_timeout") msg = "העלאת תמונה נתקעה (Timeout). נסה שוב.";  
-        if (safeText(err) === "read_failed") msg = "שגיאה בקריאת התמונה. בחר תמונה מחדש.";  
-
-        createPostErrorShow(msg);  
+        createPostErrorShow("שגיאה בהעלאת תמונה/פרסום. נסה שוב.");  
         setStatus("שגיאה בפרסום.", "error");  
       })  
       .finally(function () {  
@@ -1939,31 +1758,49 @@ document.addEventListener("DOMContentLoaded", function () {
       var id = snap.key;            
       var v = snap.val() || {};            
 
+      var author = safeText(v.author);  
+      var col = userColor(author);  
+      var imgUrl = sanitizeImageUrl(v.image || "");  
+
       var item = {            
         id: id,            
         title: safeText(v.title),            
         text: safeText(v.text),            
-        author: safeText(v.author),            
+        author: author,            
         time: Number(v.time || 0),            
         likes: Number(v.likes || 0),            
         commentsCount: Number(v.commentsCount || 0),  
-        image: sanitizeImageUrl(v.image || ""),  
-
         lastCommentTime: Number(v.lastCommentTime || 0),  
-        lastActivityTime: Number(v.lastActivityTime || 0)
+        image: imgUrl,  
+        hasImage: !!imgUrl,  
+        authorColor: col  
       };            
 
       for (var i = 0; i < postsCacheData.length; i++) {            
         if (postsCacheData[i] && postsCacheData[i].id === id) return;            
       }            
 
-      postsCacheData.unshift(item);            
+      postsCacheData.unshift(item);  
+
+      // update meta map immediately  
+      try {  
+        postsMetaMap[id] = {  
+          commentsCount: Number(item.commentsCount || 0),  
+          lastCommentTime: Number(item.lastCommentTime || 0),  
+          hasImage: !!item.hasImage,  
+          author: safeText(item.author || ""),  
+          authorColor: safeText(item.authorColor || ""),  
+          time: Number(item.time || 0)  
+        };  
+        scheduleSaveMeta();  
+      } catch (eM) { }  
+
+      // attach comments live for this new post  
+      attachLiveCommentsForPost(id);  
 
       if (!isRefreshing) {            
         renderPostsFromCache();            
         try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e5) { }            
-        // (4) אם צריך, ננסה להשלים תגובות לפוסט חדש
-        try { hydrateCommentsCountsIfNeeded(); } catch (eHC2) { }  
       }            
     });            
 
@@ -1977,29 +1814,40 @@ document.addEventListener("DOMContentLoaded", function () {
       }            
       if (idx === -1) return;            
 
-      var prev = postsCacheData[idx] || {};            
+      var prev = postsCacheData[idx] || {};  
+      var author = safeText(v.author || prev.author || "");  
+      var col = userColor(author);  
+      var imgUrl = sanitizeImageUrl(v.image || prev.image || "");  
 
       postsCacheData[idx] = {            
         id: id,            
-        title: safeText(v.title),            
-        text: safeText(v.text),            
-        author: safeText(v.author),            
+        title: safeText(v.title || prev.title),            
+        text: safeText(v.text || prev.text),            
+        author: author,            
         time: Number(v.time || prev.time || 0),            
         likes: Number(v.likes || prev.likes || 0),            
         commentsCount: Number(v.commentsCount || prev.commentsCount || 0),  
-        image: sanitizeImageUrl(v.image || prev.image || ""),  
-
         lastCommentTime: Number(v.lastCommentTime || prev.lastCommentTime || 0),  
-        lastActivityTime: Number(v.lastActivityTime || prev.lastActivityTime || 0)
+        image: imgUrl,  
+        hasImage: !!imgUrl,  
+        authorColor: col  
       };            
+
+      try {  
+        postsMetaMap[id] = {  
+          commentsCount: Number(postsCacheData[idx].commentsCount || 0),  
+          lastCommentTime: Number(postsCacheData[idx].lastCommentTime || 0),  
+          hasImage: !!postsCacheData[idx].hasImage,  
+          author: safeText(postsCacheData[idx].author || ""),  
+          authorColor: safeText(postsCacheData[idx].authorColor || ""),  
+          time: Number(postsCacheData[idx].time || 0)  
+        };  
+        scheduleSaveMeta();  
+      } catch (eM2) { }  
 
       if (!isRefreshing) {            
         renderPostsFromCache();            
         try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e6) { }            
-        // (4) לעדכן DOM למונה תגובות אם התעדכן ברילטיים
-        try {  
-          updateCommentsCountDom(id, postsCacheData[idx].commentsCount);  
-        } catch (eUCC) { }  
       }            
     });            
   }            
@@ -2007,12 +1855,12 @@ document.addEventListener("DOMContentLoaded", function () {
 });            
 
 /* =========================================================================================  
-   FIX: Upload DataURL (stable in WebView) + progress + timeout  
+   NEW: Upload File with progress + timeout (stable; no FileReader)  
    ========================================================================================= */  
-function uploadPostImageDataUrlEx(dataUrl, ext, postId, uid, onProgress) {  
+function uploadPostImageFileWithTimeoutEx(file, contentType, ext, postId, uid, onProgress) {  
   return new Promise(function (resolve, reject) {  
     try {  
-      if (!dataUrl || !postId || !uid) {  
+      if (!file || !postId || !uid) {  
         reject("missing params");  
         return;  
       }  
@@ -2024,15 +1872,26 @@ function uploadPostImageDataUrlEx(dataUrl, ext, postId, uid, onProgress) {
       var name = Date.now() + "_" + uid + "." + safeExt;  
       var ref = firebase.storage().ref("post-images/" + postId + "/" + name);  
 
+      var meta = {};  
+      try {  
+        if (contentType) meta.contentType = contentType;  
+      } catch (eM) { }  
+
       var finished = false;  
-      var task = ref.putString(dataUrl, "data_url");  
+      var task = null;  
+
+      try {  
+        task = ref.put(file, meta);  
+      } catch (ePut) {  
+        task = ref.put(file);  
+      }  
 
       var timer = setTimeout(function () {  
         if (finished) return;  
         finished = true;  
         try { if (task && typeof task.cancel === "function") task.cancel(); } catch (eC) { }  
         reject("upload_timeout");  
-      }, 90000); // 90s watchdog  
+      }, 90000);  
 
       task.on("state_changed",  
         function (snap) {  
@@ -2075,6 +1934,7 @@ function uploadPostImageDataUrlEx(dataUrl, ext, postId, uid, onProgress) {
           }  
         }  
       );  
+
     } catch (e0) {  
       reject(e0);  
     }  
@@ -2082,7 +1942,7 @@ function uploadPostImageDataUrlEx(dataUrl, ext, postId, uid, onProgress) {
 }  
 
 /* =========================================================================================  
-   Image upload (extended with progress) - keeps your original uploadPostImage untouched  
+   ORIGINAL helpers you had (kept; not required now but not removed to preserve code shape)  
    ========================================================================================= */  
 function uploadPostImageEx(blobOrFile, contentType, ext, postId, uid, onProgress) {  
   return new Promise(function (resolve, reject) {  
@@ -2109,7 +1969,6 @@ function uploadPostImageEx(blobOrFile, contentType, ext, postId, uid, onProgress
       try {  
         task = ref.put(blobOrFile, meta);  
       } catch (ePut) {  
-        // fallback  
         task = ref.put(blobOrFile);  
       }  
 
@@ -2140,9 +1999,6 @@ function uploadPostImageEx(blobOrFile, contentType, ext, postId, uid, onProgress
   });  
 }  
 
-/* =========================================================================================  
-   ORIGINAL helper you added (unchanged)  
-   ========================================================================================= */  
 function uploadPostImage(file, postId, uid) {            
   return new Promise((resolve, reject) => {            
 
