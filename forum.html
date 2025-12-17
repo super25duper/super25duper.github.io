@@ -1575,71 +1575,93 @@ document.addEventListener("DOMContentLoaded", function () {
     }  
   }  
 
-  function buildPostCardHTML(p) {            
-    var title = escapeHTML(p.title || "");            
-    var text = escapeHTML(p.text || "");            
-    var authorRaw = safeText(p.author || "");  
-    var author = escapeHTML(authorRaw);            
-    var id = escapeHTML(p.id || "");            
+  function buildPostCardHTML(p) {
 
-    var timeStr = "";            
-    if (p.time) {            
-      try {            
-        timeStr = new Date(p.time).toLocaleString("he-IL", {            
-          hour: "2-digit",            
-          minute: "2-digit",            
-          day: "2-digit",            
-          month: "2-digit"            
-        });            
-      } catch (e) {            
-        timeStr = "";            
-      }            
-    }            
+  var title = escapeHTML(p.title || "");
+  var text = escapeHTML(p.text || "");
+  var author = escapeHTML(p.author || "");
+  var id = escapeHTML(p.id || "");
 
-    // =========================  
-    // Requested: no images in forum list  
-    // =========================  
-    var hasImg = !!sanitizeImageUrl(p.image || "");  
-    var imgFlagHtml = "";  
-    if (hasImg) {  
-      imgFlagHtml = '<span class="has-image-flag">יש תמונה</span>';  
-    } else {  
-      imgFlagHtml = '<span class="has-image-flag-placeholder"></span>';  
-    }  
+  var timeStr = "";
+  if (p.time) {
+    try {
+      timeStr = new Date(p.time).toLocaleString("he-IL", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit"
+      });
+    } catch (e) {
+      timeStr = "";
+    }
+  }
 
-    // =========================  
-    // Requested: user border + author colored  
-    // =========================  
-    var c = userColor(authorRaw);  
-    var borderStyle = ' style="border-right:4px solid ' + escapeHTML(c) + '; padding-right:12px;" ';  
+  var commentsCount = Number(p.commentsCount || 0);
+  var commentsText = commentsCount > 0
+    ? (commentsCount + " תגובות")
+    : "אין תגובות";
 
-    // =========================  
-    // Requested: comments count stable (cache/unknown)  
-    // =========================  
-    var ccKnown = (p.commentsCount !== null && p.commentsCount !== undefined);  
-    var ccText = formatCommentsCountText(p.commentsCount, !ccKnown);  
+  var authorColor = safeText(p.authorColor || userColor(p.author || ""));
+  var escAuthorColor = escapeHTML(authorColor);
 
-    // =========================  
-    // For lastComment sorting: show nothing extra; internal meta only  
-    // =========================  
+  var hasImage = !!p.hasImage;
 
-    return (            
-      '\n      <div class="post post-user-border" data-id="' + id + '"' + borderStyle + '>' +            
-      '\n        <h3>' + title + '</h3>' +            
-      '\n        <p>' + text + '</p>' +            
-      '\n        <small class="post-author-colored" style="color:' + escapeHTML(c) + ';">מאת: ' + author + '</small>' +            
-      '\n        <div class="post-meta-row">' +  
-      '\n          <div class="post-meta-left">' +  
-      '\n            ' + imgFlagHtml +  
-      '\n            <small style="opacity:.75; display:block;">' + escapeHTML(timeStr) + '</small>' +            
-      '\n          </div>' +  
-      '\n          <div class="post-meta-right">' +  
-      '\n            <small style="opacity:.85; display:block;">' + escapeHTML(ccText) + '</small>' +  
-      '\n          </div>' +  
-      '\n        </div>' +  
-      '\n      </div>\n    '            
-    );            
-  }            
+  /* ---------------------------------------------------------
+     תג "יש תמונה" – מופיע רק אם יש תמונה
+     אין placeholder → אין רווח מת
+     --------------------------------------------------------- */
+  var imageBadgeHtml = "";
+  if (hasImage) {
+    imageBadgeHtml =
+      '<span class="post-img-badge" style="margin-bottom:4px;">📷 יש תמונה</span>';
+  }
+
+  /* ---------------------------------------------------------
+     שמירה במטא־קאש (למניעת איפוסים)
+     --------------------------------------------------------- */
+  try {
+    if (!postsMetaMap[p.id]) postsMetaMap[p.id] = {};
+    postsMetaMap[p.id].commentsCount = commentsCount;
+    postsMetaMap[p.id].lastCommentTime = Number(p.lastCommentTime || 0);
+    postsMetaMap[p.id].hasImage = hasImage;
+    postsMetaMap[p.id].author = safeText(p.author || "");
+    postsMetaMap[p.id].authorColor = authorColor;
+    postsMetaMap[p.id].time = Number(p.time || 0);
+    scheduleSaveMeta();
+  } catch (eMeta) {}
+
+  /* ---------------------------------------------------------
+     HTML
+     --------------------------------------------------------- */
+  return (
+    '\n      <div class="post" data-id="' + id + '" ' +
+      'style="border-right:4px solid ' + escAuthorColor + ';">' +
+
+    '\n        <h3>' + title + '</h3>' +
+    '\n        <p>' + text + '</p>' +
+
+    '\n        <div class="post-meta-row">' +
+
+    '\n          <div class="post-meta-left">' +
+                   imageBadgeHtml +
+    '\n            <small class="post-time-small">' + escapeHTML(timeStr) + '</small>' +
+    '\n          </div>' +
+
+    '\n          <div class="post-meta-right" style="text-align:right;">' +
+    '\n            <small id="author-line-' + id + '" ' +
+                     'style="color:' + escAuthorColor + ';">' +
+                     'מאת: ' + author +
+    '\n            </small>' +
+    '\n            <small class="post-comments-count" ' +
+                     'id="comments-count-' + id + '">' +
+                     escapeHTML(commentsText) +
+    '\n            </small>' +
+    '\n          </div>' +
+
+    '\n        </div>' +
+    '\n      </div>\n'
+  );
+}           
 
   function bindPostNavigation(container) {            
     if (container.__navBound) return;            
