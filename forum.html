@@ -196,16 +196,69 @@
       font-weight: bold;  
       user-select: none;  
       white-space: nowrap;  
+      cursor: pointer;  
     }  
 
-    .has-image-flag-placeholder {  
-      /* keeps spacing consistent even without image */  
-      height: 28px;  
-      display: block;  
+    .has-image-flag:active {  
+      opacity: .92;  
     }  
 
     .post-author-colored {  
       font-weight: normal;  
+    }  
+
+    /* =====================================================================================  
+       NEW: Mini image preview overlay (requested: small preview with X)  
+       ===================================================================================== */  
+    #miniImageOverlay {  
+      position: fixed;  
+      inset: 0;  
+      background: rgba(0,0,0,0.55);  
+      display: none;  
+      align-items: center;  
+      justify-content: center;  
+      padding: 16px;  
+      box-sizing: border-box;  
+      z-index: 12000;  
+    }  
+    #miniImageInner {  
+      width: min(520px, 100%);  
+      background: rgba(255,255,255,0.98);  
+      border-radius: 16px;  
+      padding: 12px;  
+      box-sizing: border-box;  
+      border: 1px solid rgba(0,0,0,0.12);  
+    }  
+    #miniImageTop {  
+      display: flex;  
+      align-items: center;  
+      justify-content: space-between;  
+      gap: 10px;  
+      margin-bottom: 10px;  
+    }  
+    #miniCloseBtn {  
+      border: none;  
+      background: transparent;  
+      font-size: 18px;  
+      cursor: pointer;  
+      padding: 8px 10px;  
+      border-radius: 10px;  
+    }  
+    #miniPreviewImg {  
+      width: 100%;  
+      height: auto;  
+      display: block;  
+      border-radius: 14px;  
+      border: 1px solid rgba(0,0,0,0.12);  
+      background: #fff;  
+      max-height: 62vh;  
+      object-fit: contain;  
+    }  
+    #miniHint {  
+      margin-top: 8px;  
+      font-size: 12px;  
+      opacity: .75;  
+      text-align: center;  
     }  
   </style>            
 </head>            
@@ -450,6 +503,20 @@
   </div>  
 </div>  
 
+<!-- =====================================================================================  
+     NEW: MINI IMAGE PREVIEW (requested: click "יש תמונה" -> small preview with X)  
+     ===================================================================================== -->  
+<div id="miniImageOverlay">  
+  <div id="miniImageInner">  
+    <div id="miniImageTop">  
+      <div style="font-weight:bold;">תצוגה מקדימה</div>  
+      <button id="miniCloseBtn" type="button">✕</button>  
+    </div>  
+    <img id="miniPreviewImg" alt="תמונה" src="" />  
+    <div id="miniHint">לחץ מחוץ לתיבה כדי לסגור</div>  
+  </div>  
+</div>  
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>            
 <script>            
 /* =========================================================================================            
@@ -624,6 +691,30 @@ function setLastCommentMetaReady(val) {
 }  
 
 /* =========================================================================================  
+   NEW: lastComment stable order memory (requested behavior)  
+   - show last known order immediately  
+   - after meta is fully ready -> compute new order -> save  
+   ========================================================================================= */  
+var lastCommentSavedOrder = [];  
+function loadLastCommentSavedOrder() {  
+  try {  
+    var raw = sessionStorage.getItem("forumLastCommentOrder");  
+    if (!raw) { lastCommentSavedOrder = []; return; }  
+    var arr = JSON.parse(raw);  
+    if (arr && arr.length) lastCommentSavedOrder = arr;  
+    else lastCommentSavedOrder = [];  
+  } catch (e) {  
+    lastCommentSavedOrder = [];  
+  }  
+}  
+function saveLastCommentSavedOrder(idsArr) {  
+  try {  
+    sessionStorage.setItem("forumLastCommentOrder", JSON.stringify(idsArr || []));  
+  } catch (e) { }  
+}  
+loadLastCommentSavedOrder();  
+
+/* =========================================================================================  
    Image URL safety (הקשחה קלה נגד ערכי URL מוזרים)  
    - לא משנה אבטחה אמיתית (היא ברולס), רק מונע XSS/הזרקות  
    ========================================================================================= */  
@@ -790,8 +881,45 @@ function openImageViewer(url) {
   }  
 }  
 
+/* =========================================================================================  
+   NEW: mini image preview (requested: click chip -> small preview with X)  
+   ========================================================================================= */  
+function openMiniImagePreview(url) {  
+  try {  
+    var overlay = document.getElementById("miniImageOverlay");  
+    var img = document.getElementById("miniPreviewImg");  
+    var closeBtn = document.getElementById("miniCloseBtn");  
+    if (!overlay || !img) return;  
+
+    var safe = sanitizeImageUrl(url);  
+    if (!safe) return;  
+
+    img.setAttribute("src", safe);  
+    overlay.style.display = "flex";  
+
+    if (closeBtn && !closeBtn.__bound) {  
+      closeBtn.__bound = true;  
+      closeBtn.addEventListener("click", function () {  
+        overlay.style.display = "none";  
+        img.setAttribute("src", "");  
+      });  
+    }  
+
+    if (!overlay.__bound) {  
+      overlay.__bound = true;  
+      overlay.addEventListener("click", function (e) {  
+        if (e.target === overlay) {  
+          overlay.style.display = "none";  
+          img.setAttribute("src", "");  
+        }  
+      });  
+    }  
+  } catch (e) { }  
+}  
+
 function prepareImageForUpload(file, warnEl) {  
   // שדרוג: ניסיון להקטין תמונה גדולה (אופציונלי). אם נכשל – מחזירים קובץ מקורי.  
+  // NOTE: בבקשה הנוכחית – לא משתמשים באופטימיזציה לצורך יציבות בחירת תמונה.  
   return new Promise(function (resolve) {  
     try {  
       if (!file) { resolve({ blob: null, contentType: "", ext: "" }); return; }  
@@ -965,7 +1093,7 @@ var selectedImageFile = null;
 var selectedImagePreviewUrl = "";  
 var selectedImagePreviewCanRevoke = false;  
 var selectedImagePrepared = null; // { blob, contentType, ext }  
-var selectedImageDataUrl = ""; // FIX: יציב ב-WebView (DataURL)  
+var selectedImageDataUrl = ""; // kept for fallback (DataURL)  
 var isPublishingNow = false;  
 
 /* =========================================================================================  
@@ -982,6 +1110,80 @@ var metaFetchAllRunning = false;
 var metaFetchAllNeedResortAtEnd = false;  
 var lastRenderedListIds = [];  
 var liveMetaTickTimer = null;  
+
+/* =========================================================================================  
+   NEW: comment/reply meta computation (requested)  
+   - Reply bumps lastCommentTime  
+   - Reply DOES NOT increase commentsCount (we keep top-level count only)  
+   ========================================================================================= */  
+function findMaxTimeInNestedReplies(obj, depth) {  
+  try {  
+    if (!obj || depth <= 0) return 0;  
+    var maxT = 0;  
+    for (var k in obj) {  
+      if (!obj.hasOwnProperty(k)) continue;  
+      var v = obj[k];  
+      if (!v) continue;  
+      if (typeof v === "object") {  
+        // direct time field  
+        try {  
+          if (v.time !== undefined && v.time !== null) {  
+            var t0 = Number(v.time || 0) || 0;  
+            if (t0 > maxT) maxT = t0;  
+          }  
+        } catch (eT0) { }  
+
+        // go deeper  
+        var t1 = findMaxTimeInNestedReplies(v, depth - 1);  
+        if (t1 > maxT) maxT = t1;  
+      }  
+    }  
+    return maxT;  
+  } catch (e) {  
+    return 0;  
+  }  
+}  
+
+function computeMetaFromCommentsSnapshot(snap) {  
+  try {  
+    var countTop = 0;  
+    var lastTime = 0;  
+
+    if (snap && snap.exists()) {  
+      // Top-level count only (reply doesn't add)  
+      try { countTop = snap.numChildren(); } catch (eC) { countTop = 0; }  
+
+      snap.forEach(function (c) {  
+        try {  
+          var v = c.val() || {};  
+          var t = Number(v.time || 0) || 0;  
+          if (t > lastTime) lastTime = t;  
+
+          // replies containers (common names)  
+          // NOTE: if your structure differs, this still stays safe (no crash), and value listener will keep updating.  
+          var r1 = v.replies || null;  
+          var r2 = v.reply || null;  
+          var r3 = v.responses || null;  
+          var r4 = v.children || null;  
+          var r5 = v.subReplies || null;  
+
+          var mx = 0;  
+          if (r1 && typeof r1 === "object") { mx = Math.max(mx, findMaxTimeInNestedReplies(r1, 4)); }  
+          if (r2 && typeof r2 === "object") { mx = Math.max(mx, findMaxTimeInNestedReplies(r2, 4)); }  
+          if (r3 && typeof r3 === "object") { mx = Math.max(mx, findMaxTimeInNestedReplies(r3, 4)); }  
+          if (r4 && typeof r4 === "object") { mx = Math.max(mx, findMaxTimeInNestedReplies(r4, 4)); }  
+          if (r5 && typeof r5 === "object") { mx = Math.max(mx, findMaxTimeInNestedReplies(r5, 4)); }  
+
+          if (mx > lastTime) lastTime = mx;  
+        } catch (eRow) { }  
+      });  
+    }  
+
+    return { countTop: Number(countTop || 0), lastTime: Number(lastTime || 0) };  
+  } catch (e0) {  
+    return { countTop: 0, lastTime: 0 };  
+  }  
+}  
 
 /* =========================================================================================            
    DOM Ready            
@@ -1044,6 +1246,22 @@ document.addEventListener("DOMContentLoaded", function () {
   if (!postsEl.__imgViewerBound) {  
     postsEl.__imgViewerBound = true;  
     postsEl.addEventListener("click", function (e) {  
+      // NEW: click on "יש תמונה" chip -> open mini preview and stop navigation  
+      var chip = null;  
+      try { chip = e.target.closest(".has-image-flag"); } catch (errChip) { chip = null; }  
+      if (chip) {  
+        try { e.preventDefault(); e.stopPropagation(); } catch (eStop) { }  
+        try {  
+          var postEl = chip.closest(".post");  
+          if (postEl) {  
+            var u = postEl.getAttribute("data-image") || "";  
+            u = sanitizeImageUrl(u);  
+            if (u) openMiniImagePreview(u);  
+          }  
+        } catch (eOpenMini) { }  
+        return;  
+      }  
+
       var img = null;  
       try { img = e.target.closest(".post-image"); } catch (errX) { img = null; }  
       if (!img) return;  
@@ -1099,7 +1317,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }  
 
   /* =====================================================================================  
-     Robust DataURL reader with retries (keeps length, reduces random errors)  
+     Robust DataURL reader with retries (kept as fallback; no longer blocks selection)  
      ===================================================================================== */  
   function readFileAsDataURLWithRetry(file, tries, done) {  
     try {  
@@ -1159,7 +1377,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return;  
         }  
 
-        // accept  
+        // accept WITHOUT trying to process/optimize - stability first  
         selectedImageFile = f;  
         selectedImagePrepared = null;  
         selectedImageDataUrl = "";  
@@ -1173,34 +1391,43 @@ document.addEventListener("DOMContentLoaded", function () {
         selectedImagePreviewUrl = "";  
         selectedImagePreviewCanRevoke = false;  
 
-        // Preview + upload DataURL (retry-based, less false errors)  
+        // UI: show as selected immediately (no more "לא הצלחתי לקרוא" blocking selection)  
         try {  
-          if (newPostImageMeta) newPostImageMeta.textContent = "טוען תמונה…";  
-        } catch (eMM0) { }  
+          if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
+          if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
+          if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
+          if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
+        } catch (eUI0) { }  
 
-        readFileAsDataURLWithRetry(f, 3, function (dataUrl, ok) {  
+        // Preview: try ObjectURL first (most stable for UI), fallback to DataURL (best-effort)  
+        getPreviewUrlForFile(f, function (srcUrl, canRevoke) {  
           try {  
-            if (!ok) {  
-              // keep user-friendly message; do not clear immediately if WebView is flaky  
-              createPostErrorShow("לא הצלחתי לקרוא את התמונה. נסה לבחור שוב.");  
-              try {  
-                if (newPostImageMeta) newPostImageMeta.textContent = "פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 9MB.";  
-              } catch (eMM1) { }  
+            if (srcUrl) {  
+              selectedImagePreviewUrl = srcUrl;  
+              selectedImagePreviewCanRevoke = !!canRevoke;  
+              if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);  
+              if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
               return;  
             }  
+          } catch (ePrev0) { }  
 
-            selectedImageDataUrl = dataUrl;  
-            selectedImagePreviewUrl = dataUrl;  
-            selectedImagePreviewCanRevoke = false;  
-
-            if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);  
-            if (imagePreviewWrap) imagePreviewWrap.style.display = "block";  
-            if (removeImageBtn) removeImageBtn.style.display = "inline-block";  
-            if (imageChip) { imageChip.style.display = "inline-flex"; imageChip.textContent = "🖼️ " + bytesToHuman(f.size); }  
+          // fallback: DataURL best-effort (but DO NOT show error that blocks selection)  
+          readFileAsDataURLWithRetry(f, 2, function (dataUrl, ok) {  
             try {  
-              if (newPostImageMeta) newPostImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";  
-            } catch (eM) { }  
-          } catch (eImg1) { }  
+              if (ok && dataUrl) {  
+                selectedImagePreviewUrl = dataUrl;  
+                selectedImagePreviewCanRevoke = false;  
+                if (imagePreview) imagePreview.setAttribute("src", selectedImagePreviewUrl);  
+                if (imageWarn) { imageWarn.style.display = "none"; imageWarn.textContent = ""; }  
+              } else {  
+                // Still accept file; just inform that preview might not show  
+                if (imageWarn) {  
+                  imageWarn.style.display = "block";  
+                  imageWarn.textContent = "לא ניתן להציג תצוגה מקדימה כרגע — אבל התמונה תעלה בפרסום.";  
+                }  
+              }  
+            } catch (ePrev1) { }  
+          });  
         });  
 
       } catch (eImg2) { }  
@@ -1441,7 +1668,7 @@ document.addEventListener("DOMContentLoaded", function () {
             author: safeText(p.author),            
             time: Number(p.time || 0),            
             likes: Number(p.likes || 0),            
-            commentsCount: (cc === undefined ? null : Number(cc || 0)),  
+            commentsCount: (cc === undefined ? null : (cc === null ? null : Number(cc || 0))),  
             lastCommentTime: (lct === undefined ? 0 : Number(lct || 0)),  
             image: sanitizeImageUrl(p.image || "")            
           });            
@@ -1513,19 +1740,38 @@ document.addEventListener("DOMContentLoaded", function () {
     } else if (mode === "title") {            
       list.sort(function (a, b) { return (a.title || "").localeCompare(b.title || "", "he"); });            
     } else if (mode === "lastComment") {  
-      // Important: if meta is not ready yet, keep stable order from current list (cache)  
-      // Once meta is ready (first full run completed), sort by lastCommentTime reliably.  
+      // Requested behavior:
+      // 1) If we have a saved order -> show it immediately (stable)  
+      // 2) After meta ready -> do real sort by lastCommentTime  
       if (lastCommentMetaReady) {  
         list.sort(function (a, b) {  
           var ta = Number(a.lastCommentTime || 0) || 0;  
           var tb = Number(b.lastCommentTime || 0) || 0;  
-          // fallback: use post time if no comments  
           if (!ta) ta = Number(a.time || 0) || 0;  
           if (!tb) tb = Number(b.time || 0) || 0;  
           return tb - ta;  
         });  
+        // save order each time meta-ready sort runs (keeps memory across nav/refresh)  
+        try {  
+          var idsSave = [];  
+          for (var s1 = 0; s1 < list.length; s1++) { if (list[s1] && list[s1].id) idsSave.push(list[s1].id); }  
+          lastCommentSavedOrder = idsSave;  
+          saveLastCommentSavedOrder(idsSave);  
+        } catch (eSaveOrd) { }  
       } else {  
-        // keep current order (do nothing)  
+        // meta not ready: use saved order if exists; fallback keep current order  
+        if (lastCommentSavedOrder && lastCommentSavedOrder.length) {  
+          var idxMap = {};  
+          for (var si = 0; si < lastCommentSavedOrder.length; si++) idxMap[lastCommentSavedOrder[si]] = si;  
+          list.sort(function (a, b) {  
+            var ia = (idxMap[a.id] !== undefined) ? idxMap[a.id] : 999999;  
+            var ib = (idxMap[b.id] !== undefined) ? idxMap[b.id] : 999999;  
+            if (ia !== ib) return ia - ib;  
+            return (Number(b.time || 0) || 0) - (Number(a.time || 0) || 0);  
+          });  
+        } else {  
+          // keep current order (do nothing)  
+        }  
       }  
     } else {            
       list.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });            
@@ -1575,93 +1821,104 @@ document.addEventListener("DOMContentLoaded", function () {
     }  
   }  
 
-  function buildPostCardHTML(p) {
+  function buildPostCardHTML(p) {  
+    // NOTE: this function was previously modified with non-existing postsMetaMap/scheduleSaveMeta.
+    // We keep it selective and compatible with the rest of this file (no security changes).
 
-  var title = escapeHTML(p.title || "");
-  var text = escapeHTML(p.text || "");
-  var author = escapeHTML(p.author || "");
-  var id = escapeHTML(p.id || "");
+    var title = escapeHTML(p.title || "");
+    var text = escapeHTML(p.text || "");
+    var author = escapeHTML(p.author || "");
+    var idRaw = safeText(p.id || "");
+    var id = escapeHTML(idRaw);
 
-  var timeStr = "";
-  if (p.time) {
-    try {
-      timeStr = new Date(p.time).toLocaleString("he-IL", {
-        hour: "2-digit",
-        minute: "2-digit",
-        day: "2-digit",
-        month: "2-digit"
-      });
-    } catch (e) {
-      timeStr = "";
+    var timeStr = "";
+    if (p.time) {
+      try {
+        timeStr = new Date(p.time).toLocaleString("he-IL", {
+          hour: "2-digit",
+          minute: "2-digit",
+          day: "2-digit",
+          month: "2-digit"
+        });
+      } catch (e) {
+        timeStr = "";
+      }
     }
-  }
 
-  var commentsCount = Number(p.commentsCount || 0);
-  var commentsText = commentsCount > 0
-    ? (commentsCount + " תגובות")
-    : "אין תגובות";
+    // Comments count: top-level only (reply doesn't count)  
+    // Unknown state (null) will show "טוען תגובות…"  
+    var unknownComments = (p.commentsCount === null || p.commentsCount === undefined);
+    var commentsCount = unknownComments ? 0 : Number(p.commentsCount || 0);
+    var commentsText = formatCommentsCountText(commentsCount, unknownComments);
 
-  var authorColor = safeText(p.authorColor || userColor(p.author || ""));
-  var escAuthorColor = escapeHTML(authorColor);
+    var authorColor = safeText(p.authorColor || userColor(p.author || ""));
+    var escAuthorColor = escapeHTML(authorColor);
 
-  var hasImage = !!p.hasImage;
+    // "יש תמונה" based on p.image (no dead placeholder)  
+    var imgUrl = sanitizeImageUrl(p.image || "");
+    var hasImage = !!(imgUrl && safeText(imgUrl).length > 0);
 
-  /* ---------------------------------------------------------
-     תג "יש תמונה" – מופיע רק אם יש תמונה
-     אין placeholder → אין רווח מת
-     --------------------------------------------------------- */
-  var imageBadgeHtml = "";
-  if (hasImage) {
-    imageBadgeHtml =
-      '<span class="post-img-badge" style="margin-bottom:4px;">📷 יש תמונה</span>';
-  }
+    /* ---------------------------------------------------------
+       תג "יש תמונה" – מופיע רק אם יש תמונה
+       אין placeholder → אין רווח מת
+       לחיצה תפתח preview קטן (ממומש בדליגציה למעלה)
+       --------------------------------------------------------- */
+    var imageBadgeHtml = "";
+    if (hasImage) {
+      imageBadgeHtml =
+        '<span class="has-image-flag" title="לחץ לתצוגה מקדימה">📷 יש תמונה</span>';
+    }
 
-  /* ---------------------------------------------------------
-     שמירה במטא־קאש (למניעת איפוסים)
-     --------------------------------------------------------- */
-  try {
-    if (!postsMetaMap[p.id]) postsMetaMap[p.id] = {};
-    postsMetaMap[p.id].commentsCount = commentsCount;
-    postsMetaMap[p.id].lastCommentTime = Number(p.lastCommentTime || 0);
-    postsMetaMap[p.id].hasImage = hasImage;
-    postsMetaMap[p.id].author = safeText(p.author || "");
-    postsMetaMap[p.id].authorColor = authorColor;
-    postsMetaMap[p.id].time = Number(p.time || 0);
-    scheduleSaveMeta();
-  } catch (eMeta) {}
+    /* ---------------------------------------------------------
+       Sync meta cache (selective, no breaking references)
+       --------------------------------------------------------- */
+    try {
+      // Previously:
+      // if (!postsMetaMap[p.id]) postsMetaMap[p.id] = {};
+      // postsMetaMap[p.id].commentsCount = commentsCount;
+      // postsMetaMap[p.id].lastCommentTime = Number(p.lastCommentTime || 0);
+      // scheduleSaveMeta();
+      // Now:
+      setMetaForPost(idRaw, {
+        commentsCount: (unknownComments ? 0 : commentsCount),
+        lastCommentTime: Number(p.lastCommentTime || 0)
+      });
+    } catch (eMeta) {}
 
-  /* ---------------------------------------------------------
-     HTML
-     --------------------------------------------------------- */
-  return (
-    '\n      <div class="post" data-id="' + id + '" ' +
-      'style="border-right:4px solid ' + escAuthorColor + ';">' +
+    /* ---------------------------------------------------------
+       HTML
+       - data-image is used for the mini preview click
+       - border color per author
+       --------------------------------------------------------- */
+    return (
+      '\n      <div class="post" data-id="' + id + '" data-image="' + escapeHTML(imgUrl) + '" ' +
+        'style="border-right:4px solid ' + escAuthorColor + ';">' +
 
-    '\n        <h3>' + title + '</h3>' +
-    '\n        <p>' + text + '</p>' +
+      '\n        <h3>' + title + '</h3>' +
+      '\n        <p>' + text + '</p>' +
 
-    '\n        <div class="post-meta-row">' +
+      '\n        <div class="post-meta-row">' +
 
-    '\n          <div class="post-meta-left">' +
-                   imageBadgeHtml +
-    '\n            <small class="post-time-small">' + escapeHTML(timeStr) + '</small>' +
-    '\n          </div>' +
+      '\n          <div class="post-meta-left">' +
+                     imageBadgeHtml +
+      '\n            <small class="post-time-small">' + escapeHTML(timeStr) + '</small>' +
+      '\n          </div>' +
 
-    '\n          <div class="post-meta-right" style="text-align:right;">' +
-    '\n            <small id="author-line-' + id + '" ' +
-                     'style="color:' + escAuthorColor + ';">' +
-                     'מאת: ' + author +
-    '\n            </small>' +
-    '\n            <small class="post-comments-count" ' +
-                     'id="comments-count-' + id + '">' +
-                     escapeHTML(commentsText) +
-    '\n            </small>' +
-    '\n          </div>' +
+      '\n          <div class="post-meta-right" style="text-align:right;">' +
+      '\n            <small id="author-line-' + id + '" class="post-author-colored" ' +
+                       'style="color:' + escAuthorColor + ';">' +
+                       'מאת: ' + author +
+      '\n            </small>' +
+      '\n            <small class="post-comments-count" ' +
+                       'id="comments-count-' + id + '">' +
+                       escapeHTML(commentsText) +
+      '\n            </small>' +
+      '\n          </div>' +
 
-    '\n        </div>' +
-    '\n      </div>\n'
-  );
-}           
+      '\n        </div>' +
+      '\n      </div>\n'
+    );
+  }           
 
   function bindPostNavigation(container) {            
     if (container.__navBound) return;            
@@ -1669,6 +1926,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     container.addEventListener("click", function (e) {            
       if (isRefreshing || pulling) return;            
+
+      // If click was on "יש תמונה" chip: navigation blocked in imgViewerBound handler.
+      // Still keep extra guard here (selective, prevents edge cases).
+      try {  
+        var chip = e.target && e.target.closest ? e.target.closest(".has-image-flag") : null;  
+        if (chip) return;  
+      } catch (eChip2) { }  
 
       var postEl = null;            
       try { postEl = e.target.closest(".post"); } catch (err) { postEl = null; }            
@@ -1697,25 +1961,43 @@ document.addEventListener("DOMContentLoaded", function () {
     try {            
       var h3 = el.querySelector("h3");            
       var p = el.querySelector("p");            
-      var s = el.querySelector("small");            
+
+      // IMPORTANT FIX: author must not be taken from the first <small> anymore  
+      // (because meta-left can have "יש תמונה" and time).  
+      var author = "";  
+      try {  
+        var aEl = el.querySelector("#author-line-" + CSS.escape(postId));  
+        if (aEl) author = (aEl.innerText || "").replace("מאת:", "").trim();  
+      } catch (eEsc) {  
+        // fallback if CSS.escape not available  
+        try {  
+          var aEl2 = el.querySelector('[id="author-line-' + postId + '"]');  
+          if (aEl2) author = (aEl2.innerText || "").replace("מאת:", "").trim();  
+        } catch (eEsc2) { }  
+      }  
 
       var title = h3 ? (h3.innerText || "") : "";            
       var text = p ? (p.innerText || "") : "";            
-      var author = "";            
-      if (s) author = (s.innerText || "").replace("מאת:", "").trim();            
 
       // keep imageUrl in cache for post page (it will show it there)  
       var imageUrl = "";  
       try {  
-        var found = null;  
-        for (var i = 0; i < postsCacheData.length; i++) {  
-          if (postsCacheData[i] && postsCacheData[i].id === postId) {  
-            found = postsCacheData[i];  
-            break;  
+        // prefer data-image from DOM (already sanitized)  
+        imageUrl = sanitizeImageUrl(el.getAttribute("data-image") || "");  
+      } catch (eDI) { imageUrl = ""; }  
+
+      if (!imageUrl) {  
+        try {  
+          var found = null;  
+          for (var i = 0; i < postsCacheData.length; i++) {  
+            if (postsCacheData[i] && postsCacheData[i].id === postId) {  
+              found = postsCacheData[i];  
+              break;  
+            }  
           }  
-        }  
-        if (found) imageUrl = sanitizeImageUrl(found.image || "");  
-      } catch (eImg) { imageUrl = ""; }  
+          if (found) imageUrl = sanitizeImageUrl(found.image || "");  
+        } catch (eImg) { imageUrl = ""; }  
+      }  
 
       sessionStorage.setItem("currentPost", JSON.stringify({            
         id: postId,            
@@ -1835,31 +2117,52 @@ document.addEventListener("DOMContentLoaded", function () {
       if (n0.indexOf(".") !== -1) ext0 = n0.split(".").pop().toLowerCase();  
     } catch (eExt) { ext0 = "jpg"; }  
 
-    var ensureDataUrl = function () {  
-      return new Promise(function (resolve, reject) {  
-        try {  
-          if (selectedImageDataUrl && selectedImageDataUrl.indexOf("data:") === 0) {  
-            resolve(selectedImageDataUrl);  
-            return;  
-          }  
-
-          // retry based  
-          readFileAsDataURLWithRetry(selectedImageFile, 3, function (durl, ok) {  
-            if (!ok) { reject("read_failed"); return; }  
-            resolve(durl);  
-          });  
-        } catch (e) { reject(e); }  
+    // STRATEGY (requested):
+    // 1) Prefer direct upload of File/Blob (no FileReader => no "לא הצלחתי לקרוא")  
+    // 2) If direct upload fails in this WebView, fallback to DataURL upload (best-effort)  
+    var uploadDirectFirst = function () {  
+      return uploadPostImageEx(selectedImageFile, safeText(selectedImageFile.type || ""), ext0, postId, uid, function (pct) {  
+        setUploadProgress(pct);  
       });  
     };  
 
-    ensureDataUrl()  
-      .then(function (dataUrl) {  
-        selectedImageDataUrl = safeText(dataUrl || "");  
-        if (!selectedImageDataUrl || selectedImageDataUrl.indexOf("data:") !== 0) throw "read_failed";  
-
-        return uploadPostImageDataUrlEx(selectedImageDataUrl, ext0, postId, uid, function (pct) {  
-          setUploadProgress(pct);  
+    var uploadFallbackDataUrl = function () {  
+      var ensureDataUrl = function () {  
+        return new Promise(function (resolve, reject) {  
+          try {  
+            if (selectedImageDataUrl && selectedImageDataUrl.indexOf("data:") === 0) {  
+              resolve(selectedImageDataUrl);  
+              return;  
+            }  
+            readFileAsDataURLWithRetry(selectedImageFile, 3, function (durl, ok) {  
+              if (!ok) { reject("read_failed"); return; }  
+              resolve(durl);  
+            });  
+          } catch (e) { reject(e); }  
         });  
+      };  
+
+      return ensureDataUrl()  
+        .then(function (dataUrl) {  
+          selectedImageDataUrl = safeText(dataUrl || "");  
+          if (!selectedImageDataUrl || selectedImageDataUrl.indexOf("data:") !== 0) throw "read_failed";  
+
+          return uploadPostImageDataUrlEx(selectedImageDataUrl, ext0, postId, uid, function (pct) {  
+            setUploadProgress(pct);  
+          });  
+        });  
+    };  
+
+    uploadDirectFirst()  
+      .catch(function (errDirect) {  
+        // fallback  
+        try {  
+          if (imageWarn) {  
+            imageWarn.style.display = "block";  
+            imageWarn.textContent = "העלאה ישירה נכשלה, מנסה שיטת גיבוי…";  
+          }  
+        } catch (eW) { }  
+        return uploadFallbackDataUrl();  
       })  
       .then(function (imageUrl) {  
         imageUrl = sanitizeImageUrl(imageUrl || "");  
@@ -1884,7 +2187,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         var msg = "שגיאה בהעלאת תמונה/פרסום. נסה שוב.";  
         if (safeText(err) === "upload_timeout") msg = "העלאת תמונה נתקעה (Timeout). נסה שוב.";  
-        if (safeText(err) === "read_failed") msg = "שגיאה בקריאת התמונה. בחר תמונה מחדש.";  
+        if (safeText(err) === "read_failed") msg = "שגיאה בקריאת התמונה (שיטת גיבוי). נסה לבחור שוב.";  
 
         createPostErrorShow(msg);  
         setStatus("שגיאה בפרסום.", "error");  
@@ -1917,7 +2220,7 @@ document.addEventListener("DOMContentLoaded", function () {
         author: safeText(v.author),            
         time: Number(v.time || 0),            
         likes: Number(v.likes || 0),            
-        commentsCount: (cc === undefined ? null : Number(cc || 0)),  
+        commentsCount: (cc === undefined ? null : (cc === null ? null : Number(cc || 0))),  
         lastCommentTime: (lct === undefined ? 0 : Number(lct || 0)),  
         image: sanitizeImageUrl(v.image || "")            
       };            
@@ -1957,7 +2260,7 @@ document.addEventListener("DOMContentLoaded", function () {
         author: safeText(v.author),            
         time: Number(v.time || prev.time || 0),            
         likes: Number(v.likes || prev.likes || 0),            
-        commentsCount: (cc === undefined ? null : Number(cc || 0)),  
+        commentsCount: (cc === undefined ? null : (cc === null ? null : Number(cc || 0))),  
         lastCommentTime: (lct === undefined ? 0 : Number(lct || 0)),  
         image: sanitizeImageUrl(v.image || prev.image || "")            
       };            
@@ -1977,6 +2280,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /* =========================================================================================  
      THIRD ROUND FIXES: Meta fetching + lastComment sorting done right  
+     + replies bump lastCommentTime, do not count as commentsCount  
      ========================================================================================= */  
 
   function enqueueMeta(postId) {  
@@ -2031,23 +2335,14 @@ document.addEventListener("DOMContentLoaded", function () {
         var id = safeText(postId || "");  
         if (!id) { resolve(); return; }  
 
-        // Load comments snapshot once => count + lastTime (single read)  
+        // Load comments snapshot once => count + lastTime (including replies)  
         firebase.database()  
           .ref("comments/" + id)  
           .once("value")  
           .then(function (snap) {  
-            var count = 0;  
-            var lastTime = 0;  
-            if (snap && snap.exists()) {  
-              count = snap.numChildren();  
-              snap.forEach(function (c) {  
-                try {  
-                  var v = c.val() || {};  
-                  var t = Number(v.time || 0);  
-                  if (t > lastTime) lastTime = t;  
-                } catch (eT) { }  
-              });  
-            }  
+            var meta = computeMetaFromCommentsSnapshot(snap);  
+            var count = Number(meta.countTop || 0);  
+            var lastTime = Number(meta.lastTime || 0);  
 
             // Update cache  
             setMetaForPost(id, { commentsCount: count, lastCommentTime: lastTime });  
@@ -2070,13 +2365,12 @@ document.addEventListener("DOMContentLoaded", function () {
         reject(e0);  
       }  
     }).then(function () {  
-      // If current sort is lastComment and we're already ready, live resort works  
+      // Rerender to reflect counts / order  
       try {  
         var sm = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);  
         if (sm === "lastComment" && lastCommentMetaReady) {  
           renderPostsFromCache();  
         } else {  
-          // not lastComment: just rerender for count updates  
           renderPostsFromCache();  
         }  
       } catch (eR) { }  
@@ -2128,7 +2422,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       drainMetaQueue();  
 
-      // Bind live update listeners for visible posts (count + lastCommentTime)  
+      // Bind live update listeners for visible posts (count + lastCommentTime, including replies)  
       bindVisibleMetaListeners(ids);  
 
       // A light periodic tick to re-ensure visible listeners (after search/sort changes)  
@@ -2136,7 +2430,6 @@ document.addEventListener("DOMContentLoaded", function () {
         liveMetaTickTimer = setInterval(function () {  
           try {  
             if (!isAuthed) return;  
-            // refresh visible list ties  
             var ids2 = (lastRenderedListIds && lastRenderedListIds.length) ? lastRenderedListIds.slice(0, MAX_VISIBLE) : [];  
             bindVisibleMetaListeners(ids2);  
           } catch (eT) { }  
@@ -2175,13 +2468,13 @@ document.addEventListener("DOMContentLoaded", function () {
       var id = safeText(postId || "");  
       if (!id) return;  
 
-      // value listener (count)  
+      // value listener (count + last comment)  
       try {  
         var vref = visibleMetaValueRefMap[id];  
         if (vref) vref.off();  
       } catch (eV) { }  
 
-      // last comment listener  
+      // last comment listener (kept; does not harm)  
       try {  
         var lref = visibleMetaLastRefMap[id];  
         if (lref) lref.off();  
@@ -2200,24 +2493,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
       visibleMetaListenerMap[id] = true;  
 
-      // Listener 1: count (value) - ensures not stuck after manual refresh  
+      // Listener 1: value on comments/{postId} (includes nested replies changes too)  
       var refCount = firebase.database().ref("comments/" + id);  
       visibleMetaValueRefMap[id] = refCount;  
 
       refCount.on("value", function (snap) {  
         try {  
-          var count = 0;  
-          var lastTime = 0;  
-          if (snap && snap.exists()) {  
-            count = snap.numChildren();  
-            snap.forEach(function (c) {  
-              try {  
-                var v = c.val() || {};  
-                var t = Number(v.time || 0);  
-                if (t > lastTime) lastTime = t;  
-              } catch (eT) { }  
-            });  
-          }  
+          var meta = computeMetaFromCommentsSnapshot(snap);  
+          var count = Number(meta.countTop || 0);  
+          var lastTime = Number(meta.lastTime || 0);  
 
           // Update caches  
           setMetaForPost(id, { commentsCount: count, lastCommentTime: lastTime });  
@@ -2230,18 +2514,16 @@ document.addEventListener("DOMContentLoaded", function () {
             }  
           }  
 
-          // If current mode lastComment and ready => keep sorted live  
           var sm = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);  
           if (sm === "lastComment" && lastCommentMetaReady) {  
             renderPostsFromCache();  
           } else {  
-            // still re-render to update counts  
             renderPostsFromCache();  
           }  
         } catch (eU) { }  
       });  
 
-      // Listener 2: last comment (cheap-ish query) - reinforces order by last comment  
+      // Listener 2: last top-level comment (kept for quick signal; value listener handles replies)  
       var refLast = firebase.database().ref("comments/" + id).orderByChild("time").limitToLast(1);  
       visibleMetaLastRefMap[id] = refLast;  
 
@@ -2250,7 +2532,7 @@ document.addEventListener("DOMContentLoaded", function () {
           var v = snap.val() || {};  
           var t = Number(v.time || 0) || 0;  
 
-          // update lastCommentTime quickly  
+          // update lastCommentTime quickly (may be overridden by value listener that includes replies)  
           setMetaForPost(id, { lastCommentTime: t });  
 
           for (var i = 0; i < postsCacheData.length; i++) {  
