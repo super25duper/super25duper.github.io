@@ -1,19 +1,8 @@
-<!DOCTYPE html>                    
-<html lang="he">                    
+<!DOCTYPE html>                    <html lang="he">                    
 <head>                    
   <meta charset="UTF-8">                    
   <meta name="viewport" content="width=device-width, initial-scale=1.0">                    
-  <title>פורום מאובטח</title>                    
-        
-  <!-- Firebase -->                    
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>                    
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>                    
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>                    
-  <script src="firebaseConfig.js"></script>                    
-        
-  <link rel="stylesheet" href="css/forum.css">                    
-        
-  <style>                    
+  <title>פורום מאובטח</title>                      <!-- Firebase -->                      <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>                      <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>                      <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>                      <script src="firebaseConfig.js"></script>                      <link rel="stylesheet" href="css/forum.css">                      <style>                    
     /* NOTE: לפי הבקשה שלך – בלי ההנפשה ההיא */                    
     /* אם תרצה אפקט עדין אחר בהמשך – נעשה, אבל כרגע "אפס אנימציות" */                    
         
@@ -260,27 +249,16 @@
       opacity: .75;          
       text-align: center;          
     }          
-  </style>                    
-</head>                    
-        
-<body>                    
-        
-<header class="top-bar">                    
+  </style>                    </head>                    <body>                    <header class="top-bar">                    
   <h1>פורום הבניידים!</h1>                    
-</header>                    
-        
-<!-- Pull To Refresh indicator -->                    
-<div id="pull-indicator" style="                    
+</header>                    <!-- Pull To Refresh indicator -->                    <div id="pull-indicator" style="                    
   display:none;                    
   text-align:center;                    
   padding:6px;                    
   user-select:none;                    
 ">                    
   <div class="loader"></div>                    
-</div>                    
-        
-<!-- ======= TOP ACTIONS (New Post + Search + Sort) ======= -->                    
-<div id="top-actions" style="                    
+</div>                    <!-- ======= TOP ACTIONS (New Post + Search + Sort) ======= -->                    <div id="top-actions" style="                    
   max-width:900px;                    
   margin:auto;                    
   padding: 10px 20px 0 20px;                    
@@ -301,38 +279,35 @@
       color:#fff;                    
       cursor:pointer;                    
       font-weight:bold;                    
-    ">➕ צור פוסט</button>                    
-        
-    <input id="searchBox" type="search" placeholder="חיפוש בפוסטים..."                    
-      style="                    
-        flex:1;                    
-        min-width:180px;                    
-        padding:10px 12px;                    
-        border-radius:10px;                    
-        border:1px solid rgba(0,0,0,0.15);                    
-        outline:none;                    
-        box-sizing:border-box;                    
-      "                    
-    />                    
-        
-    <select id="sortMode" style="                    
-      padding:10px 12px;                    
-      border-radius:10px;                    
-      border:1px solid rgba(0,0,0,0.15);                    
-      outline:none;                    
-      background: #fff;                    
-      cursor:pointer;                    
-    ">                    
-      <option value="lastComment" selected>מיון: תגובה אחרונה</option>       
-      <option value="newest">מיון: החדשים למעלה</option>                    
-      <option value="oldest">מיון: הישנים למעלה</option>                    
-      <option value="author">מיון: לפי מחבר</option>                    
-      <option value="title">מיון: לפי כותרת</option>                    
-                        
-    </select>                    
-  </div>                    
-        
-  <div id="statusBar" style="                    
+    ">➕ צור פוסט</button>                    <input id="searchBox" type="search" placeholder="חיפוש בפוסטים..."                    
+  style="                    
+    flex:1;                    
+    min-width:180px;                    
+    padding:10px 12px;                    
+    border-radius:10px;                    
+    border:1px solid rgba(0,0,0,0.15);                    
+    outline:none;                    
+    box-sizing:border-box;                    
+  "                    
+/>                    
+    
+<select id="sortMode" style="                    
+  padding:10px 12px;                    
+  border-radius:10px;                    
+  border:1px solid rgba(0,0,0,0.15);                    
+  outline:none;                    
+  background: #fff;                    
+  cursor:pointer;                    
+">                    
+  <option value="lastComment" selected>מיון: תגובה אחרונה</option>       
+  <option value="newest">מיון: החדשים למעלה</option>                    
+  <option value="oldest">מיון: הישנים למעלה</option>                    
+  <option value="author">מיון: לפי מחבר</option>                    
+  <option value="title">מיון: לפי כותרת</option>                    
+                    
+</select>
+
+  </div>                      <div id="statusBar" style="                    
     margin-top:10px;                    
     padding:8px 10px;                    
     border-radius:10px;                    
@@ -341,16 +316,11 @@
     font-size:13px;                    
     display:none;                    
   "></div>                    
-</div>                    
-        
-<main class="forum-container">                    
+</div>                    <main class="forum-container">                    
   <div id="posts">                    
     <div class="loader"></div>                    
   </div>                    
-</main>                    
-        
-<!-- ======= CREATE POST MODAL (UI ONLY, AUTH STILL REQUIRED) ======= -->                    
-<div id="createPostOverlay" style="                    
+</main>                    <!-- ======= CREATE POST MODAL (UI ONLY, AUTH STILL REQUIRED) ======= -->                    <div id="createPostOverlay" style="                    
   position:fixed;                    
   inset:0;                    
   background: rgba(0,0,0,0.45);                    
@@ -376,138 +346,130 @@
         font-size:18px;                    
         cursor:pointer;                    
       ">✕</button>                    
-    </div>                    
-        
-    <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">                    
-      <input id="newPostTitle" type="text" placeholder="כותרת"                    
-        maxlength="80"                    
-        style="                    
-          padding:12px;                    
-          border-radius:12px;                    
-          border:1px solid rgba(0,0,0,0.18);                    
-          outline:none;                    
-          box-sizing:border-box;                    
-        "                    
-      />                    
-        
-      <textarea id="newPostText" placeholder="תוכן הפוסט..."                    
-        rows="6"                    
-        maxlength="2000"                    
-        style="                    
-          padding:12px;                    
-          border-radius:12px;                    
-          border:1px solid rgba(0,0,0,0.18);                    
-          outline:none;                    
-          box-sizing:border-box;                    
-          resize:vertical;                    
-        "                    
-      ></textarea>                    
-        
-      <!-- =====================================================================================          
-           IMAGE UPLOAD UI (שדרוג מלא - לא פוגע בשיטה / לא מוריד שום פיצ'ר)          
-           ===================================================================================== -->          
-      <div id="newPostImageBlock" style="          
-        border:1px solid rgba(0,0,0,0.10);          
-        border-radius:14px;          
-        padding:12px;          
-        background: rgba(0,0,0,0.02);          
-      ">          
-        <div class="image-actions-row">          
-          <div style="display:flex; flex-direction:column; gap:4px;">          
-            <div style="font-weight:bold;">תמונה לפוסט (אופציונלי)</div>          
-            <div id="newPostImageMeta" style="font-size:12px; opacity:.75;">          
-              פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 9MB.          
-            </div>          
-          </div>          
-        
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">          
-            <button id="chooseImageBtn" type="button" class="img-btn img-btn-primary">בחר תמונה</button>          
-            <button id="removeImageBtn" type="button" class="img-btn img-btn-danger" style="display:none;">הסר תמונה</button>          
-          </div>          
-        </div>          
-        
-        <input id="newPostImage" type="file" accept="image/*" style="display:none;" />          
-        
-        <div id="imagePreviewWrap" style="display:none; margin-top:12px;">          
-          <div class="img-preview">          
-            <img id="imagePreview" alt="תצוגה מקדימה" src="" />          
-          </div>          
-        
-          <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">          
-            <span id="imageChip" class="image-chip" style="display:none;">🖼️ תמונה מוכנה</span>          
-            <span id="imageWarn" style="display:none; font-size:12px; color:#7a4b00; opacity:.95;"></span>          
-          </div>          
-        
-          <div id="uploadProgressArea" style="display:none; margin-top:10px;">          
-            <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">          
-              <span style="font-size:12px; opacity:.75;">מעלה תמונה…</span>          
-              <span id="uploadProgressText" style="font-size:12px; opacity:.75;">0%</span>          
-            </div>          
-            <div class="progress-wrap" style="margin-top:6px;">          
-              <div id="uploadProgressBar" class="progress-bar"></div>          
-            </div>          
-          </div>          
+    </div>                    <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">                    
+  <input id="newPostTitle" type="text" placeholder="כותרת"                    
+    maxlength="80"                    
+    style="                    
+      padding:12px;                    
+      border-radius:12px;                    
+      border:1px solid rgba(0,0,0,0.18);                    
+      outline:none;                    
+      box-sizing:border-box;                    
+    "                    
+  />                    
+    
+  <textarea id="newPostText" placeholder="תוכן הפוסט..."                    
+    rows="6"                    
+    maxlength="2000"                    
+    style="                    
+      padding:12px;                    
+      border-radius:12px;                    
+      border:1px solid rgba(0,0,0,0.18);                    
+      outline:none;                    
+      box-sizing:border-box;                    
+      resize:vertical;                    
+    "                    
+  ></textarea>                    
+    
+  <!-- =====================================================================================          
+       IMAGE UPLOAD UI (שדרוג מלא - לא פוגע בשיטה / לא מוריד שום פיצ'ר)          
+       ===================================================================================== -->          
+  <div id="newPostImageBlock" style="          
+    border:1px solid rgba(0,0,0,0.10);          
+    border-radius:14px;          
+    padding:12px;          
+    background: rgba(0,0,0,0.02);          
+  ">          
+    <div class="image-actions-row">          
+      <div style="display:flex; flex-direction:column; gap:4px;">          
+        <div style="font-weight:bold;">תמונה לפוסט (אופציונלי)</div>          
+        <div id="newPostImageMeta" style="font-size:12px; opacity:.75;">          
+          פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 9MB.          
         </div>          
       </div>          
-        
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">                    
-        <div id="newPostHint" style="font-size:12px; color:#444;">                    
-          טיפ: תכתוב ברור, ותשאיר מקום לתגובות.                    
-        </div>                    
-        <div style="display:flex; gap:10px;">                    
-          <button id="submitPost" type="button" style="                    
-            padding:10px 14px;                    
-            border-radius:12px;                    
-            border:none;                    
-            background: rgb(17,17,87);                    
-            color:#fff;                    
-            cursor:pointer;                    
-            font-weight:bold;                    
-          ">פרסם</button>                    
-          <button id="cancelPost" type="button" style="                    
-            padding:10px 14px;                    
-            border-radius:12px;                    
-            border:1px solid rgba(0,0,0,0.18);                    
-            background:#fff;                    
-            cursor:pointer;                    
-            font-weight:bold;                    
-          ">ביטול</button>                    
-        </div>                    
-      </div>                    
-        
-      <div id="createPostError" style="                    
-        display:none;                    
-        padding:10px 12px;                    
+    
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">          
+        <button id="chooseImageBtn" type="button" class="img-btn img-btn-primary">בחר תמונה</button>          
+        <button id="removeImageBtn" type="button" class="img-btn img-btn-danger" style="display:none;">הסר תמונה</button>          
+      </div>          
+    </div>          
+    
+    <input id="newPostImage" type="file" accept="image/*" style="display:none;" />          
+    
+    <div id="imagePreviewWrap" style="display:none; margin-top:12px;">          
+      <div class="img-preview">          
+        <img id="imagePreview" alt="תצוגה מקדימה" src="" />          
+      </div>          
+    
+      <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">          
+        <span id="imageChip" class="image-chip" style="display:none;">🖼️ תמונה מוכנה</span>          
+        <span id="imageWarn" style="display:none; font-size:12px; color:#7a4b00; opacity:.95;"></span>          
+      </div>          
+    
+      <div id="uploadProgressArea" style="display:none; margin-top:10px;">          
+        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">          
+          <span style="font-size:12px; opacity:.75;">מעלה תמונה…</span>          
+          <span id="uploadProgressText" style="font-size:12px; opacity:.75;">0%</span>          
+        </div>          
+        <div class="progress-wrap" style="margin-top:6px;">          
+          <div id="uploadProgressBar" class="progress-bar"></div>          
+        </div>          
+      </div>          
+    </div>          
+  </div>          
+    
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">                    
+    <div id="newPostHint" style="font-size:12px; color:#444;">                    
+      טיפ: תכתוב ברור, ותשאיר מקום לתגובות.                    
+    </div>                    
+    <div style="display:flex; gap:10px;">                    
+      <button id="submitPost" type="button" style="                    
+        padding:10px 14px;                    
         border-radius:12px;                    
-        background: rgba(255,0,0,0.08);                    
-        color:#8a0000;                    
-        font-size:13px;                    
-      "></div>                    
+        border:none;                    
+        background: rgb(17,17,87);                    
+        color:#fff;                    
+        cursor:pointer;                    
+        font-weight:bold;                    
+      ">פרסם</button>                    
+      <button id="cancelPost" type="button" style="                    
+        padding:10px 14px;                    
+        border-radius:12px;                    
+        border:1px solid rgba(0,0,0,0.18);                    
+        background:#fff;                    
+        cursor:pointer;                    
+        font-weight:bold;                    
+      ">ביטול</button>                    
     </div>                    
   </div>                    
-</div>                    
-        
-<!-- =====================================================================================          
+    
+  <div id="createPostError" style="                    
+    display:none;                    
+    padding:10px 12px;                    
+    border-radius:12px;                    
+    background: rgba(255,0,0,0.08);                    
+    color:#8a0000;                    
+    font-size:13px;                    
+  "></div>                    
+</div>
+
+  </div>                    
+</div>                    <!-- =====================================================================================          
      FULLSCREEN IMAGE VIEWER (שדרוג UX - לא פוגע באבטחה)          
-     ===================================================================================== -->          
-<div id="imageViewerOverlay">          
+     ===================================================================================== -->          <div id="imageViewerOverlay">          
   <div id="imageViewerInner">          
     <div id="imageViewerTop">          
       <div style="font-weight:bold;">תמונה</div>          
       <button id="closeImageViewer" type="button">✕</button>          
     </div>          
     <img id="imageViewerImg" alt="תמונה" src="" />          
-    <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">          
-        
-      <span id="imageViewerHint" style="font-size:12px; opacity:.75;">לחץ מחוץ לתיבה כדי לסגור</span>          
-    </div>          
+    <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">          <span id="imageViewerHint" style="font-size:12px; opacity:.75;">לחץ מחוץ לתיבה כדי לסגור</span>          
+</div>
+
   </div>          
-</div>          
-        
-<!-- =====================================================================================          
+</div>          <!-- =====================================================================================          
      NEW: MINI IMAGE PREVIEW (requested: click "יש תמונה" -> small preview with X)          
-     ===================================================================================== -->          
-<div id="miniImageOverlay">          
+     ===================================================================================== -->          <div id="miniImageOverlay">          
   <div id="miniImageInner">          
     <div id="miniImageTop">          
       <div style="font-weight:bold;">תצוגה מקדימה</div>          
@@ -516,10 +478,7 @@
     <img id="miniPreviewImg" alt="תמונה" src="" />          
     <div id="miniHint">לחץ מחוץ לתיבה כדי לסגור</div>          
   </div>          
-</div>          
-        
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>                    
-<script>                    
+</div>          <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>                    <script>                    
 /* =========================================================================================                    
    ⚠️ חשוב: אבטחה – לא נוגעים ולא משנים שיטה                    
    1) חסימה מיידית – לא WebView => forbidden.html                    
@@ -567,7 +526,7 @@ function escapeHTML(str) {
     .replace(/&/g, "&amp;")                    
     .replace(/</g, "&lt;")                    
     .replace(/>/g, "&gt;")                    
-    .replace(/"/g, "&quot;")                    
+    .replace(/\"/g, "&quot;")                    
     .replace(/'/g, "&#039;");                    
 }                    
         
@@ -825,13 +784,68 @@ function getCachedSignedUrlForPath(path) {
     return "";          
   }          
 }          
-        
+
+/* =========================================================================================
+   ✅ UPDATE (minimal + robust): signed-url fetcher that accepts multiple payload shapes
+   - fixes common cause of "לא הצלחתי לטעון את התמונה" when function returns {url:...} without ok
+   - retries once with forceRefresh token on 401/403
+   - supports param names: path / filePath / imagePath (server differences)
+   ========================================================================================= */
+function _extractSignedUrlFromPayload(data) {
+  try {
+    if (!data || typeof data !== "object") return { url: "", expiresAt: 0 };
+
+    // common variants
+    var u = "";
+    if (!u && data.url) u = data.url;
+    if (!u && data.signedUrl) u = data.signedUrl;
+    if (!u && data.downloadUrl) u = data.downloadUrl;
+    if (!u && data.result && data.result.url) u = data.result.url;
+    if (!u && data.data && data.data.url) u = data.data.url;
+
+    var exp = 0;
+    if (data.expiresAt !== undefined && data.expiresAt !== null) exp = Number(data.expiresAt || 0) || 0;
+    if (!exp && data.expires !== undefined && data.expires !== null) exp = Number(data.expires || 0) || 0;
+    if (!exp && data.expiration !== undefined && data.expiration !== null) exp = Number(data.expiration || 0) || 0;
+    if (!exp && data.exp !== undefined && data.exp !== null) exp = Number(data.exp || 0) || 0;
+
+    u = sanitizeImageUrl(u);
+    if (!u) return { url: "", expiresAt: 0 };
+
+    // if server didn't send expiry, assume ~2 minutes and refresh early anyway
+    if (!exp) exp = Date.now() + (110 * 1000);
+
+    return { url: u, expiresAt: exp };
+  } catch (e) {
+    return { url: "", expiresAt: 0 };
+  }
+}
+
+function _fetchSignedUrlHTTP(path, token, modeParamName) {
+  try {
+    var p = safeText(path || "").trim();
+    if (!p) return Promise.reject("missing_path");
+    var key = safeText(modeParamName || "path");
+    var url = GET_IMAGE_URL_ENDPOINT + "?" + encodeURIComponent(key) + "=" + encodeURIComponent(p);
+    return fetch(url, {
+      method: "GET",
+      headers: {
+        "Authorization": "Bearer " + safeText(token || "")
+      }
+    }).then(function (resp) {
+      return Promise.resolve(resp);
+    });
+  } catch (e) {
+    return Promise.reject(e);
+  }
+}
+
 function fetchSignedUrlForPath(path, force) {          
   return new Promise(function (resolve, reject) {          
     try {          
       var p = safeText(path || "").trim();          
       if (!p) { reject("missing_path"); return; }          
-        
+
       // Cache hit (unless forced)          
       if (!force) {          
         var cachedUrl = getCachedSignedUrlForPath(p);          
@@ -840,35 +854,75 @@ function fetchSignedUrlForPath(path, force) {
           return;          
         }          
       }          
-        
+
       // Deduplicate inflight          
       if (_signedUrlInFlight[p]) {          
         _signedUrlInFlight[p].then(resolve).catch(reject);          
         return;          
       }          
-        
-      _signedUrlInFlight[p] = getIdTokenFast(false)          
-        .then(function (token) {          
-          return fetch(GET_IMAGE_URL_ENDPOINT + "?path=" + encodeURIComponent(p), {          
-            method: "GET",          
-            headers: {          
-              "Authorization": "Bearer " + token          
-            }          
-          });          
-        })          
-        .then(function (resp) {          
-          if (!resp || !resp.ok) throw "bad_status";          
-          return resp.json();          
-        })          
-        .then(function (data) {          
-          if (!data || !data.ok || !data.url) throw "bad_payload";          
-          var u = sanitizeImageUrl(data.url || "");          
-          if (!u) throw "bad_url";          
-          var exp = Number(data.expiresAt || 0) || 0;          
-          _signedUrlCache[p] = { url: u, expiresAt: exp, fetchedAt: Date.now() };          
-          return { url: u, expiresAt: exp };          
-        });          
-        
+
+      // NOTE: We try a tiny sequence for compatibility:
+      // 1) param "path"
+      // 2) if bad payload -> try "filePath"
+      // 3) if still bad -> try "imagePath"
+      // Also: if 401/403 -> refresh token ONCE
+      _signedUrlInFlight[p] = (function () {
+        var lastResp = null;
+        var usedParam = "path";
+
+        function parseResp(resp) {
+          lastResp = resp;
+          if (!resp) throw "bad_status";
+          if (!resp.ok) throw ("bad_status_" + (resp.status || 0));
+          return resp.json().catch(function () {
+            // sometimes functions return text
+            return resp.text().then(function (t) {
+              try { return JSON.parse(t); } catch (eJ) { return { ok: false, raw: t || "" }; }
+            });
+          });
+        }
+
+        function attemptWith(token, paramName) {
+          usedParam = paramName;
+          return _fetchSignedUrlHTTP(p, token, paramName).then(parseResp).then(function (data) {
+            // accept payload with or without ok
+            if (data && data.ok === false && !data.url && !data.signedUrl && !data.downloadUrl) {
+              throw "bad_payload";
+            }
+            var ex = _extractSignedUrlFromPayload(data);
+            if (!ex || !ex.url) throw "bad_payload";
+            _signedUrlCache[p] = { url: ex.url, expiresAt: ex.expiresAt, fetchedAt: Date.now() };
+            return { url: ex.url, expiresAt: ex.expiresAt };
+          });
+        }
+
+        return getIdTokenFast(false)
+          .then(function (token) {
+            return attemptWith(token, "path").catch(function (e1) {
+              // Retry with alternate param if server expects it
+              return attemptWith(token, "filePath").catch(function () {
+                return attemptWith(token, "imagePath");
+              });
+            });
+          })
+          .catch(function (err) {
+            // If auth error, refresh token once and retry
+            var s = safeText(err || "");
+            var isAuth = (s.indexOf("bad_status_401") === 0 || s.indexOf("bad_status_403") === 0 || s === "no_user");
+            if (!isAuth) throw err;
+            return getIdTokenFast(true).then(function (token2) {
+              // retry with last used param first (usually correct), then fallback chain
+              return attemptWith(token2, usedParam || "path").catch(function () {
+                return attemptWith(token2, "path").catch(function () {
+                  return attemptWith(token2, "filePath").catch(function () {
+                    return attemptWith(token2, "imagePath");
+                  });
+                });
+              });
+            });
+          });
+      })();
+
       _signedUrlInFlight[p]          
         .then(function (r) {          
           try { delete _signedUrlInFlight[p]; } catch (eD) { }          
@@ -964,6 +1018,19 @@ function openImageViewer(url) {
   var safe = sanitizeImageUrl(url);          
   if (!safe) return;          
         
+  // ✅ UPDATE: add a one-time onerror handler for clearer UX
+  if (!img.__boundError) {
+    img.__boundError = true;
+    img.addEventListener("error", function () {
+      try {
+        // keep minimal: close viewer and show status
+        overlay.style.display = "none";
+        img.setAttribute("src", "");
+      } catch (eC) { }
+      try { setStatus("לא הצלחתי לטעון את התמונה.", "error"); } catch (eS) { }
+    });
+  }
+
   img.setAttribute("src", safe);          
   overlay.style.display = "flex";          
         
@@ -1010,6 +1077,18 @@ function openMiniImagePreview(url) {
         
     var safe = sanitizeImageUrl(url);          
     if (!safe) return;          
+
+    // ✅ UPDATE: show error if img fails (covers signed-url or permission issues)
+    if (!img.__boundError) {
+      img.__boundError = true;
+      img.addEventListener("error", function () {
+        try {
+          overlay.style.display = "none";
+          img.setAttribute("src", "");
+        } catch (eC) { }
+        try { setStatus("לא הצלחתי לטעון את התמונה.", "error"); } catch (eS) { }
+      });
+    }
         
     img.setAttribute("src", safe);          
     overlay.style.display = "flex";          
@@ -1510,8 +1589,15 @@ document.addEventListener("DOMContentLoaded", function () {
                     } catch (eSet) { }          
                     setStatus("לא הצלחתי לטעון את התמונה.", "error");          
                   })          
-                  .catch(function () {          
-                    setStatus("לא הצלחתי לטעון את התמונה.", "error");          
+                  .catch(function (err) {          
+                    // ✅ UPDATE: show short reason code (still user-friendly)
+                    try {
+                      var s = safeText(err || "");
+                      if (s && s.length > 30) s = s.slice(0, 30);
+                      setStatus("לא הצלחתי לטעון את התמונה." + (s ? " (" + s + ")" : ""), "error");
+                    } catch (eMsg) {
+                      setStatus("לא הצלחתי לטעון את התמונה.", "error");
+                    }
                   });          
                 return;          
               }          
@@ -2085,7 +2171,7 @@ document.addEventListener("DOMContentLoaded", function () {
       var x = Number(n || 0);          
       if (!x) return "אין תגובות";          
       if (x === 1) return "תגובה אחת";          
-      return x + " תגובות";          
+    return x + "תגובות " ;          
     } catch (e) {          
       return "אין תגובות";          
     }          
@@ -2146,16 +2232,18 @@ document.addEventListener("DOMContentLoaded", function () {
         
     /* ---------------------------------------------------------        
        Sync meta cache (selective, no breaking references)        
-       ✅ FIX: לא "לדרוס" unknown ל-0 (כדי שלא יתקבע "אין תגובות" מהקאש)        
        --------------------------------------------------------- */        
     try {        
-      var metaToSave = {        
+      // Previously:        
+      // if (!postsMetaMap[p.id]) postsMetaMap[p.id] = {};        
+      // postsMetaMap[p.id].commentsCount = commentsCount;        
+      // postsMetaMap[p.id].lastCommentTime = Number(p.lastCommentTime || 0);        
+      // scheduleSaveMeta();        
+      // Now:        
+      setMetaForPost(idRaw, {        
+        commentsCount: (unknownComments ? 0 : commentsCount),        
         lastCommentTime: Number(p.lastCommentTime || 0)        
-      };        
-      if (!unknownComments) {        
-        metaToSave.commentsCount = commentsCount;        
-      }        
-      setMetaForPost(idRaw, metaToSave);        
+      });        
     } catch (eMeta) {}        
         
     /* ---------------------------------------------------------        
@@ -2192,7 +2280,7 @@ document.addEventListener("DOMContentLoaded", function () {
       '\n        </div>' +        
       '\n      </div>\n'        
     );        
-  }                   
+  }                    
         
   function bindPostNavigation(container) {                    
     if (container.__navBound) return;                    
@@ -2595,7 +2683,334 @@ document.addEventListener("DOMContentLoaded", function () {
      THIRD ROUND FIXES: Meta fetching + lastComment sorting done right          
      + replies bump lastCommentTime, do not count as commentsCount          
      ========================================================================================= */          
-  /* ... (כל שאר הקוד נשאר כמו שהיה אצלך, בלי לקצר ובלי לפגוע בפונקציונליות) ... */                    
+        
+  function enqueueMeta(postId) {          
+    try {          
+      var id = safeText(postId || "");          
+      if (!id) return;          
+        
+      // Avoid duplicates in queue          
+      for (var i = 0; i < metaQueue.length; i++) {          
+        if (metaQueue[i] === id) return;          
+      }          
+        
+      metaQueue.push(id);          
+    } catch (e) { }          
+  }          
+        
+  function drainMetaQueue() {          
+    try {          
+      while (metaInFlight < META_CONCURRENCY && metaQueue.length) {          
+        var id = metaQueue.shift();          
+        if (!id) continue;          
+        metaInFlight++;          
+        
+        fetchMetaForPost(id)          
+          .catch(function () { })          
+          .finally(function () {          
+            metaInFlight--;          
+            drainMetaQueue();          
+        
+            // If this was the "fetch all" run for lastComment: finish + resort once at the end          
+            if (metaFetchAllRunning) {          
+              if (metaInFlight === 0 && metaQueue.length === 0) {          
+                metaFetchAllRunning = false;          
+                setLastCommentMetaReady(true);          
+        
+                // Now that ALL meta is ready, we can safely sort by lastCommentTime          
+                try {          
+                  renderPostsFromCache();          
+                  setStatus("עודכן מיון לפי תגובה אחרונה.", "ok");          
+                } catch (eEnd) { }          
+              }          
+            }          
+          });          
+      }          
+    } catch (e) { }          
+  }          
+        
+  function fetchMetaForPost(postId) {          
+    return new Promise(function (resolve, reject) {          
+      try {          
+        if (!isAuthed) { resolve(); return; }          
+        var id = safeText(postId || "");          
+        if (!id) { resolve(); return; }          
+        
+        // Load comments snapshot once => count + lastTime (including replies)          
+        firebase.database()          
+          .ref("comments/" + id)          
+          .once("value")          
+          .then(function (snap) {          
+            var meta = computeMetaFromCommentsSnapshot(snap);          
+            var count = Number(meta.countTop || 0);          
+            var lastTime = Number(meta.lastTime || 0);          
+        
+            /* =================================================================================          
+               ✅ FIX (minimal): never let comments-derived lastTime LOWER the posts lastCommentTime          
+               - posts/{id}/lastCommentTime may include replies bump (post.html)          
+               - comments snapshot might be behind (especially when replies are in separate path)          
+               ================================================================================= */          
+            var prevMeta = getMetaForPost(id) || {};          
+            var prevLast = Number(prevMeta.lastCommentTime || 0) || 0;          
+            var prevItemLast = 0;          
+            for (var z = 0; z < postsCacheData.length; z++) {          
+              if (postsCacheData[z] && postsCacheData[z].id === id) {          
+                prevItemLast = Number(postsCacheData[z].lastCommentTime || 0) || 0;          
+                break;          
+              }          
+            }          
+            var mergedLast = Math.max(prevLast, prevItemLast, lastTime);          
+        
+            // Update cache          
+            setMetaForPost(id, { commentsCount: count, lastCommentTime: mergedLast });          
+        
+            // Update postsCacheData entry too          
+            for (var i = 0; i < postsCacheData.length; i++) {          
+              if (postsCacheData[i] && postsCacheData[i].id === id) {          
+                postsCacheData[i].commentsCount = count;          
+                postsCacheData[i].lastCommentTime = Math.max(Number(postsCacheData[i].lastCommentTime || 0) || 0, mergedLast);          
+                break;          
+              }          
+            }          
+        
+            resolve();          
+          })          
+          .catch(function (e2) {          
+            reject(e2);          
+          });          
+      } catch (e0) {          
+        reject(e0);          
+      }          
+    }).then(function () {          
+      // Rerender to reflect counts / order          
+      try {          
+        var sm = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);          
+        if (sm === "lastComment" && lastCommentMetaReady) {          
+          renderPostsFromCache();          
+        } else {          
+          renderPostsFromCache();          
+        }          
+      } catch (eR) { }          
+    });          
+  }          
+        
+  function ensureAllPostsMetaForLastCommentSort() {          
+    try {          
+      if (!isAuthed) return;          
+      if (metaFetchAllRunning) return;          
+        
+      // If we already have lastCommentMetaReady, no need to full-pass again          
+      if (lastCommentMetaReady) return;          
+        
+      // Start one full run: fetch meta for ALL posts          
+      metaFetchAllRunning = true;          
+      setStatus("מכין מיון לפי תגובה אחרונה… (טוען תגובות)", "info");          
+        
+      for (var i = 0; i < postsCacheData.length; i++) {          
+        if (postsCacheData[i] && postsCacheData[i].id) {          
+          enqueueMeta(postsCacheData[i].id);          
+        }          
+      }          
+        
+      drainMetaQueue();          
+    } catch (e) { }          
+  }          
+        
+  function ensureVisibleMetaAndFetch() {          
+    try {          
+      if (!isAuthed) return;          
+        
+      // Limit: we bind listeners only for top N visible posts to keep WebView stable          
+      var MAX_VISIBLE = 40;          
+      var ids = (lastRenderedListIds && lastRenderedListIds.length) ? lastRenderedListIds.slice(0, MAX_VISIBLE) : [];          
+        
+      // Queue meta fetch for visible posts missing known count          
+      for (var i = 0; i < ids.length; i++) {          
+        var id = ids[i];          
+        var meta = getMetaForPost(id) || {};          
+        
+        // If missing or stale, enqueue fetch          
+        var need = false;          
+        if (meta.commentsCount === undefined || meta.commentsCount === null) need = true;          
+        if (meta.lastCommentTime === undefined || meta.lastCommentTime === null) need = true;          
+        
+        if (need) enqueueMeta(id);          
+      }          
+        
+      drainMetaQueue();          
+        
+      // Bind live update listeners for visible posts (count + lastCommentTime, including replies)          
+      bindVisibleMetaListeners(ids);          
+        
+      // A light periodic tick to re-ensure visible listeners (after search/sort changes)          
+      if (!liveMetaTickTimer) {          
+        liveMetaTickTimer = setInterval(function () {          
+          try {          
+            if (!isAuthed) return;          
+            var ids2 = (lastRenderedListIds && lastRenderedListIds.length) ? lastRenderedListIds.slice(0, MAX_VISIBLE) : [];          
+            bindVisibleMetaListeners(ids2);          
+          } catch (eT) { }          
+        }, 14000);          
+      }          
+    } catch (e0) { }          
+  }          
+        
+  function bindVisibleMetaListeners(ids) {          
+    try {          
+      if (!ids) ids = [];          
+        
+      // Detach old listeners not in visible set          
+      var keep = {};          
+      for (var i = 0; i < ids.length; i++) keep[ids[i]] = true;          
+        
+      for (var k in visibleMetaListenerMap) {          
+        if (!keep[k]) {          
+          detachMetaListenersForPost(k);          
+        }          
+      }          
+        
+      // Attach new listeners          
+      for (var j = 0; j < ids.length; j++) {          
+        var id = ids[j];          
+        if (!id) continue;          
+        if (visibleMetaListenerMap[id]) continue;          
+        
+        attachMetaListenersForPost(id);          
+      }          
+    } catch (e1) { }          
+  }          
+        
+  function detachMetaListenersForPost(postId) {          
+    try {          
+      var id = safeText(postId || "");          
+      if (!id) return;          
+        
+      // value listener (count + last comment)          
+      try {          
+        var vref = visibleMetaValueRefMap[id];          
+        if (vref) vref.off();          
+      } catch (eV) { }          
+        
+      // last comment listener (kept; does not harm)          
+      try {          
+        var lref = visibleMetaLastRefMap[id];          
+        if (lref) lref.off();          
+      } catch (eL) { }          
+        
+      delete visibleMetaValueRefMap[id];          
+      delete visibleMetaLastRefMap[id];          
+      delete visibleMetaListenerMap[id];          
+    } catch (e0) { }          
+  }          
+        
+  function attachMetaListenersForPost(postId) {          
+    try {          
+      var id = safeText(postId || "");          
+      if (!id) return;          
+        
+      visibleMetaListenerMap[id] = true;          
+        
+      // Listener 1: value on comments/{postId} (includes nested replies changes too)          
+      var refCount = firebase.database().ref("comments/" + id);          
+      visibleMetaValueRefMap[id] = refCount;          
+        
+      refCount.on("value", function (snap) {          
+        try {          
+          var meta = computeMetaFromCommentsSnapshot(snap);          
+          var count = Number(meta.countTop || 0);          
+          var lastTime = Number(meta.lastTime || 0);          
+        
+          /* =================================================================================          
+             ✅ FIX (minimal): merge with existing lastCommentTime (never decrease)          
+             ================================================================================= */          
+          var prevMeta = getMetaForPost(id) || {};          
+          var prevLast = Number(prevMeta.lastCommentTime || 0) || 0;          
+          var prevItemLast = 0;          
+          for (var z = 0; z < postsCacheData.length; z++) {          
+            if (postsCacheData[z] && postsCacheData[z].id === id) {          
+              prevItemLast = Number(postsCacheData[z].lastCommentTime || 0) || 0;          
+              break;          
+            }          
+          }          
+          var mergedLast = Math.max(prevLast, prevItemLast, lastTime);          
+        
+          // Update caches          
+          setMetaForPost(id, { commentsCount: count, lastCommentTime: mergedLast });          
+        
+          for (var i = 0; i < postsCacheData.length; i++) {          
+            if (postsCacheData[i] && postsCacheData[i].id === id) {          
+              postsCacheData[i].commentsCount = count;          
+              postsCacheData[i].lastCommentTime = Math.max(Number(postsCacheData[i].lastCommentTime || 0) || 0, mergedLast);          
+              break;          
+            }          
+          }          
+        
+          var sm = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);          
+          if (sm === "lastComment" && lastCommentMetaReady) {          
+            renderPostsFromCache();          
+          } else {          
+            renderPostsFromCache();          
+          }          
+        } catch (eU) { }          
+      });          
+        
+      // Listener 2: last top-level comment (kept for quick signal; value listener handles replies)          
+      var refLast = firebase.database().ref("comments/" + id).orderByChild("time").limitToLast(1);          
+      visibleMetaLastRefMap[id] = refLast;          
+        
+      refLast.on("child_added", function (snap) {          
+        try {          
+          var v = snap.val() || {};          
+          var t = Number(v.time || 0) || 0;          
+        
+          // update lastCommentTime quickly (may be overridden by value listener that includes replies)          
+          // ✅ FIX (minimal): never decrease cache          
+          var prevMeta = getMetaForPost(id) || {};          
+          var prevLast = Number(prevMeta.lastCommentTime || 0) || 0;          
+          var merged = Math.max(prevLast, t);          
+          setMetaForPost(id, { lastCommentTime: merged });          
+        
+          for (var i = 0; i < postsCacheData.length; i++) {          
+            if (postsCacheData[i] && postsCacheData[i].id === id) {          
+              postsCacheData[i].lastCommentTime = Math.max(Number(postsCacheData[i].lastCommentTime || 0), merged);          
+              break;          
+            }          
+          }          
+        
+          var sm = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);          
+          if (sm === "lastComment" && lastCommentMetaReady) {          
+            renderPostsFromCache();          
+          }          
+        } catch (eL2) { }          
+      });          
+        
+    } catch (e0) { }          
+  }          
+        
+  // Ensure: if page is loaded already with lastComment selected, start full run once          
+  try {          
+    var initMode = safeText(sortMode && sortMode.value ? sortMode.value : rememberedSortMode);          
+    if (initMode === "lastComment") {          
+      ensureAllPostsMetaForLastCommentSort();          
+    }          
+  } catch (eInitLC) { }          
+        
+  /* =====================================================================================          
+     Cleanup listeners on unload          
+     ===================================================================================== */          
+  window.addEventListener("beforeunload", function () {          
+    try {          
+      if (liveMetaTickTimer) clearInterval(liveMetaTickTimer);          
+    } catch (eT) { }          
+    liveMetaTickTimer = null;          
+        
+    try {          
+      for (var k in visibleMetaListenerMap) {          
+        detachMetaListenersForPost(k);          
+      }          
+    } catch (eOff) { }          
+  });          
+        
 });                    
         
 /* =========================================================================================          
@@ -2820,7 +3235,5 @@ function uploadPostImage(file, postId, uid) {
     );                    
   });                    
 }                    
-</script>                    
-        
-</body>                    
+</script>                    </body>                    
 </html>
