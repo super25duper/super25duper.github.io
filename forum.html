@@ -327,7 +327,7 @@
       <option value="oldest">מיון: הישנים למעלה</option>              
       <option value="author">מיון: לפי מחבר</option>              
       <option value="title">מיון: לפי כותרת</option>              
-      <option value="lastComment">מיון: תגובה אחרונה</option>              
+      <option value="lastComment" selected>מיון: תגובה אחרונה</option>             
     </select>              
   </div>              
   
@@ -660,12 +660,12 @@ function setMetaForPost(postId, metaObj) {
 /* =========================================================================================    
    Sort mode memory (requested: keep last choice in memory, including lastComment)    
    ========================================================================================= */    
-var rememberedSortMode = "newest";    
-try {    
-  rememberedSortMode = sessionStorage.getItem("forumSortMode") || "newest";    
-} catch (e) {    
-  rememberedSortMode = "newest";    
-}    
+var rememberedSortMode = "lastComment";
+try {
+  rememberedSortMode = sessionStorage.getItem("forumSortMode") || "lastComment";
+} catch (e) {
+  rememberedSortMode = "lastComment";
+} 
   
 function rememberSortMode(v) {    
   try {    
