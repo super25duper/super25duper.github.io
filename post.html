@@ -1,2728 +1,1576 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>צפייה בפוסט</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Admin Mobile v2 — עובד</title>
 
-  <!-- =====================================================================================
-       🚫 חסימה מיידית לדפדפן רגיל (אבטחה: לא משנים שיטה)
-       1) חייב WebView (AppInventor)
-       2) חייב getWebViewString פונקציה
-       אם לא => forbidden.html
-       ===================================================================================== -->
-  <script>
-    (function () {
-      try {
-        if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {
-          location.replace("forbidden.html");
-        }
-      } catch (e) {
-        location.replace("forbidden.html");
-      }
-    })();
-  </script>
-
-  <!-- Firebase -->
+  <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+  <!-- YOUR CONFIG (must call firebase.initializeApp inside OR fallback below will init) -->
   <script src="firebaseConfig.js"></script>
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="css/forum.css" />
-  <link rel="stylesheet" href="css/post.css" />
-
   <style>
-    /* =====================================================================================
-       SELECTIVE ADDITIONS (UI בלבד) – לא מחליף CSS קיים
-       ===================================================================================== */
-
-    .post-user-border {
-      border-right: 4px solid rgba(0,0,0,0.15);
-      padding-right: 12px;
-      box-sizing: border-box;
+    :root{
+      --bg:#0b1020;
+      --panel: rgba(255,255,255,0.07);
+      --stroke: rgba(255,255,255,0.12);
+      --stroke2: rgba(255,255,255,0.20);
+      --txt: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.66);
+      --muted2: rgba(255,255,255,0.48);
+      --ok:#2fe28a;
+      --warn:#ffb020;
+      --danger:#ff4d4d;
+      --shadow: 0 14px 60px rgba(0,0,0,0.55);
+      --r: 18px;
+      --font: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      --mono: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+      --safeTop: env(safe-area-inset-top);
+      --safeBot: env(safe-area-inset-bottom);
     }
 
-    .post-image-wrap {
-      margin-top: 12px;
-      border-radius: 14px;
-      overflow: hidden;
-      border: 1px solid rgba(0,0,0,0.12);
-      background: rgba(0,0,0,0.03);
+    *{ box-sizing:border-box; }
+    html, body{ height:100%; }
+    body{
+      margin:0;
+      font-family: var(--font);
+      background:
+        radial-gradient(900px 520px at 10% -10%, rgba(59,130,246,0.25), transparent 60%),
+        radial-gradient(820px 520px at 90% 10%, rgba(139,92,246,0.20), transparent 60%),
+        radial-gradient(900px 650px at 50% 115%, rgba(47,226,138,0.12), transparent 60%),
+        var(--bg);
+      color: var(--txt);
+      overflow-x:hidden;
+      padding-bottom: calc(78px + var(--safeBot));
     }
-
-    .post-image {
-      width: 100%;
-      height: auto;
-      display: block;
-      max-height: 380px;
-      object-fit: cover;
-      background: #fff;
-      cursor: pointer;
+    .wrapText{ overflow-wrap:anywhere; word-break:break-word; }
+    .container{
+      width:100%;
+      max-width:560px;
+      margin:0 auto;
+      padding:12px;
+      padding-top: calc(12px + var(--safeTop));
     }
-
-    .mini-image {
-      width: 100%;
-      height: auto;
-      display: block;
-      max-height: 180px;
-      object-fit: cover;
-      border-radius: 12px;
-      border: 1px solid rgba(0,0,0,0.12);
-      background: #fff;
-      cursor: pointer;
-      margin-top: 10px;
+    .topbar{
+      position: sticky;
+      top:0;
+      z-index:30;
+      margin:-12px -12px 12px;
+      padding:12px;
+      padding-top: calc(12px + var(--safeTop));
+      backdrop-filter: blur(12px);
+      background: rgba(11,16,32,0.75);
+      border-bottom: 1px solid var(--stroke);
     }
-
-    .img-actions-row {
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:space-between;
-      margin-top: 10px;
-    }
-
-    .img-btn {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(0,0,0,0.18);
-      background: #fff;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .img-btn-primary {
-      border: none;
-      background: rgb(17,17,87);
-      color: #fff;
-    }
-
-    .img-btn-danger {
-      border: 1px solid rgba(255,0,0,0.35);
-      background: rgba(255,0,0,0.06);
-      color: #8a0000;
-    }
-
-    .img-preview {
-      width: 100%;
-      border-radius: 12px;
-      border: 1px solid rgba(0,0,0,0.12);
-      overflow: hidden;
-      background: rgba(0,0,0,0.03);
-      margin-top: 10px;
-    }
-
-    .img-preview img {
-      width: 100%;
-      height: auto;
-      display: block;
-      max-height: 220px;
-      object-fit: cover;
-      background: #fff;
-    }
-
-    /* Viewer overlay (חלון קטן עם איקס) */
-    #miniViewerOverlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.72);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      box-sizing: border-box;
-      z-index: 10000;
-    }
-    #miniViewerBox {
-      width: min(820px, 100%);
-      background: rgba(255,255,255,0.97);
-      border-radius: 16px;
-      padding: 12px;
-      box-sizing: border-box;
-      border: 1px solid rgba(0,0,0,0.12);
-    }
-    #miniViewerTop {
+    .brandRow{
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:10px;
-      margin-bottom: 10px;
+      min-width:0;
     }
-    #miniViewerClose {
-      border: none;
-      background: transparent;
-      font-size: 18px;
-      cursor: pointer;
-      padding: 8px 10px;
-      border-radius: 10px;
+    .brand{ display:flex; align-items:center; gap:10px; min-width:0; }
+    .logo{
+      width:38px; height:38px;
+      border-radius:14px;
+      flex:0 0 auto;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:1000;
+      background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(139,92,246,0.92));
+      box-shadow: 0 10px 22px rgba(59,130,246,0.18);
     }
-    #miniViewerImg {
-      width: 100%;
-      height: auto;
-      display: block;
-      border-radius: 14px;
-      background: #fff;
-      border: 1px solid rgba(0,0,0,0.12);
-      max-height: 78vh;
-      object-fit: contain;
-    }
+    .brandTxt{ min-width:0; }
+    .brandTxt .t{ font-weight:950; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .brandTxt .s{ font-size:12px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-    /* Edit post overlay */
-    #editPostOverlay {
-      position:fixed;
-      inset:0;
-      background: rgba(0,0,0,0.45);
-      display:none;
+    .pill{
+      flex:0 0 auto;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,0.04);
+      border-radius:999px;
+      font-size:12px;
+      color:var(--muted);
+      user-select:none;
+      max-width:45%;
+      min-width:120px;
+      justify-content:center;
+    }
+    .pill span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+    .dot{ width:8px; height:8px; border-radius:99px; background: var(--muted2); }
+    .pill.ok .dot{ background: var(--ok); }
+    .pill.warn .dot{ background: var(--warn); }
+    .pill.err .dot{ background: var(--danger); }
+
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; min-width:0; }
+    .in, select, textarea{
+      width:100%;
+      max-width:100%;
+      padding:12px 12px;
+      border-radius:14px;
+      border:1px solid var(--stroke2);
+      background: rgba(0,0,0,0.28);
+      color: var(--txt);
+      outline:none;
+      font-size:14px;
+    }
+    textarea{ min-height:120px; resize:vertical; }
+    .in::placeholder, textarea::placeholder{ color: rgba(255,255,255,0.45); }
+    .mono{ font-family: var(--mono); }
+
+    .card{
+      border:1px solid var(--stroke);
+      background: var(--panel);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding:12px;
+      border-bottom:1px solid var(--stroke);
+      background: rgba(255,255,255,0.03);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      min-width:0;
+    }
+    .card .hd .h{ font-weight:950; font-size:13px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .card .bd{ padding:12px; }
+
+    .btn{
+      border:1px solid var(--stroke2);
+      background: rgba(255,255,255,0.06);
+      color: var(--txt);
+      padding:12px 12px;
+      border-radius:14px;
+      cursor:pointer;
+      font-weight:950;
+      font-size:13px;
+      display:inline-flex;
       align-items:center;
       justify-content:center;
-      padding:16px;
-      box-sizing:border-box;
-      z-index:9999;
+      gap:8px;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      max-width:100%;
     }
-    #editPostModal {
-      width:min(740px, 100%);
-      background:#fff;
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{ border:none; background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(139,92,246,0.92)); }
+    .btn.danger{
+      border:1px solid rgba(255,77,77,0.45);
+      background: rgba(255,77,77,0.12);
+      color:#ffd1d1;
+    }
+    .btn.ghost{ background: transparent; border: 1px dashed var(--stroke2); }
+    .btn.small{ padding:10px 10px; border-radius:12px; font-size:12px; }
+    .wide{ width:100%; }
+
+    .muted{ color: var(--muted); }
+    .mini{ font-size:12px; color: var(--muted); line-height:1.45; }
+    .sep{ height:1px; background: var(--stroke); margin:10px 0; }
+
+    .list{ display:flex; flex-direction:column; gap:10px; }
+    .post{
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,0.05);
+      border-radius:18px;
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-width:0;
+    }
+    .post .title{ font-weight:950; font-size:14px; line-height:1.25; }
+    .chips{ display:flex; flex-wrap:wrap; gap:8px; font-size:12px; color: var(--muted); min-width:0; }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 9px;
+      border-radius:999px;
+      border:1px solid var(--stroke2);
+      background: rgba(0,0,0,0.20);
+      max-width:100%;
+      min-width:0;
+    }
+    .chip b{ color: var(--txt); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .snippet{ font-size:13px; line-height:1.45; color: rgba(255,255,255,0.90); }
+    .tools{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+
+    .bottomNav{
+      position: fixed;
+      left:0; right:0; bottom:0;
+      z-index:40;
+      padding-bottom: var(--safeBot);
+      background: rgba(11,16,32,0.82);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--stroke);
+    }
+    .bottomNav .bar{
+      max-width:560px;
+      margin:0 auto;
+      padding:10px 12px;
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap:8px;
+    }
+    .navBtn{
+      border:1px solid var(--stroke2);
+      background: rgba(255,255,255,0.05);
       border-radius:16px;
-      padding:16px;
-      box-sizing:border-box;
+      padding:10px 8px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap:8px;
+      font-weight:950;
+      font-size:13px;
+      color: var(--muted);
+      user-select:none;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .navBtn.active{
+      color: var(--txt);
+      background: rgba(59,130,246,0.18);
+      border-color: rgba(59,130,246,0.35);
     }
 
-    /* Inline edit (comment/reply) */
-    .inline-edit-box {
-      margin-top: 8px;
-      padding: 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(0,0,0,0.12);
-      background: rgba(0,0,0,0.02);
+    .toast{
+      position: fixed;
+      left:12px; right:12px;
+      bottom: calc(80px + var(--safeBot));
+      z-index:90;
+      max-width:560px;
+      margin:0 auto;
+      display:none;
+      padding:12px 12px;
+      border-radius:16px;
+      border:1px solid var(--stroke2);
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      font-size:13px;
+      line-height:1.35;
     }
-    .inline-edit-box textarea {
+    .toast.ok{ border-color: rgba(47,226,138,0.35); background: rgba(47,226,138,0.12); }
+    .toast.warn{ border-color: rgba(255,176,32,0.45); background: rgba(255,176,32,0.12); }
+    .toast.err{ border-color: rgba(255,77,77,0.45); background: rgba(255,77,77,0.12); }
+
+    .overlay{
+      position: fixed;
+      inset:0;
+      z-index:80;
+      display:none;
+      align-items:flex-end;
+      justify-content:center;
+      background: rgba(0,0,0,0.62);
+      padding:12px;
+      padding-bottom: calc(12px + var(--safeBot));
+    }
+    .sheet{
       width:100%;
-      box-sizing:border-box;
-      padding:10px 12px;
-      border-radius:10px;
-      border:1px solid rgba(0,0,0,0.15);
-      outline:none;
-      resize:vertical;
+      max-width:560px;
+      border:1px solid var(--stroke);
+      background: rgba(15,20,40,0.96);
+      border-radius:22px;
+      box-shadow: 0 24px 90px rgba(0,0,0,0.68);
+      overflow:hidden;
+      max-height:86vh;
+      display:flex;
+      flex-direction:column;
+    }
+    .sheetHd{
+      padding:12px;
+      border-bottom:1px solid var(--stroke);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      background: rgba(255,255,255,0.03);
+      min-width:0;
+    }
+    .sheetHd .ttl{ font-weight:1000; font-size:14px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sheetBd{ padding:12px; overflow:auto; min-width:0; }
+    .sheetFt{
+      padding:12px;
+      border-top:1px solid var(--stroke);
+      background: rgba(255,255,255,0.02);
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+
+    .cNode{
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,0.05);
+      border-radius:16px;
+      padding:10px;
+      margin-top:10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      min-width:0;
+    }
+    .cHead{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:10px;
+      flex-wrap:wrap;
+      min-width:0;
+    }
+    .cMeta{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      color: var(--muted);
+      font-size:12px;
+      min-width:0;
+    }
+    .cText{
+      font-size:13px;
+      line-height:1.45;
+      color: rgba(255,255,255,0.90);
+      white-space: pre-wrap;
+    }
+    .indent{
+      margin-right:10px;
+      padding-right:10px;
+      border-right:2px dashed rgba(255,255,255,0.12);
+    }
+
+    .hidden{ display:none !important; }
+    .prog{
+      height:10px;
+      border-radius:999px;
+      border:1px solid var(--stroke2);
+      background: rgba(255,255,255,0.06);
+      overflow:hidden;
+    }
+    .prog > div{
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, rgba(59,130,246,0.95), rgba(139,92,246,0.92));
     }
   </style>
 </head>
 
 <body>
-
-<header class="top-bar">
-  <h1>צפייה בפוסט</h1>
-</header>
-
-<main class="forum-container">
-
-  <!-- =====================================================================================
-       POST HEADER AREA
-       ===================================================================================== -->
-  <div id="post"></div>
-
-  <!-- =====================================================================================
-       STATUS BAR (UX שדרוג - לא פוגע באבטחה)
-       ===================================================================================== -->
-  <div id="statusBar" style="
-    display:none;
-    margin: 10px 0 14px 0;
-    padding:10px 12px;
-    border-radius:12px;
-    background: rgba(0,0,0,0.05);
-    color:#111;
-    font-size:13px;
-  "></div>
-
-  <!-- =====================================================================================
-       MAIN COMMENT COMPOSER
-       ===================================================================================== -->
-  <div id="mainComposer" class="composer hidden">
-    <textarea id="mainText" placeholder="כתוב תגובה..."></textarea>
-
-    <!-- =====================================================================================
-         COMMENT IMAGE (NEW) – תמונה לתגובה (אופציונלי)
-         ===================================================================================== -->
-    <div id="mainCommentImageBlock" style="
-      margin-top:10px;
-      border:1px solid rgba(0,0,0,0.10);
-      border-radius:14px;
-      padding:12px;
-      background: rgba(0,0,0,0.02);
-    ">
-      <div class="img-actions-row">
-        <div style="display:flex; flex-direction:column; gap:4px;">
-          <div style="font-weight:bold;">תמונה לתגובה (אופציונלי)</div>
-          <div id="mainCommentImageMeta" style="font-size:12px; opacity:.75;">
-            פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 9MB.
+  <div class="container">
+    <div class="topbar">
+      <div class="brandRow">
+        <div class="brand">
+          <div class="logo">A</div>
+          <div class="brandTxt">
+            <div class="t">Admin Mobile v2</div>
+            <div class="s">מובייל נקי · עריכה/מחיקה/עשה-סדר · עובד</div>
           </div>
         </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button id="chooseMainCommentImageBtn" type="button" class="img-btn img-btn-primary">בחר תמונה</button>
-          <button id="removeMainCommentImageBtn" type="button" class="img-btn img-btn-danger" style="display:none;">הסר תמונה</button>
+        <div id="authPill" class="pill warn">
+          <span class="dot"></span>
+          <span id="authTxt">טוען…</span>
         </div>
       </div>
 
-      <input id="mainCommentImage" type="file" accept="image/*" style="display:none;" />
+      <div class="row" style="margin-top:10px;">
+        <input id="qSearch" class="in" type="search" placeholder="חיפוש פוסט (כותרת/טקסט/מחבר/ID)..." />
+        <button id="btnRefresh" class="btn" type="button">🔄</button>
+      </div>
+    </div>
 
-      <div id="mainCommentPreviewWrap" style="display:none;">
-        <div class="img-preview">
-          <img id="mainCommentPreviewImg" alt="תצוגה מקדימה" src="" />
+    <div id="viewLogin" class="card">
+      <div class="hd">
+        <div class="h">כניסה</div>
+        <div class="mini">admins/{uid}=true</div>
+      </div>
+      <div class="bd">
+        <div class="row">
+          <input id="loginEmail" class="in" type="email" placeholder="אימייל אדמין" />
+          <input id="loginPass" class="in" type="password" placeholder="סיסמה" />
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="btnLogin" class="btn primary wide" type="button">🔐 התחבר</button>
+          <button id="btnLogout" class="btn danger wide hidden" type="button">⎋ התנתק</button>
+        </div>
+        <div class="sep"></div>
+        <div class="mini">אם התחברת אבל אתה לא אדמין — המערכת תנתק אוטומטית.</div>
+      </div>
+    </div>
+
+    <div id="viewPosts" class="hidden" style="margin-top:12px;">
+      <div class="card">
+        <div class="hd">
+          <div class="h">פוסטים</div>
+          <div class="mini" id="badgePosts">—</div>
+        </div>
+        <div class="bd">
+          <div class="row">
+            <select id="sortSel" class="in" style="width:auto; flex:1; min-width: 160px;">
+              <option value="newest" selected>חדשים למעלה</option>
+              <option value="oldest">ישנים למעלה</option>
+              <option value="lastComment">תגובה אחרונה</option>
+              <option value="comments">כמות תגובות</option>
+            </select>
+            <select id="limitSel" class="in" style="width:auto; flex:1; min-width: 140px;">
+              <option value="50">50</option>
+              <option value="120" selected>120</option>
+              <option value="300">300</option>
+            </select>
+          </div>
+
+          <div class="sep"></div>
+
+          <div id="postsList" class="list">
+            <div class="mini muted">התחבר כדי לראות פוסטים…</div>
+          </div>
+
+          <div class="sep"></div>
+          <button id="btnLoadMore" class="btn ghost wide" type="button">⬇️ טען עוד</button>
         </div>
       </div>
     </div>
 
-    <div class="composer-actions">
-      <button type="button" id="sendMainBtn">שלח</button>
-      <button type="button" id="closeMainBtn">ביטול</button>
-    </div>
-
-    <!-- extra UX (שדרוג) -->
-    <div id="mainComposerHint" style="
-      margin-top:8px;
-      font-size:12px;
-      opacity:0.75;
-      line-height:1.5;
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
-    ">
-      <span>טיפ: תגובה טובה היא קצרה, ברורה, ומכבדת.</span>
-      <span id="mainCharCount">0/800</span>
-    </div>
-  </div>
-
-  <!-- =====================================================================================
-       OPEN MAIN COMPOSER BUTTON
-       ===================================================================================== -->
-  <button id="openMain" class="add-comment-btn" type="button">
-    הוסף תגובה
-  </button>
-
-  <!-- =====================================================================================
-       COMMENTS
-       ===================================================================================== -->
-  <section class="comments">
-    <h3>תגובות</h3>
-
-    <!-- search inside comments (שדרוג, לא מבטל כלום) -->
-    <div style="
-      display:flex;
-      gap:10px;
-      align-items:center;
-      margin: 10px 0 12px 0;
-      flex-wrap:wrap;
-    ">
-      <input id="commentSearch" type="search" placeholder="חיפוש בתגובות..."
-        style="
-          flex:1;
-          min-width:180px;
-          padding:10px 12px;
-          border-radius:10px;
-          border:1px solid rgba(0,0,0,0.15);
-          outline:none;
-          box-sizing:border-box;
-        "
-      />
-      <select id="commentSort" style="
-        padding:10px 12px;
-        border-radius:10px;
-        border:1px solid rgba(0,0,0,0.15);
-        outline:none;
-        background:#fff;
-        cursor:pointer;
-      ">
-        <option value="newest">מיון: החדשות למעלה</option>
-        <option value="oldest">מיון: הישנות למעלה</option>
-        <option value="author">מיון: לפי מחבר</option>
-      </select>
-    </div>
-
-    <div id="comments">
-      <div class="loader"></div>
-    </div>
-
-    <!-- load more (שדרוג - אופציונלי) -->
-    <div id="commentsFooter" style="
-      margin-top:14px;
-      display:flex;
-      justify-content:center;
-      gap:10px;
-      flex-wrap:wrap;
-    ">
-      <button id="loadMoreComments" type="button" style="
-        display:none;
-        padding:10px 14px;
-        border-radius:12px;
-        border:1px solid rgba(0,0,0,0.15);
-        background:#fff;
-        cursor:pointer;
-        font-weight:bold;
-      ">טען עוד תגובות</button>
-    </div>
-  </section>
-
-</main>
-
-<!-- =====================================================================================
-     MINI VIEWER OVERLAY (תצוגה מקדימה עם איקס) – לפוסט/תגובות/ריפלייז
-     ===================================================================================== -->
-<div id="miniViewerOverlay">
-  <div id="miniViewerBox">
-    <div id="miniViewerTop">
-      <div style="font-weight:bold;">תמונה</div>
-      <button id="miniViewerClose" type="button">✕</button>
-    </div>
-    <img id="miniViewerImg" alt="תמונה" src="" />
-    <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-      <span style="font-size:12px; opacity:.75;">לחץ מחוץ לתיבה כדי לסגור</span>
-      <span id="miniViewerHint" style="font-size:12px; opacity:.75;"></span>
-    </div>
-  </div>
-</div>
-
-<!-- =====================================================================================
-     EDIT POST OVERLAY (עד 24 שעות, רק המחבר)
-     ===================================================================================== -->
-<div id="editPostOverlay">
-  <div id="editPostModal">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-      <div style="font-weight:bold; font-size:18px;">עריכת פוסט</div>
-      <button id="closeEditPostBtn" type="button" style="border:none;background:transparent;font-size:18px;cursor:pointer;">✕</button>
-    </div>
-
-    <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">
-      <input id="editPostTitle" type="text" placeholder="כותרת"
-        maxlength="80"
-        style="
-          padding:12px;
-          border-radius:12px;
-          border:1px solid rgba(0,0,0,0.18);
-          outline:none;
-          box-sizing:border-box;
-        "
-      />
-      <textarea id="editPostText" placeholder="תוכן הפוסט..."
-        rows="7"
-        maxlength="2000"
-        style="
-          padding:12px;
-          border-radius:12px;
-          border:1px solid rgba(0,0,0,0.18);
-          outline:none;
-          box-sizing:border-box;
-          resize:vertical;
-        "
-      ></textarea>
-
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-        <div id="editPostHint" style="font-size:12px; color:#444;">
-          ניתן לערוך פוסט עד 24 שעות מרגע הפרסום.
+    <div id="viewTools" class="hidden" style="margin-top:12px;">
+      <div class="card">
+        <div class="hd">
+          <div class="h">כלים</div>
+          <div class="mini">מערכת</div>
         </div>
-        <div style="display:flex; gap:10px;">
-          <button id="saveEditPostBtn" type="button" style="
-            padding:10px 14px;
-            border-radius:12px;
-            border:none;
-            background: rgb(17,17,87);
-            color:#fff;
-            cursor:pointer;
-            font-weight:bold;
-          ">שמור</button>
-          <button id="cancelEditPostBtn" type="button" style="
-            padding:10px 14px;
-            border-radius:12px;
-            border:1px solid rgba(0,0,0,0.18);
-            background:#fff;
-            cursor:pointer;
-            font-weight:bold;
-          ">ביטול</button>
+        <div class="bd">
+          <button id="btnFixAll" class="btn primary wide" type="button">🧹 עשה סדר לכל הפוסטים</button>
+          <div class="mini" style="margin-top:8px;">
+            מתקן לכל פוסט: <span class="mono">commentsCount</span> + <span class="mono">lastCommentTime</span>
+          </div>
+
+          <div class="sep"></div>
+
+          <div class="mini muted" id="toolsMsg">—</div>
+          <div class="prog" style="margin-top:10px;"><div id="progBar"></div></div>
+          <div class="mini muted" id="progTxt" style="margin-top:8px;">—</div>
+
+          <div class="sep"></div>
+          <button id="btnExportVisible" class="btn wide" type="button">📦 ייצא פוסטים בתצוגה (JSON)</button>
         </div>
       </div>
+    </div>
 
-      <div id="editPostError" style="
-        display:none;
-        padding:10px 12px;
-        border-radius:12px;
-        background: rgba(255,0,0,0.08);
-        color:#8a0000;
-        font-size:13px;
-      "></div>
+    <div id="viewRename" class="hidden" style="margin-top:12px;">
+      <div class="card">
+        <div class="hd">
+          <div class="h">שינוי שם משתמש</div>
+          <div class="mini">שם נוכחי → חדש</div>
+        </div>
+        <div class="bd">
+          <div class="row">
+            <input id="oldName" class="in" placeholder="שם נוכחי (לדוגמה: yossi)" />
+            <input id="newName" class="in" placeholder="שם חדש (לדוגמה: yossi_pro)" />
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button id="btnRename" class="btn primary wide" type="button">✏️ שנה שם בכל מקום</button>
+          </div>
+          <div class="sep"></div>
+          <div class="mini muted" id="renameMsg">—</div>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+  <div class="bottomNav">
+    <div class="bar">
+      <div id="navPosts" class="navBtn active">📰 פוסטים</div>
+      <div id="navTools" class="navBtn">🧰 כלים</div>
+      <div id="navRename" class="navBtn">👤 שינוי שם</div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <div id="overlay" class="overlay">
+    <div class="sheet">
+      <div class="sheetHd">
+        <div class="ttl" id="sheetTitle">עריכה</div>
+        <button id="btnCloseSheet" class="btn small" type="button">✕</button>
+      </div>
+
+      <div class="sheetBd">
+        <div class="mini muted wrapText" id="sheetPath">—</div>
+        <div class="sep"></div>
+
+        <div id="editorFields"></div>
+
+        <div class="sep"></div>
+
+        <details>
+          <summary class="btn ghost wide">🧾 מתקדם: JSON מלא</summary>
+          <div style="margin-top:10px;">
+            <textarea id="rawJson" class="in mono" style="min-height:180px;" placeholder="JSON מלא"></textarea>
+            <button id="btnSaveJson" class="btn wide" type="button">💾 שמור JSON (SET)</button>
+            <div class="mini muted" style="margin-top:6px;">זה מחליף את כל ה־node בנתיב.</div>
+          </div>
+        </details>
+
+        <div class="sep"></div>
+
+        <details id="commentsBox" class="hidden">
+          <summary class="btn wide">💬 תגובות לפוסט</summary>
+          <div id="commentsWrap"></div>
+        </details>
+      </div>
+
+      <div class="sheetFt">
+        <button id="btnSaveFields" class="btn primary" type="button">💾 שמור</button>
+        <button id="btnDeleteNode" class="btn danger" type="button">🗑 מחק</button>
+      </div>
+    </div>
+  </div>
+
 <script>
-/* =========================================================================================
-   ⚠️ אבטחה – שיטה לא משתנה:
-   1) חסימה מיידית בדפדפן רגיל (AppInventor + getWebViewString)
-   2) payload מקודולר (email/password/token)
-   3) Firebase Auth signInWithEmailAndPassword
-   4) אימות token מול sessions/{uid}/token
-   רק אחרי זה: שליפות DB + כתיבות תגובה/תגובה-על-תגובה + עריכות
-   ========================================================================================= */
-
-/* ===============================
-   Helpers
-   =============================== */
-function escapeHTML(str = "") {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function safeText(str = "") {
-  return String(str || "");
-}
-
-function userColor(key) {
-  const colors = [
-    "#60a5fa",
-    "#34d399",
-    "#f472b6",
-    "#fbbf24",
-    "#a78bfa",
-    "#fb7185",
-    "#22d3ee"
-  ];
-  let hash = 0;
-  const s = String(key || "");
-  for (let i = 0; i < s.length; i++) {
-    hash = s.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
-
-function fmtTime(ts) {
-  try {
-    return new Date(ts).toLocaleTimeString("he-IL", {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  } catch {
-    return "";
-  }
-}
-
-function fmtDateTime(ts) {
-  try {
-    return new Date(ts).toLocaleString("he-IL", {
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  } catch {
-    return "";
-  }
-}
-
-function setStatus(msg, type = "info") {
-  const bar = document.getElementById("statusBar");
-  if (!bar) return;
-
-  if (!msg) {
-    bar.style.display = "none";
-    bar.textContent = "";
-    return;
+/* ============ HARDEN INIT (works with ANY firebaseConfig.js style) ============ */
+(function(){
+  function showInitErr(msg){
+    var t = document.getElementById("toast");
+    if(t){
+      t.classList.remove("ok","warn","err");
+      t.classList.add("err");
+      t.textContent = msg;
+      t.style.display = "block";
+    }
+    var pill = document.getElementById("authPill");
+    var txt = document.getElementById("authTxt");
+    if(pill && txt){
+      pill.classList.remove("ok","warn","err");
+      pill.classList.add("err");
+      txt.textContent = "Config/Init שגוי";
+    }
   }
 
-  bar.style.display = "block";
-  bar.textContent = msg;
-
-  if (type === "error") {
-    bar.style.background = "rgba(255,0,0,0.08)";
-    bar.style.color = "#8a0000";
-  } else if (type === "ok") {
-    bar.style.background = "rgba(0,128,0,0.08)";
-    bar.style.color = "#0b5a0b";
-  } else if (type === "warn") {
-    bar.style.background = "rgba(255,165,0,0.10)";
-    bar.style.color = "#7a4b00";
-  } else {
-    bar.style.background = "rgba(0,0,0,0.05)";
-    bar.style.color = "#111";
-  }
-}
-
-function debounce(fn, ms) {
-  let t = null;
-  return function (...args) {
-    clearTimeout(t);
-    t = setTimeout(() => fn.apply(this, args), ms);
-  };
-}
-
-function clampTextLen(s, maxLen) {
-  const x = safeText(s);
-  if (x.length <= maxLen) return x;
-  return x.slice(0, maxLen);
-}
-
-function nowTs() {
-  return Date.now();
-}
-
-function sanitizeImageUrl(url) {
-  if (url === undefined || url === null) return "";
-  const u = safeText(url).trim();
-  if (!u) return "";
-  if (u.startsWith("https://") || u.startsWith("http://")) return u;
-  return "";
-}
-
-function bytesToHuman(n) {
-  try {
-    const x = Number(n || 0);
-    if (!x) return "0B";
-    if (x < 1024) return x + "B";
-    if (x < 1024 * 1024) return Math.round(x / 1024) + "KB";
-    return (Math.round((x / (1024 * 1024)) * 10) / 10) + "MB";
-  } catch (e) {
-    return "";
-  }
-}
-
-function isLikelyImageFile(file) {
-  try {
-    if (!file) return false;
-    const t = safeText(file.type || "").toLowerCase();
-    if (t.startsWith("image/")) return true;
-    const n = safeText(file.name || "").toLowerCase();
-    if (n.includes(".jpg") || n.includes(".jpeg") || n.includes(".png") || n.includes(".webp")) return true;
-    return false;
-  } catch (e) {
-    return false;
-  }
-}
-
-function copyToClipboard(text) {
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text);
+  try{
+    if(typeof firebase === "undefined" || !firebase || !firebase.initializeApp){
+      showInitErr("Firebase SDK לא נטען");
       return;
     }
-  } catch {}
-  const ta = document.createElement("textarea");
-  ta.value = safeText(text);
-  ta.style.position = "fixed";
-  ta.style.opacity = "0";
-  document.body.appendChild(ta);
-  ta.select();
-  try { document.execCommand("copy"); } catch {}
-  document.body.removeChild(ta);
-}
 
-/* =========================================================================================
-   MINI VIEWER (תצוגה מקדימה עם איקס) – לפוסט/תגובות/ריפלייז
-   ========================================================================================= */
-function openMiniViewer(url, hint) {
-  const overlay = document.getElementById("miniViewerOverlay");
-  const img = document.getElementById("miniViewerImg");
-  const closeBtn = document.getElementById("miniViewerClose");
-  const hintEl = document.getElementById("miniViewerHint");
+    if(firebase.apps && firebase.apps.length === 0){
+      // try known globals
+      var cfg = null;
+      if(typeof firebaseConfig !== "undefined" && firebaseConfig) cfg = firebaseConfig;
+      else if(typeof window.firebaseConfig !== "undefined" && window.firebaseConfig) cfg = window.firebaseConfig;
+      else if(typeof config !== "undefined" && config) cfg = config;
+      else if(typeof window.config !== "undefined" && window.config) cfg = window.config;
 
-  if (!overlay || !img) return;
-
-  const safe = sanitizeImageUrl(url);
-  if (!safe) return;
-
-  img.setAttribute("src", safe);
-  if (hintEl) hintEl.textContent = safeText(hint || "");
-  overlay.style.display = "flex";
-
-  if (closeBtn && !closeBtn.__bound) {
-    closeBtn.__bound = true;
-    closeBtn.addEventListener("click", function () {
-      overlay.style.display = "none";
-      img.setAttribute("src", "");
-      if (hintEl) hintEl.textContent = "";
-    });
-  }
-
-  if (!overlay.__bound) {
-    overlay.__bound = true;
-    overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) {
-        overlay.style.display = "none";
-        img.setAttribute("src", "");
-        if (hintEl) hintEl.textContent = "";
+      if(cfg){
+        firebase.initializeApp(cfg);
+      }else{
+        showInitErr("firebaseConfig.js נטען אבל בלי firebase.initializeApp וגם בלי אובייקט config גלובלי");
+        return;
       }
-    });
-  }
-}
-
-/* =========================================================================================
-   Robust FileReader fallback (לא חובה, אבל גיבוי אם ObjectURL לא זמין)
-   - זה כאן כדי להקטין "לא הצלחתי לקרוא את התמונה" בפועל.
-   ========================================================================================= */
-function readFileAsDataURLWithRetry(file, tries, done) {
-  try {
-    let left = Number(tries || 1);
-    if (left < 1) left = 1;
-
-    const attempt = function () {
-      try {
-        const r = new FileReader();
-        r.onerror = function () {
-          left--;
-          if (left <= 0) { done("", false); return; }
-          setTimeout(attempt, 160);
-        };
-        r.onload = function () {
-          const dataUrl = safeText(r.result || "");
-          if (!dataUrl || !dataUrl.startsWith("data:")) {
-            left--;
-            if (left <= 0) { done("", false); return; }
-            setTimeout(attempt, 160);
-            return;
-          }
-          done(dataUrl, true);
-        };
-        r.readAsDataURL(file);
-      } catch (e1) {
-        left--;
-        if (left <= 0) { done("", false); return; }
-        setTimeout(attempt, 160);
-      }
-    };
-
-    attempt();
-  } catch (e0) {
-    done("", false);
-  }
-}
-
-/* =========================================================================================
-   הצגת פוסט מה־sessionStorage (אם קיים) – טעינה מיידית (פיצ'ר נשמר)
-   + שדרוג: מציג גם תמונה אם קיימת בקאש
-   ========================================================================================= */
-(function showCachedPostIfExists() {
-  const cachedPost = sessionStorage.getItem("currentPost");
-  if (!cachedPost) return;
-
-  try {
-    const p = JSON.parse(cachedPost);
-    const host = document.getElementById("post");
-    if (!host) return;
-
-    const author = safeText(p.author || "");
-    const border = userColor(author);
-    const imgUrl = sanitizeImageUrl(p.image || "");
-
-    host.innerHTML = `
-      <div class="post post-user-border" style="border-right-color:${escapeHTML(border)};">
-        <h3>${escapeHTML(p.title || "")}</h3>
-        <p>${escapeHTML(p.text || "")}</p>
-        <small style="display:block; margin-top:6px;">מאת: ${escapeHTML(author)}</small>
-        ${imgUrl ? `
-          <div class="post-image-wrap">
-            <img class="post-image js-open-viewer" data-hint="תמונת הפוסט" src="${escapeHTML(imgUrl)}" alt="תמונה" />
-          </div>
-        ` : ``}
-      </div>
-    `;
-  } catch (e) {
-    sessionStorage.removeItem("currentPost");
+    }
+  }catch(e){
+    showInitErr("Init נכשל: " + (e && e.message ? e.message : e));
   }
 })();
 
-/* =========================================================================================
-   Main
-   ========================================================================================= */
-document.addEventListener("DOMContentLoaded", function () {
+/* =========================
+   CONFIG (paths)
+========================= */
+var ADMIN_PATH = "admins";
+var POSTS_PATH = "posts";
+var COMMENTS_PATH = "comments";
+var USERS_PATH = "users";
+var STORAGE_POST_FOLDER = "post-images";
+var MAX_REPLIES_DEPTH = 10;
 
-  /* ===============================
-     DOM Elements
-     =============================== */
-  const postContainer = document.getElementById("post");
-  const commentsBox = document.getElementById("comments");
+/* =========================
+   STATE
+========================= */
+var S = {
+  user:null,
+  uid:"",
+  isAdmin:false,
+  posts:[],
+  postsMap:{},
+  want:120,
+  busy:false,
+  current:{ type:"", path:"", postId:"", obj:null }
+};
 
-  const openMainBtn = document.getElementById("openMain");
-  const mainComposer = document.getElementById("mainComposer");
-  const mainText = document.getElementById("mainText");
-  const sendMainBtn = document.getElementById("sendMainBtn");
-  const closeMainBtn = document.getElementById("closeMainBtn");
-  const mainCharCount = document.getElementById("mainCharCount");
+/* =========================
+   HELPERS
+========================= */
+function el(id){ return document.getElementById(id); }
+function safe(v){ return (v===undefined||v===null) ? "" : String(v); }
+function num(v){ var n=Number(v||0); return isNaN(n)?0:n; }
+function escapeHtml(s){
+  s = safe(s);
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+          .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+}
+function pretty(v){ try{ return JSON.stringify(v,null,2); }catch(e){ return safe(v); } }
+function tryParseJson(txt){ try{ return {ok:true, v: JSON.parse(txt)}; }catch(e){ return {ok:false, e:e}; } }
+function fmtDate(ts){
+  try{ ts = num(ts); if(!ts) return "—"; return new Date(ts).toLocaleString("he-IL"); }
+  catch(e){ return "—"; }
+}
+function toast(msg,type){
+  var t = el("toast");
+  t.classList.remove("ok","warn","err");
+  if(type) t.classList.add(type);
+  t.textContent = msg || "";
+  t.style.display = "block";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ t.style.display="none"; }, 2300);
+}
+function pill(type,text){
+  var p = el("authPill"), t = el("authTxt");
+  p.classList.remove("ok","warn","err");
+  p.classList.add(type);
+  t.textContent = text || "";
+}
+function confirmDanger(msg){ return window.confirm("⚠️ " + msg + "\n\nהאם אתה בטוח?"); }
+function setBusy(flag){
+  S.busy = !!flag;
+  el("btnRefresh").disabled = S.busy;
+  el("btnFixAll").disabled = S.busy;
+  el("btnRename").disabled = S.busy;
+  el("btnLoadMore").disabled = S.busy;
+}
+function prog(pct, text){
+  pct = Math.max(0, Math.min(100, Math.round(Number(pct||0))));
+  el("progBar").style.width = pct + "%";
+  el("progTxt").textContent = text || (pct + "%");
+}
+function progReset(){
+  el("progBar").style.width = "0%";
+  el("progTxt").textContent = "—";
+}
 
-  const commentSearch = document.getElementById("commentSearch");
-  const commentSort = document.getElementById("commentSort");
-  const loadMoreCommentsBtn = document.getElementById("loadMoreComments");
+/* =========================
+   NAV
+========================= */
+function setActive(tab){
+  ["navPosts","navTools","navRename"].forEach(function(id){
+    el(id).classList.toggle("active", id===tab);
+  });
+  el("viewPosts").classList.toggle("hidden", tab!=="navPosts");
+  el("viewTools").classList.toggle("hidden", tab!=="navTools");
+  el("viewRename").classList.toggle("hidden", tab!=="navRename");
+}
+el("navPosts").onclick = function(){ setActive("navPosts"); };
+el("navTools").onclick = function(){ setActive("navTools"); };
+el("navRename").onclick = function(){ setActive("navRename"); };
 
-  /* ===============================
-     Comment image UI (NEW)
-     =============================== */
-  const mainCommentImageInput = document.getElementById("mainCommentImage");
-  const chooseMainCommentImageBtn = document.getElementById("chooseMainCommentImageBtn");
-  const removeMainCommentImageBtn = document.getElementById("removeMainCommentImageBtn");
-  const mainCommentPreviewWrap = document.getElementById("mainCommentPreviewWrap");
-  const mainCommentPreviewImg = document.getElementById("mainCommentPreviewImg");
-  const mainCommentImageMeta = document.getElementById("mainCommentImageMeta");
+/* =========================
+   AUTH + ADMIN CHECK
+========================= */
+function checkAdmin(uid){
+  return firebase.database().ref(ADMIN_PATH + "/" + uid).once("value").then(function(s){
+    var v = s.exists() ? s.val() : null;
+    return (v===true || v===1 || v==="true");
+  });
+}
 
-  /* ===============================
-     Edit post UI (NEW)
-     =============================== */
-  const editPostOverlay = document.getElementById("editPostOverlay");
-  const closeEditPostBtn = document.getElementById("closeEditPostBtn");
-  const cancelEditPostBtn = document.getElementById("cancelEditPostBtn");
-  const saveEditPostBtn = document.getElementById("saveEditPostBtn");
-  const editPostTitle = document.getElementById("editPostTitle");
-  const editPostText = document.getElementById("editPostText");
-  const editPostError = document.getElementById("editPostError");
+function login(){
+  var email = safe(el("loginEmail").value).trim();
+  var pass  = safe(el("loginPass").value);
+  if(!email || !pass){ toast("חסר אימייל/סיסמה","warn"); return; }
+  pill("warn","מתחבר…");
+  firebase.auth().signInWithEmailAndPassword(email, pass)
+    .catch(function(err){
+      pill("err","כשל התחברות");
+      toast("שגיאת התחברות: " + safe(err && err.message || err), "err");
+    });
+}
+function logout(){ firebase.auth().signOut(); }
 
-  /* ===============================
-     Guard
-     =============================== */
-  if (!postContainer || !commentsBox) {
-    location.replace("forbidden.html");
+el("btnLogin").onclick = login;
+el("btnLogout").onclick = logout;
+
+/* =========================
+   POSTS LOAD + FILTER/SORT
+========================= */
+function normalizePost(id, v){
+  v = v || {};
+  return {
+    id:id,
+    title: safe(v.title),
+    text: safe(v.text),
+    author: safe(v.author || v.username || v.user || v.name),
+    time: num(v.time),
+    likes: num(v.likes),
+    commentsCount: (v.commentsCount===undefined || v.commentsCount===null) ? null : num(v.commentsCount),
+    lastCommentTime: num(v.lastCommentTime),
+    imagePath: safe(v.imagePath || ""),
+    raw: v
+  };
+}
+
+function resetAndLoadPosts(){
+  if(!S.isAdmin) return;
+  S.want = num(el("limitSel").value || 120) || 120;
+  el("postsList").innerHTML = '<div class="mini muted">טוען…</div>';
+  loadPosts(S.want);
+}
+
+function loadPosts(want){
+  if(!S.isAdmin) return;
+  setBusy(true);
+
+  var sort = safe(el("sortSel").value || "newest");
+  var q = safe(el("qSearch").value).trim().toLowerCase();
+
+  return firebase.database().ref(POSTS_PATH).orderByChild("time").limitToLast(want).once("value")
+    .then(function(snap){
+      var arr = [];
+      snap.forEach(function(ch){ arr.push(normalizePost(ch.key, ch.val())); });
+
+      if(sort==="oldest"){
+        arr.sort(function(a,b){ return num(a.time)-num(b.time); });
+      }else if(sort==="comments"){
+        arr.sort(function(a,b){ return num(b.commentsCount)-num(a.commentsCount); });
+      }else if(sort==="lastComment"){
+        arr.sort(function(a,b){
+          var ta = num(a.lastCommentTime)||num(a.time);
+          var tb = num(b.lastCommentTime)||num(b.time);
+          return tb-ta;
+        });
+      }else{
+        arr.sort(function(a,b){ return num(b.time)-num(a.time); });
+      }
+
+      if(q){
+        arr = arr.filter(function(p){
+          var blob = (p.id+" "+p.title+" "+p.text+" "+p.author).toLowerCase();
+          return blob.indexOf(q)!==-1;
+        });
+      }
+
+      S.posts = arr;
+      S.postsMap = {};
+      arr.forEach(function(p){ S.postsMap[p.id]=p; });
+
+      el("badgePosts").textContent = "כמות: " + arr.length;
+      renderPosts();
+    })
+    .catch(function(err){
+      toast("שגיאה בטעינת פוסטים: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){ setBusy(false); });
+}
+
+function shorten(t,n){
+  t = safe(t);
+  if(t.length<=n) return t;
+  return t.slice(0,n) + "…";
+}
+
+function renderPosts(){
+  var host = el("postsList");
+  host.innerHTML = "";
+  if(!S.posts.length){
+    host.innerHTML = '<div class="mini muted">אין פוסטים בתצוגה.</div>';
     return;
   }
 
-  /* ===============================
-     PostId חובה
-     =============================== */
-  const postId = new URLSearchParams(location.search).get("postId");
-  if (!postId) {
-    location.replace("forbidden.html");
+  S.posts.forEach(function(p){
+    var cc = (p.commentsCount===null) ? "?" : String(num(p.commentsCount));
+    var lc = p.lastCommentTime ? fmtDate(p.lastCommentTime) : "—";
+
+    var card = document.createElement("div");
+    card.className = "post";
+    card.innerHTML = `
+      <div class="title wrapText">${escapeHtml(p.title || "(ללא כותרת)")}</div>
+      <div class="chips">
+        <span class="chip">ID: <b class="mono">${escapeHtml(p.id)}</b></span>
+        <span class="chip">מאת: <b class="wrapText">${escapeHtml(p.author || "—")}</b></span>
+        <span class="chip">זמן: <b>${escapeHtml(fmtDate(p.time))}</b></span>
+        <span class="chip">תגובות: <b class="mono">${escapeHtml(cc)}</b></span>
+        <span class="chip">אחרונה: <b>${escapeHtml(lc)}</b></span>
+      </div>
+      <div class="snippet wrapText">${escapeHtml(shorten(p.text, 180))}</div>
+      <div class="tools">
+        <button class="btn small" data-act="edit">✏️ ערוך</button>
+        <button class="btn small" data-act="comments">💬 תגובות</button>
+        <button class="btn small" data-act="recalc">🧮 תקן מונים</button>
+        <button class="btn small danger" data-act="delete">🗑 מחק</button>
+      </div>
+    `;
+
+    card.addEventListener("click", function(e){
+      var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
+      if(!b) return;
+      var act = b.getAttribute("data-act");
+      if(act==="edit") openPostEditor(p.id, false);
+      if(act==="comments") openPostEditor(p.id, true);
+      if(act==="recalc") recalcPostMeta(p.id, true);
+      if(act==="delete") deepDeletePost(p.id, true);
+    });
+
+    host.appendChild(card);
+  });
+}
+
+el("btnRefresh").onclick = function(){ resetAndLoadPosts(); };
+el("sortSel").onchange = function(){ resetAndLoadPosts(); };
+el("limitSel").onchange = function(){ resetAndLoadPosts(); };
+el("qSearch").oninput = function(){ renderPosts(); };
+el("btnLoadMore").onclick = function(){
+  S.want = S.want + (num(el("limitSel").value||120)||120);
+  loadPosts(S.want);
+};
+
+/* =========================
+   EDITOR SHEET
+========================= */
+function fieldInput(label, id, value, mono){
+  var wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <div class="mini">${escapeHtml(label)}</div>
+    <input id="${escapeHtml(id)}" class="in ${mono?'mono':''}" value="${escapeHtml(value||"")}">
+  `;
+  return wrap;
+}
+function fieldArea(label, id, value){
+  var wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <div class="mini">${escapeHtml(label)}</div>
+    <textarea id="${escapeHtml(id)}" class="in">${escapeHtml(value||"")}</textarea>
+  `;
+  return wrap;
+}
+
+function openSheet(title, path, type, postId, obj){
+  S.current = { type:type, path:path, postId:postId||"", obj:obj||{} };
+  el("sheetTitle").textContent = title;
+  el("sheetPath").textContent = "Path: " + path;
+  el("rawJson").value = pretty(obj||{});
+
+  var host = el("editorFields");
+  host.innerHTML = "";
+
+  if(type==="post"){
+    host.appendChild(fieldInput("כותרת", "f_title", safe(obj.title)));
+    host.appendChild(fieldArea("תוכן", "f_text", safe(obj.text)));
+    host.appendChild(fieldInput("מחבר", "f_author", safe(obj.author||obj.username||obj.user||obj.name)));
+    host.appendChild(fieldInput("time (timestamp)", "f_time", String(num(obj.time)), true));
+    host.appendChild(fieldInput("likes", "f_likes", String(num(obj.likes)), true));
+    host.appendChild(fieldInput("commentsCount", "f_commentsCount", (obj.commentsCount===undefined||obj.commentsCount===null)?"":String(num(obj.commentsCount)), true));
+    host.appendChild(fieldInput("lastCommentTime", "f_lastCommentTime", String(num(obj.lastCommentTime)), true));
+    host.appendChild(fieldInput("imagePath", "f_imagePath", safe(obj.imagePath||""), true));
+
+    el("commentsBox").classList.remove("hidden");
+    el("btnDeleteNode").textContent = "🗑 מחק פוסט (עמוק)";
+  }else{
+    host.appendChild(fieldInput("מחבר", "f_author", safe(obj.author||obj.username||obj.user||obj.name)));
+    host.appendChild(fieldArea("טקסט", "f_text", safe(obj.text||obj.body||obj.message)));
+    host.appendChild(fieldInput("time (timestamp)", "f_time", String(num(obj.time)), true));
+
+    el("commentsBox").classList.add("hidden");
+    el("btnDeleteNode").textContent = "🗑 מחק תגובה (עם ילדים)";
+  }
+
+  el("overlay").style.display = "flex";
+}
+
+function closeSheet(){
+  el("overlay").style.display = "none";
+  el("commentsWrap").innerHTML = "";
+  el("commentsBox").open = false;
+}
+
+el("btnCloseSheet").onclick = closeSheet;
+el("overlay").addEventListener("click", function(e){
+  if(e.target === el("overlay")) closeSheet();
+});
+
+/* =========================
+   POST EDIT
+========================= */
+function openPostEditor(postId, autoLoadComments){
+  var p = S.postsMap[postId];
+  if(!p){ toast("לא מצאתי פוסט בתצוגה","warn"); return; }
+  var path = POSTS_PATH + "/" + postId;
+  openSheet("✏️ עריכת פוסט", path, "post", postId, p.raw || {});
+  if(autoLoadComments){
+    el("commentsBox").open = true;
+    loadCommentsForPost(postId);
+  }
+}
+
+function openCommentEditor(path, postId, obj){
+  openSheet("✏️ עריכת תגובה", path, "comment", postId, obj||{});
+}
+
+/* SAVE FIELDS */
+el("btnSaveFields").onclick = function(){
+  if(!S.isAdmin) return;
+  var c = S.current;
+  if(!c.path) return;
+
+  if(c.type==="post"){
+    var up = {};
+    up[c.path + "/title"] = safe(el("f_title").value);
+    up[c.path + "/text"] = safe(el("f_text").value);
+    up[c.path + "/author"] = safe(el("f_author").value) || null;
+    up[c.path + "/time"] = num(el("f_time").value);
+    up[c.path + "/likes"] = num(el("f_likes").value);
+
+    var cc = safe(el("f_commentsCount").value).trim();
+    up[c.path + "/commentsCount"] = (cc==="" ? null : num(cc));
+
+    up[c.path + "/lastCommentTime"] = num(el("f_lastCommentTime").value);
+
+    var ip = safe(el("f_imagePath").value).trim();
+    up[c.path + "/imagePath"] = ip ? ip : null;
+
+    if(!confirmDanger("לשמור פוסט?")) return;
+
+    setBusy(true);
+    firebase.database().ref().update(up)
+      .then(function(){
+        toast("נשמר ✅","ok");
+        return resetAndLoadPosts();
+      })
+      .catch(function(err){
+        toast("שגיאה בשמירה: " + safe(err && err.message || err), "err");
+      })
+      .finally(function(){ setBusy(false); });
+  }else{
+    var author = safe(el("f_author").value);
+    var text = safe(el("f_text").value);
+    var time = num(el("f_time").value);
+
+    var up2 = {};
+    up2[c.path + "/author"] = author || null;
+    up2[c.path + "/username"] = author || null;
+    up2[c.path + "/user"] = author || null;
+    up2[c.path + "/name"] = author || null;
+
+    up2[c.path + "/text"] = text;
+    up2[c.path + "/body"] = text;
+    up2[c.path + "/message"] = text;
+
+    up2[c.path + "/time"] = time;
+
+    if(!confirmDanger("לשמור תגובה?")) return;
+
+    setBusy(true);
+    firebase.database().ref().update(up2)
+      .then(function(){
+        toast("תגובה נשמרה ✅","ok");
+        if(c.postId){
+          return recalcPostMeta(c.postId, false).then(function(){
+            return loadCommentsForPost(c.postId);
+          }).then(resetAndLoadPosts);
+        }
+        return resetAndLoadPosts();
+      })
+      .catch(function(err){
+        toast("שגיאה בשמירה: " + safe(err && err.message || err), "err");
+      })
+      .finally(function(){ setBusy(false); });
+  }
+};
+
+/* SAVE JSON (SET) */
+el("btnSaveJson").onclick = function(){
+  if(!S.isAdmin) return;
+  var c = S.current;
+  var parsed = tryParseJson(safe(el("rawJson").value));
+  if(!parsed.ok){ toast("JSON לא תקין","err"); return; }
+  if(!confirmDanger("לשמור JSON (SET)? זה מחליף הכל.")) return;
+
+  setBusy(true);
+  firebase.database().ref(c.path).set(parsed.v)
+    .then(function(){
+      toast("JSON נשמר ✅","ok");
+      if(c.type==="comment" && c.postId){
+        return recalcPostMeta(c.postId, false).then(function(){
+          return loadCommentsForPost(c.postId);
+        }).then(resetAndLoadPosts);
+      }
+      return resetAndLoadPosts();
+    })
+    .catch(function(err){
+      toast("שגיאה: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){ setBusy(false); });
+};
+
+/* DELETE */
+el("btnDeleteNode").onclick = function(){
+  if(!S.isAdmin) return;
+  var c = S.current;
+  if(!c.path) return;
+
+  if(c.type==="post"){
+    deepDeletePost(c.postId, false);
     return;
   }
 
-  /* =====================================================================================
-     Global State (למסך פוסט)
-     ===================================================================================== */
-  let payload = null;
-  let uid = null;
-  let username = "משתמש";
-  let isAuthed = false;
+  if(!confirmDanger("למחוק תגובה? כל הילדים שלה ימחקו אוטומטית.")) return;
 
-  // current post snapshot (needed for edit rules)
-  let currentPostObj = null; // {title,text,author,authorUid,time,image,lastCommentTime,...}
-  let canEditPostNow = false;
-
-  // מניעת דאבל-שליחות (תגובות / replies)
-  let mainSending = false;
-  const replySendingMap = Object.create(null);
-
-  // Comments cache (למיון/חיפוש בלי לשבור שום דבר)
-  let commentsCache = [];
-  let commentsRenderedHtml = "";
-  let commentsLimit = 200;          // שומר כמו שהיה
-  let commentsPagingStep = 200;     // שדרוג: "טען עוד"
-  let canLoadMore = false;
-
-  // Live listeners (שדרוג)
-  let liveCommentsRef = null;
-  let liveCommentsAttached = false;
-
-  // Replies UI cache
-  const repliesOpenState = Object.create(null);          // id => boolean
-  const repliesLiveRefs = Object.create(null);           // id => firebase ref
-  const repliesLiveAttached = Object.create(null);       // id => boolean
-
-  // Payload wait hard limit (מונע "טעינה אינסופית" ב-WebView תקול)
-  const PAYLOAD_MAX_MS = 12000; // 12s
-  const PAYLOAD_POLL_MS = 200;
-  const payloadStartAt = nowTs();
-
-  /* =====================================================================================
-     Image state (comment + reply)
-     - Strategy: preview via ObjectURL (כמעט בלי שגיאות)
-       upload via storage.put(file) (ללא FileReader)
-       fallback: putString(data_url) רק אם צריך
-     ===================================================================================== */
-  const MAX_IMG = 9 * 1024 * 1024; // 9MB
-
-  let mainCommentImageFile = null;
-  let mainCommentPreviewUrl = "";
-  let mainCommentPreviewCanRevoke = false;
-
-  function clearMainCommentImage(resetInput) {
-    try {
-      if (mainCommentPreviewUrl && mainCommentPreviewCanRevoke) {
-        try { URL.revokeObjectURL(mainCommentPreviewUrl); } catch {}
+  setBusy(true);
+  firebase.database().ref(c.path).remove()
+    .then(function(){
+      toast("תגובה נמחקה ✅","ok");
+      if(c.postId){
+        return recalcPostMeta(c.postId, false).then(function(){
+          return loadCommentsForPost(c.postId);
+        }).then(resetAndLoadPosts);
       }
-    } catch {}
-    mainCommentImageFile = null;
-    mainCommentPreviewUrl = "";
-    mainCommentPreviewCanRevoke = false;
+      return resetAndLoadPosts();
+    })
+    .catch(function(err){
+      toast("שגיאה במחיקה: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){ setBusy(false); });
+};
 
-    try {
-      if (mainCommentPreviewImg) mainCommentPreviewImg.setAttribute("src", "");
-      if (mainCommentPreviewWrap) mainCommentPreviewWrap.style.display = "none";
-      if (removeMainCommentImageBtn) removeMainCommentImageBtn.style.display = "none";
-      if (resetInput && mainCommentImageInput) mainCommentImageInput.value = "";
-      if (mainCommentImageMeta) mainCommentImageMeta.textContent = "פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 9MB.";
-    } catch {}
+/* =========================
+   COMMENTS TREE
+========================= */
+function pickRepliesContainers(v){
+  var arr = [];
+  if(v && typeof v==="object"){
+    if(v.replies && typeof v.replies==="object") arr.push({name:"replies", obj:v.replies});
+    if(v.reply && typeof v.reply==="object") arr.push({name:"reply", obj:v.reply});
+    if(v.responses && typeof v.responses==="object") arr.push({name:"responses", obj:v.responses});
+    if(v.children && typeof v.children==="object") arr.push({name:"children", obj:v.children});
+    if(v.subReplies && typeof v.subReplies==="object") arr.push({name:"subReplies", obj:v.subReplies});
   }
+  return arr;
+}
 
-  if (chooseMainCommentImageBtn && mainCommentImageInput) {
-    chooseMainCommentImageBtn.addEventListener("click", function () {
-      try {
-        mainCommentImageInput.value = "";
-        mainCommentImageInput.click();
-      } catch {}
-    });
-  }
+function loadCommentsForPost(postId){
+  el("commentsWrap").innerHTML = '<div class="mini muted">טוען תגובות…</div>';
 
-  if (removeMainCommentImageBtn) {
-    removeMainCommentImageBtn.addEventListener("click", function () {
-      clearMainCommentImage(true);
-    });
-  }
-
-  if (mainCommentImageInput) {
-    mainCommentImageInput.addEventListener("change", function () {
-      try {
-        const f = (mainCommentImageInput.files && mainCommentImageInput.files[0]) ? mainCommentImageInput.files[0] : null;
-        if (!f) return;
-
-        if (!isLikelyImageFile(f)) {
-          setStatus("קובץ לא נתמך. בחר תמונה (JPG/PNG/WebP).", "error");
-          clearMainCommentImage(true);
-          return;
-        }
-
-        if (Number(f.size || 0) > MAX_IMG) {
-          setStatus("התמונה גדולה מדי (" + bytesToHuman(f.size) + "). עד 9MB.", "error");
-          clearMainCommentImage(true);
-          return;
-        }
-
-        mainCommentImageFile = f;
-
-        // preview with ObjectURL (preferred)
-        try {
-          if (mainCommentPreviewUrl && mainCommentPreviewCanRevoke) {
-            try { URL.revokeObjectURL(mainCommentPreviewUrl); } catch {}
-          }
-        } catch {}
-
-        mainCommentPreviewUrl = "";
-        mainCommentPreviewCanRevoke = false;
-
-        try {
-          if (mainCommentImageMeta) mainCommentImageMeta.textContent = "נבחרה תמונה: " + safeText(f.name) + " (" + bytesToHuman(f.size) + ")";
-        } catch {}
-
-        let previewSet = false;
-        try {
-          if (window.URL && typeof URL.createObjectURL === "function") {
-            const u = URL.createObjectURL(f);
-            mainCommentPreviewUrl = u;
-            mainCommentPreviewCanRevoke = true;
-            if (mainCommentPreviewImg) mainCommentPreviewImg.setAttribute("src", u);
-            if (mainCommentPreviewWrap) mainCommentPreviewWrap.style.display = "block";
-            if (removeMainCommentImageBtn) removeMainCommentImageBtn.style.display = "inline-block";
-            previewSet = true;
-          }
-        } catch {}
-
-        // fallback to FileReader quietly (no noisy errors)
-        if (!previewSet) {
-          readFileAsDataURLWithRetry(f, 3, function (durl, ok) {
-            if (!ok) {
-              // לא מציגים "לא הצלחתי לקרוא" אגרסיבי – רק סטטוס עדין
-              setStatus("לא הצלחתי להציג תצוגה מקדימה, אבל אנסה להעלות כרגיל.", "warn");
-              return;
-            }
-            mainCommentPreviewUrl = durl;
-            mainCommentPreviewCanRevoke = false;
-            if (mainCommentPreviewImg) mainCommentPreviewImg.setAttribute("src", durl);
-            if (mainCommentPreviewWrap) mainCommentPreviewWrap.style.display = "block";
-            if (removeMainCommentImageBtn) removeMainCommentImageBtn.style.display = "inline-block";
-          });
-        }
-      } catch {}
-    });
-  }
-
-  /* =====================================================================================
-     Composer UX: ספירת תווים (שדרוג)
-     ===================================================================================== */
-  const MAIN_MAX = 800;
-  if (mainText && mainCharCount) {
-    const updateCount = () => {
-      const len = safeText(mainText.value).length;
-      mainCharCount.textContent = `${len}/${MAIN_MAX}`;
-    };
-    mainText.addEventListener("input", updateCount);
-    updateCount();
-  }
-
-  /* =====================================================================================
-     Bind composer buttons (feature נשמר)
-     ===================================================================================== */
-  openMainBtn.addEventListener("click", openMain);
-  closeMainBtn.addEventListener("click", closeMain);
-  sendMainBtn.addEventListener("click", sendMain);
-
-  function openMain() {
-    mainComposer.classList.remove("hidden");
-    openMainBtn.style.display = "none";
-
-    setTimeout(() => {
-      try { mainText.focus(); } catch {}
-      try {
-        mainComposer.scrollIntoView({ behavior: "smooth", block: "center" });
-      } catch {}
-    }, 50);
-  }
-
-  function closeMain() {
-    mainComposer.classList.add("hidden");
-    openMainBtn.style.display = "block";
-    mainText.value = "";
-    if (mainCharCount) mainCharCount.textContent = `0/${MAIN_MAX}`;
-
-    // reset image
-    clearMainCommentImage(true);
-  }
-
-  /* =====================================================================================
-     Search + Sort for comments (שדרוג - לא מבטל פיצ'ר)
-     ===================================================================================== */
-  if (commentSearch) {
-    commentSearch.addEventListener("input", debounce(() => {
-      renderCommentsFromCache();
-    }, 120));
-  }
-
-  if (commentSort) {
-    commentSort.addEventListener("change", () => {
-      renderCommentsFromCache();
-    });
-  }
-
-  if (loadMoreCommentsBtn) {
-    loadMoreCommentsBtn.addEventListener("click", () => {
-      commentsLimit += commentsPagingStep;
-      setStatus("טוען עוד תגובות…", "info");
-      loadComments(false, true);
-    });
-  }
-
-  /* =====================================================================================
-     Auth Flow Start
-     ===================================================================================== */
-  waitForPayload();
-
-  /* =====================================================================================
-     1️⃣ קבלת payload מקודולר
-     - עם Hard limit כדי שלא יהיו לופים אינסופיים
-     ===================================================================================== */
-  function waitForPayload() {
-    try {
-      const elapsed = nowTs() - payloadStartAt;
-      if (elapsed > PAYLOAD_MAX_MS) {
-        location.replace("forbidden.html");
+  return firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value")
+    .then(function(snap){
+      var obj = snap.exists() ? (snap.val()||{}) : {};
+      el("commentsWrap").innerHTML = "";
+      if(!obj || typeof obj!=="object" || !Object.keys(obj).length){
+        el("commentsWrap").innerHTML = '<div class="mini muted">אין תגובות לפוסט הזה.</div>';
         return;
       }
 
-      const raw = window.AppInventor.getWebViewString();
-      if (!raw) return setTimeout(waitForPayload, PAYLOAD_POLL_MS);
+      var keys = Object.keys(obj);
+      keys.sort(function(a,b){ return num((obj[a]||{}).time) - num((obj[b]||{}).time); });
 
-      payload = JSON.parse(raw);
-    } catch (e) {
-      return setTimeout(waitForPayload, PAYLOAD_POLL_MS);
-    }
-
-    login();
-  }
-
-  /* =====================================================================================
-     2️⃣ התחברות Firebase
-     ===================================================================================== */
-  function login() {
-    if (!payload || !payload.email || !payload.password || !payload.token) {
-      location.replace("forbidden.html");
-      return;
-    }
-
-    setStatus("מאמת התחברות…", "info");
-
-    firebase.auth()
-      .signInWithEmailAndPassword(payload.email, payload.password)
-      .then((cred) => {
-        uid = cred.user.uid;
-        return validateToken(uid, payload.token);
-      })
-      .then(() => fetchUsername(uid))
-      .then((name) => {
-        username = name || "משתמש";
-        isAuthed = true;
-
-        setStatus("מחובר כ־" + username, "ok");
-
-        // תמיד נטען פוסט מה-DB כדי לחשב הרשאות עריכה + תמונה + גבול צבע
-        loadPost();
-
-        // תגובות
-        loadComments(true, false);
-
-        // Live comments (שדרוג)
-        attachLiveComments();
-
-      })
-      .catch(() => {
-        location.replace("forbidden.html");
+      keys.forEach(function(cid){
+        var path = COMMENTS_PATH + "/" + postId + "/" + cid;
+        el("commentsWrap").appendChild(buildCommentNode(postId, cid, path, obj[cid], 0));
       });
-  }
-
-  /* =====================================================================================
-     3️⃣ אימות token
-     ===================================================================================== */
-  function validateToken(uid, token) {
-    return firebase.database()
-      .ref("sessions/" + uid + "/token")
-      .once("value")
-      .then((snap) => {
-        if (!snap.exists() || snap.val() !== token) {
-          location.replace("forbidden.html");
-          throw new Error("invalid token");
-        }
-      });
-  }
-
-  /* =====================================================================================
-     4️⃣ שליפת שם משתמש
-     ===================================================================================== */
-  function fetchUsername(uid) {
-    return firebase.database()
-      .ref("users/" + uid + "/username")
-      .once("value")
-      .then((snap) => snap.val());
-  }
-
-  /* =====================================================================================
-     5️⃣ טעינת פוסט מ־DB (מלא)
-     - כולל תמונה אם קיימת
-     - כולל גבול צבעוני לפי userColor(author)
-     - כולל כפתור עריכה עד 24 שעות (רק המחבר)
-     ===================================================================================== */
-  function loadPost() {
-    setStatus("טוען פוסט…", "info");
-
-    firebase.database()
-      .ref("posts/" + postId)
-      .once("value")
-      .then((snap) => {
-        if (!snap.exists()) {
-          postContainer.innerHTML = "<p>הפוסט לא נמצא.</p>";
-          setStatus("הפוסט לא נמצא.", "error");
-          return;
-        }
-
-        const p = snap.val() || {};
-        currentPostObj = p;
-
-        const author = safeText(p.author || "");
-        const authorUid = safeText(p.authorUid || ""); // אם קיים בעתיד
-        const postTime = Number(p.time || 0);
-        const imgUrl = sanitizeImageUrl(p.image || "");
-
-        // מי המחבר? (תומך גם authorUid אם קיים, אחרת לפי username)
-        const isOwner = (authorUid && uid && authorUid === uid) || (!!author && author === username);
-
-        // עד 24 שעות
-        const DAY_MS = 24 * 60 * 60 * 1000;
-        const withinDay = postTime ? ((nowTs() - postTime) <= DAY_MS) : false;
-        canEditPostNow = !!(isOwner && withinDay);
-
-        // צבע גבול
-        const border = userColor(author);
-
-        // שמירה ל-cache לניווט חזרה (feature נשמר, עם תמונה)
-        try {
-          sessionStorage.setItem("currentPost", JSON.stringify({
-            id: postId,
-            title: safeText(p.title || ""),
-            text: safeText(p.text || ""),
-            author: author || "",
-            image: imgUrl || ""
-          }));
-        } catch {}
-
-        // פעולות פוסט: copy/share/report + edit (אם מותר)
-        postContainer.innerHTML = `
-          <div class="post post-user-border" style="border-right-color:${escapeHTML(border)};">
-            <h3>${escapeHTML(p.title || "")}</h3>
-            <p>${escapeHTML(p.text || "")}</p>
-
-            <small style="display:block; margin-top:6px; color:${escapeHTML(border)};">
-              מאת: ${escapeHTML(author)}
-            </small>
-
-            <small style="opacity:.75; margin-top:6px; display:block;">
-              ${escapeHTML(fmtDateTime(postTime || 0))}
-            </small>
-
-            ${imgUrl ? `
-              <div class="post-image-wrap">
-                <img class="post-image js-open-viewer"
-                     data-hint="תמונת הפוסט"
-                     src="${escapeHTML(imgUrl)}"
-                     alt="תמונה" />
-              </div>
-            ` : ``}
-
-            
-
-              ${canEditPostNow ? `
-                <button type="button" class="post-action" data-action="editPost"
-                  style="padding:8px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;font-weight:bold;">
-                  ערוך פוסט
-                </button>
-              ` : ``}
-            </div>
-          </div>
-        `;
-
-        bindPostActions();
-
-        setStatus("פוסט נטען.", "ok");
-      })
-      .catch(() => {
-        postContainer.innerHTML = "<p>שגיאה בטעינת הפוסט.</p>";
-        setStatus("שגיאה בטעינת הפוסט.", "error");
-      });
-  }
-
-  /* =====================================================================================
-     Post action buttons (שדרוג)
-     ===================================================================================== */
-  function bindPostActions() {
-    if (postContainer.__actionsBound) return;
-    postContainer.__actionsBound = true;
-
-    postContainer.addEventListener("click", (e) => {
-      const btn = e.target.closest(".post-action");
-      if (!btn) return;
-
-      const action = btn.getAttribute("data-action");
-      if (!action) return;
-
-      if (action === "copyLink") {
-        const link = location.href;
-        copyToClipboard(link);
-        setStatus("הקישור הועתק.", "ok");
-      }
-
-      if (action === "share") {
-        const link = location.href;
-        tryShareOrCopy(link);
-      }
-
-      if (action === "report") {
-        reportPost();
-      }
-
-      if (action === "editPost") {
-        openEditPostModal();
-      }
-    }, false);
-  }
-
-  function tryShareOrCopy(text) {
-    try {
-      if (navigator.share) {
-        navigator.share({ title: "פורום", text: "קישור לפוסט:", url: text })
-          .then(() => setStatus("שותף.", "ok"))
-          .catch(() => {
-            copyToClipboard(text);
-            setStatus("אין שיתוף מובנה. העתקתי קישור.", "ok");
-          });
-      } else {
-        copyToClipboard(text);
-        setStatus("אין שיתוף מובנה. העתקתי קישור.", "ok");
-      }
-    } catch {
-      copyToClipboard(text);
-      setStatus("הועתק קישור.", "ok");
-    }
-  }
-
-  /* =====================================================================================
-     Report post (שדרוג)
-     - נשאר, כי ביקשת לבטל רק דיווח על תגובות
-     ===================================================================================== */
-  function reportPost() {
-    if (!isAuthed || !uid) {
-      setStatus("לא מאומת. לא ניתן לדווח.", "error");
-      return;
-    }
-
-    const reportObj = {
-      type: "post",
-      postId: postId,
-      reporterUid: uid,
-      reporterName: username,
-      time: nowTs(),
-      reason: "report"
-    };
-
-    firebase.database()
-      .ref("reports")
-      .push(reportObj)
-      .then(() => setStatus("דווח בהצלחה. תודה.", "ok"))
-      .catch(() => setStatus("שגיאה בדיווח.", "error"));
-  }
-
-  /* =====================================================================================
-     EDIT POST (NEW) – עד 24 שעות, רק המחבר
-     ===================================================================================== */
-  function editPostErrorShow(msg) {
-    if (!editPostError) return;
-    editPostError.textContent = msg;
-    editPostError.style.display = "block";
-  }
-  function editPostErrorHide() {
-    if (!editPostError) return;
-    editPostError.textContent = "";
-    editPostError.style.display = "none";
-  }
-
-  function openEditPostModal() {
-    if (!canEditPostNow) {
-      setStatus("אין הרשאה לערוך (רק המחבר ועד 24 שעות).", "error");
-      return;
-    }
-    editPostErrorHide();
-
-    const t = safeText((currentPostObj && currentPostObj.title) ? currentPostObj.title : "");
-    const x = safeText((currentPostObj && currentPostObj.text) ? currentPostObj.text : "");
-
-    if (editPostTitle) editPostTitle.value = t;
-    if (editPostText) editPostText.value = x;
-
-    if (editPostOverlay) editPostOverlay.style.display = "flex";
-    setTimeout(() => { try { editPostTitle && editPostTitle.focus(); } catch {} }, 50);
-  }
-
-  function closeEditPostModal() {
-    editPostErrorHide();
-    if (editPostOverlay) editPostOverlay.style.display = "none";
-  }
-
-  if (closeEditPostBtn) closeEditPostBtn.addEventListener("click", closeEditPostModal);
-  if (cancelEditPostBtn) cancelEditPostBtn.addEventListener("click", closeEditPostModal);
-
-  if (editPostOverlay) {
-    editPostOverlay.addEventListener("click", function (e) {
-      if (e.target === editPostOverlay) closeEditPostModal();
+    })
+    .catch(function(err){
+      el("commentsWrap").innerHTML = '<div class="mini muted wrapText">שגיאה: '+escapeHtml(safe(err && err.message || err))+'</div>';
     });
-  }
+}
 
-  if (saveEditPostBtn) {
-    saveEditPostBtn.addEventListener("click", function () {
-      editPostErrorHide();
+function buildCommentNode(postId, key, path, data, depth){
+  data = data || {};
+  var author = safe(data.author || data.username || data.user || data.name || "—");
+  var text = safe(data.text || data.body || data.message || "");
+  var time = num(data.time);
 
-      if (!isAuthed || !uid) {
-        editPostErrorShow("לא מאומת. נסה שוב.");
-        return;
-      }
-      if (!canEditPostNow) {
-        editPostErrorShow("אין הרשאה לערוך (רק המחבר ועד 24 שעות).");
-        return;
-      }
-
-      const title = safeText(editPostTitle ? editPostTitle.value : "").trim();
-      const text = safeText(editPostText ? editPostText.value : "").trim();
-
-      if (title.length < 3) { editPostErrorShow("כותרת קצרה מדי. מינימום 3 תווים."); return; }
-      if (text.length < 3) { editPostErrorShow("תוכן קצר מדי. מינימום 3 תווים."); return; }
-
-      setStatus("שומר עריכה…", "info");
-      saveEditPostBtn.disabled = true;
-
-      // Selective update: רק title/text (לא משנים time, לא נוגעים באבטחה)
-      firebase.database()
-        .ref("posts/" + postId)
-        .update({
-          title: title,
-          text: text
-        })
-        .then(() => {
-          setStatus("הפוסט עודכן.", "ok");
-          closeEditPostModal();
-          // רענון פוסט ל-UI + cache
-          loadPost();
-        })
-        .catch(() => {
-          editPostErrorShow("שגיאה בשמירת העריכה. נסה שוב.");
-          setStatus("שגיאה בשמירת העריכה.", "error");
-        })
-        .finally(() => {
-          saveEditPostBtn.disabled = false;
-        });
-    });
-  }
-
-  /* =====================================================================================
-     6️⃣ טעינת תגובות (עם cache + שדרוגים)
-     ===================================================================================== */
-  function loadComments(isFirst = false, isLoadMore = false) {
-    if (!isAuthed) return;
-
-    if (isFirst) {
-      commentsBox.innerHTML = "<div class='loader'></div>";
-    }
-
-    const limit = Math.max(1, Number(commentsLimit || 200));
-
-    firebase.database()
-      .ref("comments/" + postId)
-      .orderByChild("time")
-      .limitToLast(limit)
-      .once("value")
-      .then((snap) => {
-        const items = [];
-        snap.forEach((cSnap) => {
-          const v = cSnap.val() || {};
-          items.push({
-            id: cSnap.key,
-            text: safeText(v.text),
-            author: safeText(v.author),
-            authorUid: safeText(v.authorUid || ""),
-            time: Number(v.time || 0),
-            image: sanitizeImageUrl(v.image || "")
-          });
-        });
-
-        canLoadMore = items.length >= limit;
-        if (loadMoreCommentsBtn) {
-          loadMoreCommentsBtn.style.display = canLoadMore ? "inline-block" : "none";
-        }
-
-        commentsCache = items;
-
-        renderCommentsFromCache();
-
-        if (isLoadMore) {
-          setStatus("נטענו עוד תגובות.", "ok");
-        } else if (isFirst) {
-          setStatus("תגובות נטענו.", "ok");
-        }
-      })
-      .catch(() => {
-        commentsBox.innerHTML = "<p>שגיאה בטעינת תגובות.</p>";
-        setStatus("שגיאה בטעינת תגובות.", "error");
-      });
-  }
-
-  /* =====================================================================================
-     Render comments from cache (חיפוש + מיון)
-     ===================================================================================== */
-  function renderCommentsFromCache() {
-    const q = safeText(commentSearch?.value).trim().toLowerCase();
-    const mode = safeText(commentSort?.value) || "newest";
-
-    let list = commentsCache.slice();
-
-    if (q) {
-      list = list.filter((c) => {
-        const t = (c.text || "").toLowerCase();
-        const a = (c.author || "").toLowerCase();
-        const hasImg = c.image ? "תמונה" : "";
-        return t.includes(q) || a.includes(q) || hasImg.includes(q);
-      });
-    }
-
-    if (mode === "oldest") {
-      list.sort((a, b) => (a.time || 0) - (b.time || 0));
-    } else if (mode === "author") {
-      list.sort((a, b) => (a.author || "").localeCompare(b.author || "", "he"));
-    } else {
-      list.sort((a, b) => (b.time || 0) - (a.time || 0));
-    }
-
-    if (list.length === 0) {
-      commentsBox.innerHTML = q ? "<p>לא נמצאו תוצאות.</p>" : "<p>אין תגובות עדיין.</p>";
-      commentsRenderedHtml = commentsBox.innerHTML;
-      return;
-    }
-
-    commentsBox.innerHTML = "";
-    for (const c of list) {
-      renderComment(c.id, c);
-    }
-
-    commentsRenderedHtml = commentsBox.innerHTML;
-  }
-
-  /* =====================================================================================
-     7️⃣ Render single comment
-     - בוטל דיווח על תגובות: הכפתור הוחלף ב"ערוך" (למחבר)
-     - תמונה לתגובה (תצוגה קטנה) אם קיימת
-     ===================================================================================== */
-  function canEditItem(author, authorUid, itemTime) {
-    try {
-      const a = safeText(author || "");
-      const au = safeText(authorUid || "");
-      const t = Number(itemTime || 0) || 0;
-
-      const isOwner = (au && uid && au === uid) || (!!a && a === username);
-      const DAY_MS = 24 * 60 * 60 * 1000;
-      const withinDay = t ? ((nowTs() - t) <= DAY_MS) : false;
-
-      return !!(isOwner && withinDay);
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function renderComment(id, c) {
-    const color = userColor(c.author);
-    const canEdit = canEditItem(c.author, c.authorUid, c.time);
-
-    const div = document.createElement("div");
-    div.className = "comment";
-    div.style.borderRightColor = color;
-    div.setAttribute("data-comment-id", id);
-
-    const imgUrl = sanitizeImageUrl(c.image || "");
-
-    div.innerHTML = `
-      <div class="comment-meta">
-        <span class="comment-author">${escapeHTML(c.author || "")}</span>
-        <span class="comment-time">${escapeHTML(fmtTime(c.time || 0))}</span>
+  var box = document.createElement("div");
+  box.className = "cNode" + (depth>0 ? " indent" : "");
+  box.innerHTML = `
+    <div class="cHead">
+      <div class="cMeta">
+        <span class="chip">key: <b class="mono">${escapeHtml(key)}</b></span>
+        <span class="chip">מאת: <b class="wrapText">${escapeHtml(author)}</b></span>
+        <span class="chip">זמן: <b>${escapeHtml(time?fmtDate(time):"—")}</b></span>
       </div>
-
-      <p class="comment-text" id="comment-text-${escapeHTML(id)}">${escapeHTML(c.text || "")}</p>
-
-      ${imgUrl ? `
-        <img class="mini-image js-open-viewer"
-             data-hint="תמונה בתגובה"
-             src="${escapeHTML(imgUrl)}"
-             alt="תמונה" />
-      ` : ``}
-
-      <div class="comment-actions" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-        <button type="button" class="btn-reply" data-action="openReply" data-id="${escapeHTML(id)}">השב</button>
-
-        <span class="reply-count"
-              id="reply-count-${escapeHTML(id)}"
-              data-action="toggleReplies"
-              data-id="${escapeHTML(id)}"
-              style="cursor:pointer; user-select:none;">
-          טוען תגובות…
-        </span>
-
-        <button type="button"
-                class="btn-copy"
-                data-action="copyComment"
-                data-id="${escapeHTML(id)}"
-                style="padding:6px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;">
-          העתק
-        </button>
-
-        ${canEdit ? `
-          <button type="button"
-                  class="btn-edit"
-                  data-action="editComment"
-                  data-id="${escapeHTML(id)}"
-                  style="padding:6px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;font-weight:bold;">
-            ערוך
-          </button>
-        ` : ``}
-
-        <!-- DISABLED: reporting comments per request (kept for length) -->
-        <!--
-        <button type="button"
-                class="btn-report"
-                data-action="reportComment"
-                data-id="${escapeHTML(id)}"
-                style="padding:6px 10px;border-radius:10px;border:1px solid rgba(255,0,0,0.35);background:rgba(255,0,0,0.06);cursor:pointer;">
-          דווח
-        </button>
-        -->
+      <div class="tools">
+        <button class="btn small" data-act="edit">✏️</button>
+        <button class="btn small danger" data-act="del">🗑</button>
       </div>
+    </div>
+    <div class="cText wrapText">${escapeHtml(text)}</div>
+  `;
 
-      <div class="replies hidden" id="replies-${escapeHTML(id)}"></div>
-    `;
-
-    commentsBox.appendChild(div);
-
-    updateReplyCount(id);
-  }
-
-  /* =====================================================================================
-     Delegation for comment actions (יציב ב-WebView)
-     + שדרוג: פתיחת viewer על תמונות
-     ===================================================================================== */
-  (function bindCommentDelegation() {
-    if (commentsBox.__delegationBound) return;
-    commentsBox.__delegationBound = true;
-
-    commentsBox.addEventListener("click", (e) => {
-
-      // open viewer for any image with .js-open-viewer
-      try {
-        const img = e.target.closest(".js-open-viewer");
-        if (img) {
-          const src = img.getAttribute("src") || "";
-          const hint = img.getAttribute("data-hint") || "";
-          openMiniViewer(src, hint);
-          return;
-        }
-      } catch {}
-
-      const el = e.target.closest("[data-action]");
-      if (!el) return;
-
-      const action = el.getAttribute("data-action");
-      const id = el.getAttribute("data-id");
-      if (!action || !id) return;
-
-      if (action === "openReply") {
-        openReply(id);
-      }
-
-      if (action === "toggleReplies") {
-        toggleReplies(id);
-      }
-
-      if (action === "copyComment") {
-        const commentNode = el.closest(".comment");
-        const textNode = commentNode ? commentNode.querySelector(".comment-text") : null;
-        const txt = textNode ? textNode.innerText : "";
-        copyToClipboard(txt);
-        setStatus("התגובה הועתקה.", "ok");
-      }
-
-      if (action === "editComment") {
-        beginInlineEditComment(id);
-      }
-
-      // DISABLED per request (kept for length)
-      if (action === "reportComment") {
-        // reportComment(id);
-      }
-
-    }, false);
-  })();
-
-  /* =====================================================================================
-     Replies feature – נשמר + משודרג
-     - ריפליי גם יכול לכלול תמונה (כמו תגובה) + עריכה במקום דיווח
-     - חשוב: ריפליי לא נספר ב-count של תגובות לפוסט (זה נשאר ב-forum)
-     ===================================================================================== */
-
-  window.updateReplyCount = updateReplyCount;
-  window.toggleReplies = toggleReplies;
-  window.openReply = openReply;
-  window.sendReply = sendReply;
-
-  function updateReplyCount(id) {
-    if (!isAuthed) return;
-
-    firebase.database()
-      .ref("replies/" + postId + "/" + id)
-      .once("value")
-      .then((s) => {
-        const el = document.getElementById("reply-count-" + id);
-        if (!el) return;
-        const count = s.numChildren();
-        el.textContent = count ? `${count} תגובות ▾` : "אין תגובות";
-      })
-      .catch(() => {});
-  }
-
-  function toggleReplies(id) {
-    const box = document.getElementById("replies-" + id);
-    if (!box) return;
-
-    const isOpen = !box.classList.contains("hidden");
-
-    if (isOpen) {
-      box.classList.add("hidden");
-      repliesOpenState[id] = false;
-      detachRepliesLive(id);
-      return;
+  box.addEventListener("click", function(e){
+    var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
+    if(!b) return;
+    var act = b.getAttribute("data-act");
+    if(act==="edit"){
+      openCommentEditor(path, postId, data);
     }
-
-    box.classList.remove("hidden");
-    repliesOpenState[id] = true;
-
-    box.innerHTML = "<div class='loader'></div>";
-
-    firebase.database()
-      .ref("replies/" + postId + "/" + id)
-      .orderByChild("time")
-      .limitToLast(200)
-      .once("value")
-      .then((s) => {
-        let html = "";
-
-        if (!s.exists()) {
-          html = `
-            <div style="padding:10px 0; opacity:.75;">
-              אין תגובות עדיין. תהיה הראשון.
-            </div>
-          `;
-        } else {
-          const arr = [];
-          s.forEach((r) => {
-            const d = r.val() || {};
-            arr.push({
-              rid: r.key,
-              author: safeText(d.author),
-              authorUid: safeText(d.authorUid || ""),
-              text: safeText(d.text),
-              time: Number(d.time || 0),
-              image: sanitizeImageUrl(d.image || "")
-            });
-          });
-
-          arr.sort((a, b) => (a.time || 0) - (b.time || 0));
-
-          for (const d of arr) {
-            html += buildReplyHTML(id, d);
-          }
-        }
-
-        html += buildReplyComposerHTML(id);
-
-        box.innerHTML = html;
-
-        attachRepliesLive(id);
-        updateReplyCount(id);
-      })
-      .catch(() => {
-        box.innerHTML = "<p>שגיאה בטעינת תגובות-על-תגובה.</p>";
-      });
-  }
-
-  function buildReplyHTML(commentId, d) {
-    const c = userColor(d.author);
-    const canEdit = canEditItem(d.author, d.authorUid, d.time);
-    const imgUrl = sanitizeImageUrl(d.image || "");
-
-    return `
-      <div class="reply" data-reply-id="${escapeHTML(d.rid || "")}" style="
-        border-right: 4px solid ${escapeHTML(c)};
-        padding:10px 10px;
-        margin:10px 0;
-        border-radius:10px;
-        background: rgba(0,0,0,0.03);
-      ">
-        <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
-          <b style="color:${escapeHTML(c)};">${escapeHTML(d.author || "")}</b>
-          <small style="opacity:.75;">${escapeHTML(fmtTime(d.time || 0))}</small>
-        </div>
-
-        <p class="reply-text" id="reply-text-${escapeHTML(commentId)}-${escapeHTML(d.rid || "")}" style="margin:8px 0 0 0;">
-          ${escapeHTML(d.text || "")}
-        </p>
-
-        ${imgUrl ? `
-          <img class="mini-image js-open-viewer"
-               data-hint="תמונה בריפליי"
-               src="${escapeHTML(imgUrl)}"
-               alt="תמונה" />
-        ` : ``}
-
-        <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-          <button type="button"
-                  data-reply-action="copyReply"
-                  data-comment-id="${escapeHTML(commentId)}"
-                  data-reply-id="${escapeHTML(d.rid || "")}"
-                  style="padding:6px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;">
-            העתק
-          </button>
-
-          ${canEdit ? `
-            <button type="button"
-                    data-reply-action="editReply"
-                    data-comment-id="${escapeHTML(commentId)}"
-                    data-reply-id="${escapeHTML(d.rid || "")}"
-                    style="padding:6px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;font-weight:bold;">
-              ערוך
-            </button>
-          ` : ``}
-
-          <!-- DISABLED: reporting replies per request (kept for length) -->
-          <!--
-          <button type="button"
-                  data-reply-action="reportReply"
-                  data-comment-id="${escapeHTML(commentId)}"
-                  data-reply-id="${escapeHTML(d.rid || "")}"
-                  style="padding:6px 10px;border-radius:10px;border:1px solid rgba(255,0,0,0.35);background:rgba(255,0,0,0.06);cursor:pointer;">
-            דווח
-          </button>
-          -->
-        </div>
-      </div>
-    `;
-  }
-
-  function buildReplyComposerHTML(commentId) {
-    return `
-      <div class="reply-composer" style="
-        margin-top:12px;
-        padding:12px;
-        border-radius:12px;
-        border:1px solid rgba(0,0,0,0.10);
-        background:#fff;
-      ">
-        <div style="font-weight:bold; margin-bottom:8px;">הוסף תגובה לתגובה</div>
-
-        <textarea id="reply-textarea-${escapeHTML(commentId)}"
-                  placeholder="כתוב תגובה..."
-                  maxlength="600"
-                  rows="3"
-                  style="
-                    width:100%;
-                    box-sizing:border-box;
-                    padding:10px 12px;
-                    border-radius:10px;
-                    border:1px solid rgba(0,0,0,0.15);
-                    outline:none;
-                    resize:vertical;
-                  "></textarea>
-
-        <!-- =====================================================================================
-             REPLY IMAGE (NEW) – תמונה לריפליי (אופציונלי)
-             ===================================================================================== -->
-        <div style="
-          margin-top:10px;
-          border:1px solid rgba(0,0,0,0.10);
-          border-radius:14px;
-          padding:12px;
-          background: rgba(0,0,0,0.02);
-        ">
-          <div class="img-actions-row">
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <div style="font-weight:bold;">תמונה לריפליי (אופציונלי)</div>
-              <div style="font-size:12px; opacity:.75;">פורמטים נתמכים: JPG/PNG/WebP. מומלץ עד 9MB.</div>
-            </div>
-
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <button type="button"
-                      class="img-btn img-btn-primary"
-                      data-reply-action="chooseReplyImage"
-                      data-id="${escapeHTML(commentId)}">בחר תמונה</button>
-
-              <button type="button"
-                      class="img-btn img-btn-danger"
-                      data-reply-action="removeReplyImage"
-                      data-id="${escapeHTML(commentId)}"
-                      style="display:none;"
-                      id="reply-remove-img-${escapeHTML(commentId)}">הסר תמונה</button>
-            </div>
-          </div>
-
-          <input id="reply-image-${escapeHTML(commentId)}" type="file" accept="image/*" style="display:none;" />
-
-          <div id="reply-preview-wrap-${escapeHTML(commentId)}" style="display:none;">
-            <div class="img-preview">
-              <img id="reply-preview-img-${escapeHTML(commentId)}" alt="תצוגה מקדימה" src="" />
-            </div>
-          </div>
-        </div>
-
-        <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-          <small style="opacity:.75;">מקסימום 600 תווים.</small>
-          <div style="display:flex; gap:10px;">
-            <button type="button"
-                    class="reply-send-btn"
-                    data-reply-action="sendReply"
-                    data-id="${escapeHTML(commentId)}"
-                    style="
-                      padding:8px 12px;
-                      border-radius:10px;
-                      border:none;
-                      background: rgb(17,17,87);
-                      color:#fff;
-                      cursor:pointer;
-                      font-weight:bold;
-                    ">שלח</button>
-            <button type="button"
-                    class="reply-close-btn"
-                    data-reply-action="closeReplies"
-                    data-id="${escapeHTML(commentId)}"
-                    style="
-                      padding:8px 12px;
-                      border-radius:10px;
-                      border:1px solid rgba(0,0,0,0.15);
-                      background:#fff;
-                      cursor:pointer;
-                      font-weight:bold;
-                    ">סגור</button>
-          </div>
-        </div>
-
-        <div id="reply-error-${escapeHTML(commentId)}" style="
-          display:none;
-          margin-top:10px;
-          padding:10px 12px;
-          border-radius:12px;
-          background: rgba(255,0,0,0.08);
-          color:#8a0000;
-          font-size:13px;
-        "></div>
-      </div>
-    `;
-  }
-
-  // Reply image state per commentId
-  const replyImageState = Object.create(null); // commentId => {file, previewUrl, canRevoke}
-
-  function initReplyImageState(commentId) {
-    const id = safeText(commentId || "");
-    if (!id) return;
-    if (!replyImageState[id]) {
-      replyImageState[id] = { file: null, previewUrl: "", canRevoke: false };
-    }
-  }
-
-  function clearReplyImage(commentId, resetInput) {
-    initReplyImageState(commentId);
-    const st = replyImageState[commentId];
-
-    try {
-      if (st.previewUrl && st.canRevoke) {
-        try { URL.revokeObjectURL(st.previewUrl); } catch {}
-      }
-    } catch {}
-
-    st.file = null;
-    st.previewUrl = "";
-    st.canRevoke = false;
-
-    try {
-      const img = document.getElementById("reply-preview-img-" + commentId);
-      const wrap = document.getElementById("reply-preview-wrap-" + commentId);
-      const inp = document.getElementById("reply-image-" + commentId);
-      const rm = document.getElementById("reply-remove-img-" + commentId);
-
-      if (img) img.setAttribute("src", "");
-      if (wrap) wrap.style.display = "none";
-      if (rm) rm.style.display = "none";
-      if (resetInput && inp) inp.value = "";
-    } catch {}
-  }
-
-  /* =====================================================================================
-     Delegation בתוך replies containers (שדרוג יציבות)
-     + עריכה לריפליי
-     + תמונות לריפליי
-     ===================================================================================== */
-  (function bindRepliesDelegation() {
-    if (commentsBox.__repliesDelegationBound) return;
-    commentsBox.__repliesDelegationBound = true;
-
-    commentsBox.addEventListener("click", (e) => {
-      const a = e.target.closest("[data-reply-action]");
-      if (!a) return;
-
-      const act = a.getAttribute("data-reply-action");
-      const cid = a.getAttribute("data-id") || a.getAttribute("data-comment-id");
-      const rid = a.getAttribute("data-reply-id");
-
-      if (!act || !cid) return;
-
-      if (act === "sendReply") {
-        sendReply(cid);
-      }
-
-      if (act === "closeReplies") {
-        toggleReplies(cid);
-      }
-
-      if (act === "copyReply") {
-        const replyNode = a.closest(".reply");
-        const p = replyNode ? replyNode.querySelector(".reply-text") : null;
-        const txt = p ? p.innerText : "";
-        copyToClipboard(txt);
-        setStatus("התגובה-על-תגובה הועתקה.", "ok");
-      }
-
-      if (act === "editReply") {
-        if (!rid) return;
-        beginInlineEditReply(cid, rid);
-      }
-
-      if (act === "chooseReplyImage") {
-        initReplyImageState(cid);
-        try {
-          const inp = document.getElementById("reply-image-" + cid);
-          if (inp) {
-            inp.value = "";
-            inp.click();
-          }
-        } catch {}
-      }
-
-      if (act === "removeReplyImage") {
-        clearReplyImage(cid, true);
-      }
-
-      // DISABLED per request (kept for length)
-      if (act === "reportReply") {
-        // if (!rid) return;
-        // reportReply(cid, rid);
-      }
-
-    }, false);
-
-    // change handler for each reply image input (event delegation is hard for change)
-    // solution: attach when replies open (selective & safe)
-  })();
-
-  function bindReplyImageInput(commentId) {
-    try {
-      const inp = document.getElementById("reply-image-" + commentId);
-      if (!inp || inp.__bound) return;
-      inp.__bound = true;
-
-      inp.addEventListener("change", function () {
-        try {
-          const f = (inp.files && inp.files[0]) ? inp.files[0] : null;
-          if (!f) return;
-
-          if (!isLikelyImageFile(f)) {
-            replyErrorShow(commentId, "קובץ לא נתמך. בחר תמונה (JPG/PNG/WebP).");
-            clearReplyImage(commentId, true);
-            return;
-          }
-
-          if (Number(f.size || 0) > MAX_IMG) {
-            replyErrorShow(commentId, "התמונה גדולה מדי (" + bytesToHuman(f.size) + "). עד 9MB.");
-            clearReplyImage(commentId, true);
-            return;
-          }
-
-          initReplyImageState(commentId);
-          const st = replyImageState[commentId];
-          st.file = f;
-
-          // cleanup preview
-          try {
-            if (st.previewUrl && st.canRevoke) { try { URL.revokeObjectURL(st.previewUrl); } catch {} }
-          } catch {}
-          st.previewUrl = "";
-          st.canRevoke = false;
-
-          const img = document.getElementById("reply-preview-img-" + commentId);
-          const wrap = document.getElementById("reply-preview-wrap-" + commentId);
-          const rm = document.getElementById("reply-remove-img-" + commentId);
-
-          let previewSet = false;
-          try {
-            if (window.URL && typeof URL.createObjectURL === "function") {
-              const u = URL.createObjectURL(f);
-              st.previewUrl = u;
-              st.canRevoke = true;
-              if (img) img.setAttribute("src", u);
-              if (wrap) wrap.style.display = "block";
-              if (rm) rm.style.display = "inline-block";
-              previewSet = true;
-            }
-          } catch {}
-
-          if (!previewSet) {
-            readFileAsDataURLWithRetry(f, 3, function (durl, ok) {
-              if (!ok) {
-                replyErrorShow(commentId, "לא הצלחתי להציג תצוגה מקדימה, אבל אנסה להעלות כרגיל.");
-                return;
-              }
-              st.previewUrl = durl;
-              st.canRevoke = false;
-              if (img) img.setAttribute("src", durl);
-              if (wrap) wrap.style.display = "block";
-              if (rm) rm.style.display = "inline-block";
-            });
-          }
-
-        } catch {}
-      });
-    } catch {}
-  }
-
-  function openReply(id) {
-    const box = document.getElementById("replies-" + id);
-    if (!box) return;
-
-    if (box.classList.contains("hidden")) {
-      toggleReplies(id);
-      setTimeout(() => {
-        const ta = document.getElementById("reply-textarea-" + id);
-        try { ta && ta.focus(); } catch {}
-      }, 150);
-      return;
-    }
-
-    const ta = document.getElementById("reply-textarea-" + id);
-    try { ta && ta.focus(); } catch {}
-  }
-
-  function replyErrorShow(commentId, msg) {
-    const el = document.getElementById("reply-error-" + commentId);
-    if (!el) return;
-    el.textContent = msg;
-    el.style.display = "block";
-  }
-
-  function replyErrorHide(commentId) {
-    const el = document.getElementById("reply-error-" + commentId);
-    if (!el) return;
-    el.textContent = "";
-    el.style.display = "none";
-  }
-
-  /* =====================================================================================
-     Upload helpers (storage.put preferred, fallback to putString)
-     ===================================================================================== */
-  function uploadImageToStorage(file, storagePath, onProgress) {
-    return new Promise(function (resolve, reject) {
-      try {
-        if (!file || !storagePath) { reject("missing"); return; }
-
-        const ref = firebase.storage().ref(storagePath);
-        let task = null;
-
-        try {
-          task = ref.put(file);
-        } catch (ePut) {
-          task = null;
-        }
-
-        if (task) {
-          task.on("state_changed",
-            function (snap) {
-              try {
-                if (!snap) return;
-                const bytes = Number(snap.bytesTransferred || 0);
-                const total = Number(snap.totalBytes || 0);
-                if (total > 0) {
-                  const pct = Math.round((bytes / total) * 100);
-                  if (typeof onProgress === "function") onProgress(pct);
-                }
-              } catch {}
-            },
-            function (err) { reject(err); },
-            function () {
-              task.snapshot.ref.getDownloadURL()
-                .then(function (url) { resolve(url); })
-                .catch(function (e) { reject(e); });
-            }
-          );
-          return;
-        }
-
-        // fallback: data_url upload (only if put(file) isn't available)
-        readFileAsDataURLWithRetry(file, 3, function (durl, ok) {
-          if (!ok) { reject("read_failed"); return; }
-
-          const task2 = ref.putString(durl, "data_url");
-          task2.on("state_changed",
-            function (snap) {
-              try {
-                if (!snap) return;
-                const bytes = Number(snap.bytesTransferred || 0);
-                const total = Number(snap.totalBytes || 0);
-                if (total > 0) {
-                  const pct = Math.round((bytes / total) * 100);
-                  if (typeof onProgress === "function") onProgress(pct);
-                }
-              } catch {}
-            },
-            function (err) { reject(err); },
-            function () {
-              task2.snapshot.ref.getDownloadURL()
-                .then(function (url) { resolve(url); })
-                .catch(function (e) { reject(e); });
-            }
-          );
-        });
-
-      } catch (e0) {
-        reject(e0);
-      }
-    });
-  }
-
-  /* =====================================================================================
-     CRITICAL: Update lastCommentTime for forum sort (includes replies)
-     - זה מה שגורם לפוסט לקפוץ במיון "תגובה אחרונה" בפורום
-     - לא נוגע בספירת תגובות (commentsCount נשאר רק לתגובות, לא לריפלייז)
-     ===================================================================================== */
-  function bumpPostLastCommentTime(ts) {
-    try {
-      const t = Number(ts || 0) || nowTs();
-      firebase.database().ref("posts/" + postId + "/lastCommentTime").set(t);
-    } catch {}
-  }
-
-  function incrementPostCommentsCount() {
-    try {
-      // count ONLY comments (not replies) => aligns with your request
-      firebase.database().ref("posts/" + postId + "/commentsCount").transaction(function (cur) {
-        const x = Number(cur || 0) || 0;
-        return x + 1;
-      });
-    } catch {}
-  }
-
-  /* =====================================================================================
-     Send reply (now supports optional image + bumps lastCommentTime)
-     ===================================================================================== */
-  function sendReply(commentId) {
-    if (!isAuthed) return;
-
-    const ta = document.getElementById("reply-textarea-" + commentId);
-    if (!ta) return;
-
-    replyErrorHide(commentId);
-
-    const raw = safeText(ta.value).trim();
-    if (!raw && !(replyImageState[commentId] && replyImageState[commentId].file)) {
-      replyErrorShow(commentId, "כתוב משהו או צרף תמונה.");
-      return;
-    }
-
-    if (replySendingMap[commentId]) return;
-    replySendingMap[commentId] = true;
-
-    const text = clampTextLen(raw, 600);
-    const replyRef = firebase.database().ref("replies/" + postId + "/" + commentId).push();
-    const replyId = replyRef.key;
-
-    const st = replyImageState[commentId] ? replyImageState[commentId] : null;
-    const file = st && st.file ? st.file : null;
-
-    const finishWrite = function (imageUrl) {
-      const obj = {
-        text: text,
-        author: username,
-        time: nowTs(),
-        authorUid: uid || ""
-      };
-      if (imageUrl) obj.image = sanitizeImageUrl(imageUrl);
-
-      return replyRef.set(obj);
-    };
-
-    // if image: upload first
-    let chain = Promise.resolve("");
-
-    if (file) {
-      if (!isLikelyImageFile(file) || Number(file.size || 0) > MAX_IMG) {
-        replyErrorShow(commentId, "התמונה לא תקינה או גדולה מדי. בחר מחדש.");
-        clearReplyImage(commentId, true);
-        replySendingMap[commentId] = false;
-        return;
-      }
-
-      const ext = safeText(file.name || "").includes(".") ? safeText(file.name).split(".").pop().toLowerCase() : "jpg";
-      const name = nowTs() + "_" + (uid || "u") + "." + (ext || "jpg");
-      const path = "reply-images/" + postId + "/" + commentId + "/" + replyId + "/" + name;
-
-      setStatus("מעלה תמונה לריפליי…", "info");
-
-      chain = uploadImageToStorage(file, path, function () {})
-        .then(function (url) {
-          setStatus("שומר ריפליי…", "info");
-          return url;
-        });
-    }
-
-    chain
-      .then(function (url) {
-        return finishWrite(url || "");
-      })
-      .then(() => {
-        ta.value = "";
-        clearReplyImage(commentId, true);
-
-        updateReplyCount(commentId);
-
-        // THIS is the key for forum sorting:
-        bumpPostLastCommentTime(nowTs());
-
-        // refresh open box gently
-        if (repliesOpenState[commentId]) {
-          toggleReplies(commentId);
-          setTimeout(() => toggleReplies(commentId), 50);
-        }
-
-        setStatus("נשלח ריפליי.", "ok");
-      })
-      .catch(() => {
-        replyErrorShow(commentId, "שגיאה בשליחה. נסה שוב.");
-        setStatus("שגיאה בשליחה.", "error");
-      })
-      .finally(() => {
-        replySendingMap[commentId] = false;
-      });
-  }
-
-  /* =====================================================================================
-     Main comment send (כולל תמונה) + bump lastCommentTime + increment commentsCount
-     ===================================================================================== */
-  function sendMain() {
-    if (!isAuthed) return;
-
-    const raw = safeText(mainText.value).trim();
-
-    if (!raw && !mainCommentImageFile) {
-      setStatus("כתוב תגובה או צרף תמונה.", "warn");
-      return;
-    }
-
-    if (mainSending) return;
-    mainSending = true;
-
-    sendMainBtn.disabled = true;
-
-    const text = clampTextLen(raw, MAIN_MAX);
-
-    const commentRef = firebase.database().ref("comments/" + postId).push();
-    const commentId = commentRef.key;
-
-    const finishWrite = function (imageUrl) {
-      const obj = {
-        text: text,
-        author: username,
-        time: nowTs(),
-        authorUid: uid || ""
-      };
-      if (imageUrl) obj.image = sanitizeImageUrl(imageUrl);
-
-      return commentRef.set(obj);
-    };
-
-    let chain = Promise.resolve("");
-
-    if (mainCommentImageFile) {
-      const f = mainCommentImageFile;
-
-      if (!isLikelyImageFile(f) || Number(f.size || 0) > MAX_IMG) {
-        setStatus("התמונה לא תקינה או גדולה מדי. בחר מחדש.", "error");
-        clearMainCommentImage(true);
-        sendMainBtn.disabled = false;
-        mainSending = false;
-        return;
-      }
-
-      const ext = safeText(f.name || "").includes(".") ? safeText(f.name).split(".").pop().toLowerCase() : "jpg";
-      const name = nowTs() + "_" + (uid || "u") + "." + (ext || "jpg");
-      const path = "comment-images/" + postId + "/" + commentId + "/" + name;
-
-      setStatus("מעלה תמונה לתגובה…", "info");
-
-      chain = uploadImageToStorage(f, path, function () {})
-        .then(function (url) {
-          setStatus("שומר תגובה…", "info");
-          return url;
-        });
-    }
-
-    chain
-      .then(function (url) {
-        return finishWrite(url || "");
-      })
-      .then(() => {
-        closeMain();
-
-        // key for forum sorting:
-        bumpPostLastCommentTime(nowTs());
-
-        // count ONLY comments (not replies)
-        incrementPostCommentsCount();
-
-        // keep existing behavior
-        loadComments(false, false);
-        setStatus("תגובה נשלחה.", "ok");
-      })
-      .catch(() => {
-        setStatus("שגיאה בשליחת תגובה.", "error");
-      })
-      .finally(() => {
-        mainSending = false;
-        sendMainBtn.disabled = false;
-      });
-  }
-
-  /* =====================================================================================
-     Inline edit – COMMENT (NEW)
-     ===================================================================================== */
-  function beginInlineEditComment(commentId) {
-    try {
-      const cid = safeText(commentId || "");
-      if (!cid) return;
-
-      // find comment in cache to validate permission
-      const c = commentsCache.find(x => x.id === cid);
-      if (!c) return;
-
-      if (!canEditItem(c.author, c.authorUid, c.time)) {
-        setStatus("אין הרשאה לערוך תגובה (רק המחבר ועד 24 שעות).", "error");
-        return;
-      }
-
-      const commentNode = commentsBox.querySelector('.comment[data-comment-id="' + cid + '"]');
-      if (!commentNode) return;
-
-      // avoid duplicate editor
-      if (commentNode.querySelector(".inline-edit-box")) return;
-
-      const textEl = commentNode.querySelector(".comment-text");
-      const oldText = textEl ? safeText(textEl.innerText || "") : safeText(c.text || "");
-
-      const box = document.createElement("div");
-      box.className = "inline-edit-box";
-      box.innerHTML = `
-        <div style="font-weight:bold; margin-bottom:8px;">עריכת תגובה</div>
-        <textarea id="edit-comment-ta-${escapeHTML(cid)}" rows="4" maxlength="800">${escapeHTML(oldText)}</textarea>
-        <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-          <small style="opacity:.75;">מקסימום 800 תווים.</small>
-          <div style="display:flex; gap:10px;">
-            <button type="button" data-inline-action="saveCommentEdit" data-id="${escapeHTML(cid)}"
-              style="padding:8px 12px;border-radius:10px;border:none;background:rgb(17,17,87);color:#fff;cursor:pointer;font-weight:bold;">שמור</button>
-            <button type="button" data-inline-action="cancelCommentEdit" data-id="${escapeHTML(cid)}"
-              style="padding:8px 12px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;font-weight:bold;">ביטול</button>
-          </div>
-        </div>
-        <div id="edit-comment-err-${escapeHTML(cid)}" style="display:none;margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,0,0,0.08);color:#8a0000;font-size:13px;"></div>
-      `;
-
-      commentNode.appendChild(box);
-
-      setTimeout(() => {
-        try {
-          const ta = document.getElementById("edit-comment-ta-" + cid);
-          ta && ta.focus();
-        } catch {}
-      }, 50);
-
-    } catch {}
-  }
-
-  /* =====================================================================================
-     Inline edit – REPLY (NEW)
-     ===================================================================================== */
-  function beginInlineEditReply(commentId, replyId) {
-    try {
-      const cid = safeText(commentId || "");
-      const rid = safeText(replyId || "");
-      if (!cid || !rid) return;
-
-      // find reply node
-      const repliesBox = document.getElementById("replies-" + cid);
-      if (!repliesBox) return;
-
-      // locate reply
-      const replyNode = repliesBox.querySelector('.reply[data-reply-id="' + rid + '"]');
-      if (!replyNode) return;
-
-      // avoid duplicate editor
-      if (replyNode.querySelector(".inline-edit-box")) return;
-
-      // permission: fetch reply once (selective)
-      firebase.database()
-        .ref("replies/" + postId + "/" + cid + "/" + rid)
-        .once("value")
-        .then((snap) => {
-          if (!snap.exists()) return;
-
-          const d = snap.val() || {};
-          const author = safeText(d.author || "");
-          const authorUid = safeText(d.authorUid || "");
-          const t = Number(d.time || 0);
-
-          if (!canEditItem(author, authorUid, t)) {
-            setStatus("אין הרשאה לערוך ריפליי (רק המחבר ועד 24 שעות).", "error");
-            return;
-          }
-
-          const textEl = replyNode.querySelector(".reply-text");
-          const oldText = textEl ? safeText(textEl.innerText || "") : safeText(d.text || "");
-
-          const box = document.createElement("div");
-          box.className = "inline-edit-box";
-          box.innerHTML = `
-            <div style="font-weight:bold; margin-bottom:8px;">עריכת ריפליי</div>
-            <textarea id="edit-reply-ta-${escapeHTML(cid)}-${escapeHTML(rid)}" rows="4" maxlength="600">${escapeHTML(oldText)}</textarea>
-            <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-              <small style="opacity:.75;">מקסימום 600 תווים.</small>
-              <div style="display:flex; gap:10px;">
-                <button type="button" data-inline-action="saveReplyEdit" data-comment-id="${escapeHTML(cid)}" data-reply-id="${escapeHTML(rid)}"
-                  style="padding:8px 12px;border-radius:10px;border:none;background:rgb(17,17,87);color:#fff;cursor:pointer;font-weight:bold;">שמור</button>
-                <button type="button" data-inline-action="cancelReplyEdit" data-comment-id="${escapeHTML(cid)}" data-reply-id="${escapeHTML(rid)}"
-                  style="padding:8px 12px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;font-weight:bold;">ביטול</button>
-              </div>
-            </div>
-            <div id="edit-reply-err-${escapeHTML(cid)}-${escapeHTML(rid)}" style="display:none;margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,0,0,0.08);color:#8a0000;font-size:13px;"></div>
-          `;
-
-          replyNode.appendChild(box);
-
-          setTimeout(() => {
-            try {
-              const ta = document.getElementById("edit-reply-ta-" + cid + "-" + rid);
-              ta && ta.focus();
-            } catch {}
-          }, 50);
-
+    if(act==="del"){
+      if(!confirmDanger("למחוק תגובה? הילדים שלה ימחקו אוטומטית.")) return;
+      setBusy(true);
+      firebase.database().ref(path).remove()
+        .then(function(){
+          toast("נמחק ✅","ok");
+          return recalcPostMeta(postId, false).then(function(){
+            return loadCommentsForPost(postId);
+          }).then(resetAndLoadPosts);
         })
-        .catch(() => {});
-    } catch {}
-  }
-
-  /* =====================================================================================
-     Inline edit delegation (comment + reply)
-     ===================================================================================== */
-  (function bindInlineEditDelegation() {
-    if (commentsBox.__inlineEditBound) return;
-    commentsBox.__inlineEditBound = true;
-
-    commentsBox.addEventListener("click", function (e) {
-      const el = e.target.closest("[data-inline-action]");
-      if (!el) return;
-
-      const act = el.getAttribute("data-inline-action");
-
-      if (act === "cancelCommentEdit") {
-        const id = el.getAttribute("data-id");
-        const node = commentsBox.querySelector('.comment[data-comment-id="' + id + '"]');
-        if (!node) return;
-        const box = node.querySelector(".inline-edit-box");
-        if (box) box.remove();
-      }
-
-      if (act === "saveCommentEdit") {
-        const id = el.getAttribute("data-id");
-        const ta = document.getElementById("edit-comment-ta-" + id);
-        const err = document.getElementById("edit-comment-err-" + id);
-        if (!ta) return;
-
-        const newText = safeText(ta.value).trim();
-        if (newText.length < 1) {
-          if (err) { err.style.display = "block"; err.textContent = "הטקסט ריק."; }
-          return;
-        }
-
-        // permission re-check (selective)
-        const c = commentsCache.find(x => x.id === id);
-        if (!c || !canEditItem(c.author, c.authorUid, c.time)) {
-          setStatus("אין הרשאה לערוך תגובה.", "error");
-          return;
-        }
-
-        setStatus("שומר עריכת תגובה…", "info");
-
-        firebase.database()
-          .ref("comments/" + postId + "/" + id)
-          .update({ text: clampTextLen(newText, 800) })
-          .then(() => {
-            setStatus("התגובה עודכנה.", "ok");
-            // local cache update
-            const idx = commentsCache.findIndex(x => x.id === id);
-            if (idx !== -1) commentsCache[idx].text = clampTextLen(newText, 800);
-            renderCommentsFromCache();
-          })
-          .catch(() => {
-            if (err) { err.style.display = "block"; err.textContent = "שגיאה בשמירה. נסה שוב."; }
-            setStatus("שגיאה בשמירה.", "error");
-          });
-      }
-
-      if (act === "cancelReplyEdit") {
-        const cid = el.getAttribute("data-comment-id");
-        const rid = el.getAttribute("data-reply-id");
-        const box = commentsBox.querySelector('.reply[data-reply-id="' + rid + '"] .inline-edit-box');
-        if (box) box.remove();
-      }
-
-      if (act === "saveReplyEdit") {
-        const cid = el.getAttribute("data-comment-id");
-        const rid = el.getAttribute("data-reply-id");
-        const ta = document.getElementById("edit-reply-ta-" + cid + "-" + rid);
-        const err = document.getElementById("edit-reply-err-" + cid + "-" + rid);
-        if (!ta) return;
-
-        const newText = safeText(ta.value).trim();
-        if (newText.length < 1) {
-          if (err) { err.style.display = "block"; err.textContent = "הטקסט ריק."; }
-          return;
-        }
-
-        setStatus("שומר עריכת ריפליי…", "info");
-
-        // permission re-check by read (selective)
-        firebase.database()
-          .ref("replies/" + postId + "/" + cid + "/" + rid)
-          .once("value")
-          .then((snap) => {
-            if (!snap.exists()) throw new Error("missing");
-            const d = snap.val() || {};
-            if (!canEditItem(d.author, d.authorUid, d.time)) throw new Error("no_perm");
-
-            return firebase.database()
-              .ref("replies/" + postId + "/" + cid + "/" + rid)
-              .update({ text: clampTextLen(newText, 600) });
-          })
-          .then(() => {
-            setStatus("הריפליי עודכן.", "ok");
-            // refresh replies box gently
-            if (repliesOpenState[cid]) {
-              toggleReplies(cid);
-              setTimeout(() => toggleReplies(cid), 50);
-            }
-          })
-          .catch(() => {
-            if (err) { err.style.display = "block"; err.textContent = "שגיאה בשמירה או אין הרשאה."; }
-            setStatus("שגיאה בשמירה.", "error");
-          });
-      }
-
-    }, false);
-  })();
-
-  /* =====================================================================================
-     Live comments (שדרוג)
-     - תומך גם בתמונה לשינויים/הוספות
-     ===================================================================================== */
-  function attachLiveComments() {
-    if (liveCommentsAttached) return;
-    liveCommentsAttached = true;
-
-    liveCommentsRef = firebase.database()
-      .ref("comments/" + postId)
-      .orderByChild("time")
-      .limitToLast(50);
-
-    liveCommentsRef.on("child_added", (snap) => {
-      const id = snap.key;
-      const v = snap.val() || {};
-
-      if (commentsCache.some((x) => x.id === id)) return;
-
-      commentsCache.push({
-        id,
-        text: safeText(v.text),
-        author: safeText(v.author),
-        authorUid: safeText(v.authorUid || ""),
-        time: Number(v.time || 0),
-        image: sanitizeImageUrl(v.image || "")
-      });
-
-      renderCommentsFromCache();
-    });
-
-    liveCommentsRef.on("child_changed", (snap) => {
-      const id = snap.key;
-      const v = snap.val() || {};
-
-      const idx = commentsCache.findIndex((x) => x.id === id);
-      if (idx === -1) return;
-
-      commentsCache[idx] = {
-        ...commentsCache[idx],
-        text: safeText(v.text),
-        author: safeText(v.author),
-        authorUid: safeText(v.authorUid || commentsCache[idx].authorUid || ""),
-        time: Number(v.time || commentsCache[idx].time || 0),
-        image: sanitizeImageUrl(v.image || commentsCache[idx].image || "")
-      };
-
-      renderCommentsFromCache();
-    });
-  }
-
-  /* =====================================================================================
-     Live replies (רק כשהתיבה פתוחה)
-     + bind reply image input on open
-     ===================================================================================== */
-  function attachRepliesLive(commentId) {
-    if (repliesLiveAttached[commentId]) return;
-    repliesLiveAttached[commentId] = true;
-
-    // ensure reply image input is bound for this open box
-    bindReplyImageInput(commentId);
-
-    const ref = firebase.database()
-      .ref("replies/" + postId + "/" + commentId)
-      .orderByChild("time")
-      .limitToLast(25);
-
-    repliesLiveRefs[commentId] = ref;
-
-    ref.on("child_added", (snap) => {
-      if (!repliesOpenState[commentId]) return;
-
-      updateReplyCount(commentId);
-
-      const box = document.getElementById("replies-" + commentId);
-      if (!box) return;
-
-      const active = document.activeElement;
-      const isTypingHere = active && active.id === ("reply-textarea-" + commentId);
-      if (isTypingHere) return;
-
-      try {
-        box.classList.add("hidden");
-        repliesOpenState[commentId] = false;
-        toggleReplies(commentId);
-      } catch {}
-    });
-  }
-
-  function detachRepliesLive(commentId) {
-    try {
-      const ref = repliesLiveRefs[commentId];
-      if (ref) ref.off();
-    } catch {}
-    repliesLiveRefs[commentId] = null;
-    repliesLiveAttached[commentId] = false;
-  }
-
-  /* =====================================================================================
-     DISABLED: Report comment / reply (per request)
-     - kept as code (length) but not used
-     ===================================================================================== */
-  function reportComment(commentId) {
-    // DISABLED
-    // if (!isAuthed || !uid) { setStatus("לא מאומת. לא ניתן לדווח.", "error"); return; }
-    // firebase.database().ref("reports").push({ type:"comment", postId, commentId, reporterUid:uid, reporterName:username, time:nowTs(), reason:"report" })
-    //   .then(() => setStatus("דווח בהצלחה.", "ok"))
-    //   .catch(() => setStatus("שגיאה בדיווח.", "error"));
-  }
-
-  function reportReply(commentId, replyId) {
-    // DISABLED
-    // if (!isAuthed || !uid) { setStatus("לא מאומת. לא ניתן לדווח.", "error"); return; }
-    // firebase.database().ref("reports").push({ type:"reply", postId, commentId, replyId, reporterUid:uid, reporterName:username, time:nowTs(), reason:"report" })
-    //   .then(() => setStatus("דווח בהצלחה.", "ok"))
-    //   .catch(() => setStatus("שגיאה בדיווח.", "error"));
-  }
-
-  /* =====================================================================================
-     Cleanup on unload (שדרוג יציבות)
-     ===================================================================================== */
-  window.addEventListener("beforeunload", () => {
-    try {
-      if (liveCommentsRef) liveCommentsRef.off();
-    } catch {}
-    liveCommentsAttached = false;
-
-    for (const k in repliesLiveRefs) {
-      try {
-        if (repliesLiveRefs[k]) repliesLiveRefs[k].off();
-      } catch {}
+        .catch(function(err){
+          toast("שגיאה: "+safe(err && err.message || err), "err");
+        })
+        .finally(function(){ setBusy(false); });
     }
   });
 
-});
-</script>
+  if(depth < MAX_REPLIES_DEPTH){
+    pickRepliesContainers(data).forEach(function(cn){
+      var o = cn.obj || {};
+      var rKeys = Object.keys(o);
+      if(!rKeys.length) return;
 
+      rKeys.sort(function(a,b){ return num((o[a]||{}).time) - num((o[b]||{}).time); });
+      rKeys.forEach(function(rid){
+        var childPath = path + "/" + cn.name + "/" + rid;
+        box.appendChild(buildCommentNode(postId, rid, childPath, o[rid], depth+1));
+      });
+    });
+  }
+  return box;
+}
+
+/* =========================
+   META RECALC + FIX ALL
+========================= */
+function computeMetaFromCommentsObj(obj){
+  var countTop = 0;
+  var lastTime = 0;
+
+  function walk(node, depth){
+    if(!node || typeof node!=="object") return;
+    var t = num(node.time);
+    if(t>lastTime) lastTime = t;
+
+    if(depth<=0) return;
+    pickRepliesContainers(node).forEach(function(cn){
+      var o = cn.obj || {};
+      Object.keys(o).forEach(function(k){ walk(o[k], depth-1); });
+    });
+  }
+
+  if(obj && typeof obj==="object"){
+    var keys = Object.keys(obj);
+    countTop = keys.length;
+    keys.forEach(function(cid){ walk(obj[cid], MAX_REPLIES_DEPTH); });
+  }
+
+  return { commentsCount: countTop, lastCommentTime: lastTime };
+}
+
+function recalcPostMeta(postId, showToast){
+  if(showToast) toast("מתקן מונים…","warn");
+  return firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value")
+    .then(function(snap){
+      var obj = snap.exists() ? (snap.val()||{}) : {};
+      var meta = computeMetaFromCommentsObj(obj);
+
+      var up = {};
+      up[POSTS_PATH + "/" + postId + "/commentsCount"] = num(meta.commentsCount);
+      up[POSTS_PATH + "/" + postId + "/lastCommentTime"] = num(meta.lastCommentTime);
+
+      return firebase.database().ref().update(up).then(function(){
+        if(showToast) toast("מונים עודכנו ✅","ok");
+      });
+    })
+    .catch(function(err){
+      toast("שגיאה בתיקון מונים: " + safe(err && err.message || err), "err");
+    });
+}
+
+function fixAllPosts(){
+  if(!S.isAdmin) return;
+  if(!confirmDanger("“עשה סדר” ירוץ על הרבה פוסטים (מוגבל ל-300). להמשיך?")) return;
+
+  setBusy(true);
+  progReset();
+  el("toolsMsg").textContent = "טוען פוסטים…";
+  prog(2,"טוען רשימת פוסטים…");
+
+  var HARD_LIMIT = 300;
+
+  firebase.database().ref(POSTS_PATH).orderByChild("time").limitToLast(HARD_LIMIT).once("value")
+    .then(function(snap){
+      var ids = [];
+      snap.forEach(function(ch){ ids.push(ch.key); });
+
+      if(!ids.length){
+        el("toolsMsg").textContent = "אין פוסטים לתקן.";
+        toast("אין פוסטים לתקן","warn");
+        return;
+      }
+
+      el("toolsMsg").textContent = "מתחיל… ("+ids.length+")";
+      var i=0;
+
+      function step(){
+        if(i>=ids.length){
+          prog(100,"סיום ✅");
+          el("toolsMsg").textContent = "סיימתי “עשה סדר” על " + ids.length + " פוסטים.";
+          toast("סיימתי ✅","ok");
+          return resetAndLoadPosts();
+        }
+        var pct = Math.round((i/ids.length)*100);
+        prog(pct, "מתקן ("+(i+1)+"/"+ids.length+")");
+        el("toolsMsg").textContent = "פוסט: " + ids[i];
+
+        recalcPostMeta(ids[i], false).finally(function(){
+          i++;
+          setTimeout(step, 25);
+        });
+      }
+      step();
+    })
+    .catch(function(err){
+      el("toolsMsg").textContent = "שגיאה: " + safe(err && err.message || err);
+      toast("שגיאה בעשה-סדר: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){ setBusy(false); });
+}
+el("btnFixAll").onclick = fixAllPosts;
+
+/* =========================
+   DEEP DELETE POST
+========================= */
+function deepDeletePost(postId, closeSheetAfter){
+  if(!postId) return;
+  if(!confirmDanger("למחוק פוסט עמוק?\nposts/"+postId+"\nוגם comments/"+postId+"\nוגם תמונות ב-storage אם יש")) return;
+
+  setBusy(true);
+  toast("מוחק…","warn");
+
+  var up = {};
+  up[POSTS_PATH + "/" + postId] = null;
+  up[COMMENTS_PATH + "/" + postId] = null;
+
+  firebase.database().ref().update(up)
+    .then(function(){
+      var folderRef = firebase.storage().ref(STORAGE_POST_FOLDER + "/" + postId);
+      return folderRef.listAll().then(function(res){
+        var ps = [];
+        (res.items||[]).forEach(function(itemRef){ ps.push(itemRef.delete().catch(function(){})); });
+        return Promise.all(ps);
+      }).catch(function(){});
+    })
+    .then(function(){
+      toast("פוסט נמחק ✅","ok");
+      if(closeSheetAfter) closeSheet();
+      return resetAndLoadPosts();
+    })
+    .catch(function(err){
+      toast("שגיאה במחיקה: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){ setBusy(false); });
+}
+
+/* =========================
+   EXPORT visible posts
+========================= */
+el("btnExportVisible").onclick = function(){
+  if(!S.isAdmin) return;
+  var data = (S.posts||[]).map(function(p){
+    return {
+      id: p.id,
+      title: p.title,
+      text: p.text,
+      author: p.author,
+      time: p.time,
+      likes: p.likes,
+      commentsCount: p.commentsCount,
+      lastCommentTime: p.lastCommentTime,
+      imagePath: p.imagePath
+    };
+  });
+
+  var blob = new Blob([pretty(data)], {type:"application/json"});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "posts_export_" + Date.now() + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ try{ URL.revokeObjectURL(url);}catch(e){} }, 1200);
+  toast("יוצא קובץ ✅","ok");
+};
+
+/* =========================
+   RENAME
+========================= */
+function applyUpdatesChunked(updates, chunkSize){
+  chunkSize = chunkSize || 450;
+  var keys = Object.keys(updates||{});
+  if(!keys.length) return Promise.resolve(0);
+
+  var i=0, applied=0;
+  function step(){
+    if(i>=keys.length) return Promise.resolve(applied);
+    var part = {};
+    for(var k=0; k<chunkSize && i<keys.length; k++, i++){
+      part[keys[i]] = updates[keys[i]];
+    }
+    return firebase.database().ref().update(part).then(function(){
+      applied += Object.keys(part).length;
+      return step();
+    });
+  }
+  return step();
+}
+
+function renameInCommentTree(rootObj, rootPath, oldName, newName, depth){
+  depth = depth || MAX_REPLIES_DEPTH;
+  var up = {};
+
+  function setIfMatch(node, path, d){
+    if(!node || typeof node!=="object") return;
+
+    ["author","username","user","name"].forEach(function(f){
+      if(node[f] !== undefined && node[f] !== null && safe(node[f]) === oldName){
+        up[path + "/" + f] = newName;
+      }
+    });
+
+    if(d<=0) return;
+    pickRepliesContainers(node).forEach(function(cn){
+      var o = cn.obj || {};
+      Object.keys(o).forEach(function(k){
+        setIfMatch(o[k], path + "/" + cn.name + "/" + k, d-1);
+      });
+    });
+  }
+
+  if(rootObj && typeof rootObj==="object"){
+    Object.keys(rootObj).forEach(function(k){
+      setIfMatch(rootObj[k], rootPath + "/" + k, depth);
+    });
+  }
+
+  return up;
+}
+
+function renameEverywhere(oldName, newName){
+  oldName = safe(oldName).trim();
+  newName = safe(newName).trim();
+
+  if(!oldName || !newName){ toast("חסר שם נוכחי או חדש","warn"); return; }
+  if(oldName === newName){ toast("אין שינוי","warn"); return; }
+  if(!confirmDanger("לשנות שם בכל מקום?\nמ: " + oldName + "\nל: " + newName)) return;
+
+  setBusy(true);
+  progReset();
+  el("renameMsg").textContent = "מתחיל…";
+  toast("עובד…","warn");
+
+  var totalUpdates = 0;
+
+  prog(5,"סורק users…");
+  firebase.database().ref(USERS_PATH).limitToLast(6000).once("value")
+    .then(function(snap){
+      var up = {};
+      var matched = 0;
+
+      snap.forEach(function(ch){
+        var uid = ch.key;
+        var v = ch.val() || {};
+        if(safe(v.username) === oldName){
+          up[USERS_PATH + "/" + uid + "/username"] = newName;
+          matched++;
+        }
+      });
+
+      el("renameMsg").textContent = "users: נמצאו " + matched + " התאמות.";
+      prog(18,"מעדכן users…");
+      return applyUpdatesChunked(up, 500).then(function(n){ totalUpdates += n; });
+    })
+    .then(function(){
+      prog(30,"סורק posts…");
+      return firebase.database().ref(POSTS_PATH).limitToLast(1500).once("value");
+    })
+    .then(function(ps){
+      var up = {};
+      var matched = 0;
+
+      ps.forEach(function(ch){
+        var id = ch.key;
+        var v = ch.val() || {};
+        var base = POSTS_PATH + "/" + id;
+
+        ["author","username","user","name"].forEach(function(f){
+          if(v[f] !== undefined && v[f] !== null && safe(v[f]) === oldName){
+            up[base + "/" + f] = newName;
+            matched++;
+          }
+        });
+      });
+
+      el("renameMsg").textContent += "\nposts: התאמות שדה: " + matched;
+      prog(48,"מעדכן posts…");
+      return applyUpdatesChunked(up, 450).then(function(n){ totalUpdates += n; });
+    })
+    .then(function(){
+      prog(60,"סורק comments…");
+      return firebase.database().ref(COMMENTS_PATH).limitToLast(900).once("value");
+    })
+    .then(function(cs){
+      var bigUp = {};
+      var roots = 0;
+
+      cs.forEach(function(ch){
+        var postId = ch.key;
+        var obj = ch.val() || {};
+        roots++;
+
+        var local = renameInCommentTree(obj, COMMENTS_PATH + "/" + postId, oldName, newName, MAX_REPLIES_DEPTH);
+        Object.keys(local).forEach(function(k){ bigUp[k] = local[k]; });
+      });
+
+      el("renameMsg").textContent += "\ncomments roots: " + roots + " | updates: " + Object.keys(bigUp).length;
+      prog(82,"מעדכן comments…");
+      return applyUpdatesChunked(bigUp, 350).then(function(n){ totalUpdates += n; });
+    })
+    .then(function(){
+      prog(100,"סיום ✅");
+      el("renameMsg").textContent += "\nסה״כ שינויים: " + totalUpdates;
+      toast("סיימתי ✅","ok");
+      return resetAndLoadPosts();
+    })
+    .catch(function(err){
+      el("renameMsg").textContent = "שגיאה: " + safe(err && err.message || err);
+      toast("שגיאה: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){ setBusy(false); });
+}
+el("btnRename").onclick = function(){ renameEverywhere(el("oldName").value, el("newName").value); };
+
+/* =========================
+   FIX: qSearch render filter without reload (keeps original list)
+========================= */
+(function(){
+  var lastQ = "";
+  el("qSearch").addEventListener("input", function(){
+    var q = safe(el("qSearch").value).trim().toLowerCase();
+    if(q === lastQ) return;
+    lastQ = q;
+
+    if(!q){
+      renderPosts();
+      return;
+    }
+    var filtered = (S.posts||[]).filter(function(p){
+      var blob = (p.id+" "+p.title+" "+p.text+" "+p.author).toLowerCase();
+      return blob.indexOf(q)!==-1;
+    });
+    var host = el("postsList");
+    host.innerHTML = "";
+    if(!filtered.length){
+      host.innerHTML = '<div class="mini muted">אין תוצאות.</div>';
+      return;
+    }
+    filtered.forEach(function(p){
+      var cc = (p.commentsCount===null) ? "?" : String(num(p.commentsCount));
+      var lc = p.lastCommentTime ? fmtDate(p.lastCommentTime) : "—";
+      var card = document.createElement("div");
+      card.className = "post";
+      card.innerHTML = `
+        <div class="title wrapText">${escapeHtml(p.title || "(ללא כותרת)")}</div>
+        <div class="chips">
+          <span class="chip">ID: <b class="mono">${escapeHtml(p.id)}</b></span>
+          <span class="chip">מאת: <b class="wrapText">${escapeHtml(p.author || "—")}</b></span>
+          <span class="chip">זמן: <b>${escapeHtml(fmtDate(p.time))}</b></span>
+          <span class="chip">תגובות: <b class="mono">${escapeHtml(cc)}</b></span>
+          <span class="chip">אחרונה: <b>${escapeHtml(lc)}</b></span>
+        </div>
+        <div class="snippet wrapText">${escapeHtml(shorten(p.text, 180))}</div>
+        <div class="tools">
+          <button class="btn small" data-act="edit">✏️ ערוך</button>
+          <button class="btn small" data-act="comments">💬 תגובות</button>
+          <button class="btn small" data-act="recalc">🧮 תקן מונים</button>
+          <button class="btn small danger" data-act="delete">🗑 מחק</button>
+        </div>
+      `;
+      card.addEventListener("click", function(e){
+        var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
+        if(!b) return;
+        var act = b.getAttribute("data-act");
+        if(act==="edit") openPostEditor(p.id, false);
+        if(act==="comments") openPostEditor(p.id, true);
+        if(act==="recalc") recalcPostMeta(p.id, true);
+        if(act==="delete") deepDeletePost(p.id, true);
+      });
+      host.appendChild(card);
+    });
+  });
+})();
+
+/* =========================
+   AUTH STATE (after init is guaranteed)
+========================= */
+(function(){
+  try{
+    pill("warn","לא מחובר");
+    firebase.auth().onAuthStateChanged(function(u){
+      S.user = u || null;
+      S.uid = u ? u.uid : "";
+
+      if(!u){
+        S.isAdmin = false;
+        pill("warn","לא מחובר");
+        el("btnLogin").classList.remove("hidden");
+        el("btnLogout").classList.add("hidden");
+        el("viewLogin").classList.remove("hidden");
+        el("viewPosts").classList.add("hidden");
+        el("viewTools").classList.add("hidden");
+        el("viewRename").classList.add("hidden");
+        el("postsList").innerHTML = '<div class="mini muted">התחבר כדי לראות פוסטים…</div>';
+        return;
+      }
+
+      pill("warn","בודק אדמין…");
+      checkAdmin(u.uid).then(function(isAdmin){
+        S.isAdmin = !!isAdmin;
+        if(!S.isAdmin){
+          pill("err","לא אדמין");
+          toast("לא אדמין (admins/{uid}!=true)","err");
+          return firebase.auth().signOut();
+        }
+
+        pill("ok","אדמין מחובר");
+        el("btnLogin").classList.add("hidden");
+        el("btnLogout").classList.remove("hidden");
+        el("viewLogin").classList.add("hidden");
+
+        setActive("navPosts");
+        el("viewPosts").classList.remove("hidden");
+        el("viewTools").classList.remove("hidden");
+        el("viewRename").classList.remove("hidden");
+
+        resetAndLoadPosts();
+      }).catch(function(err){
+        pill("err","שגיאה");
+        toast("שגיאה בבדיקת אדמין: " + safe(err && err.message || err), "err");
+      });
+    });
+  }catch(e){
+    pill("err","Init/Auth שגוי");
+    toast("Init/Auth נכשל: " + safe(e && e.message || e), "err");
+  }
+})();
+
+/* =========================
+   FIX ALL BUTTON + EXPORT already bound
+========================= */
+toast("מוכן ✅","ok");
+</script>
 </body>
 </html>
+```0
