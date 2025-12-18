@@ -2,8 +2,8 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>Admin Mobile — ניהול פורום</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Admin Mobile v2 — ניהול פורום</title>
 
   <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -15,178 +15,207 @@
   <style>
     :root{
       --bg:#0b1020;
-      --card: rgba(255,255,255,0.07);
-      --card2: rgba(255,255,255,0.10);
+      --panel: rgba(255,255,255,0.07);
+      --panel2: rgba(255,255,255,0.10);
       --stroke: rgba(255,255,255,0.12);
       --stroke2: rgba(255,255,255,0.20);
       --txt: rgba(255,255,255,0.92);
-      --muted: rgba(255,255,255,0.68);
-      --muted2: rgba(255,255,255,0.50);
+      --muted: rgba(255,255,255,0.66);
+      --muted2: rgba(255,255,255,0.48);
       --ok:#2fe28a;
       --warn:#ffb020;
       --danger:#ff4d4d;
       --blue:#3b82f6;
       --violet:#8b5cf6;
-      --shadow: 0 16px 60px rgba(0,0,0,0.55);
-      --r:18px;
-      --r2:14px;
+      --shadow: 0 14px 60px rgba(0,0,0,0.55);
+      --r: 18px;
+      --r2: 14px;
       --font: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
       --mono: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
       --safeTop: env(safe-area-inset-top);
       --safeBot: env(safe-area-inset-bottom);
     }
+
     *{ box-sizing:border-box; }
+    html, body{ height:100%; }
     body{
       margin:0;
-      font-family:var(--font);
+      font-family: var(--font);
       background:
-        radial-gradient(900px 500px at 10% -10%, rgba(59,130,246,0.25), transparent 60%),
-        radial-gradient(800px 500px at 90% 10%, rgba(139,92,246,0.22), transparent 60%),
-        radial-gradient(900px 600px at 50% 110%, rgba(47,226,138,0.12), transparent 60%),
+        radial-gradient(900px 520px at 10% -10%, rgba(59,130,246,0.25), transparent 60%),
+        radial-gradient(820px 520px at 90% 10%, rgba(139,92,246,0.20), transparent 60%),
+        radial-gradient(900px 650px at 50% 115%, rgba(47,226,138,0.12), transparent 60%),
         var(--bg);
-      color:var(--txt);
-      min-height:100vh;
-      padding-bottom: calc(68px + var(--safeBot));
+      color: var(--txt);
+      overflow-x: hidden; /* מונע בריחה לצדדים */
+      padding-bottom: calc(78px + var(--safeBot));
     }
-    a{ color:inherit; }
-    .app{
-      max-width: 520px;
-      margin:0 auto;
+
+    /* טקסטים ארוכים לא שוברים UI */
+    .wrapText{
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .container{
+      width: 100%;
+      max-width: 560px;
+      margin: 0 auto;
       padding: 12px;
       padding-top: calc(12px + var(--safeTop));
     }
 
-    /* Top */
-    .top{
+    /* TOP BAR */
+    .topbar{
       position: sticky;
       top:0;
-      z-index:20;
+      z-index: 30;
       margin: -12px -12px 12px;
-      padding: 12px 12px 10px;
+      padding: 12px;
       padding-top: calc(12px + var(--safeTop));
       backdrop-filter: blur(12px);
-      background: rgba(11,16,32,0.72);
+      background: rgba(11,16,32,0.75);
       border-bottom: 1px solid var(--stroke);
     }
+
     .brandRow{
       display:flex;
       align-items:center;
-      justify-content:space-between;
-      gap:10px;
+      justify-content: space-between;
+      gap: 10px;
+      min-width:0;
     }
     .brand{
-      display:flex; align-items:center; gap:10px;
+      display:flex;
+      align-items:center;
+      gap:10px;
       min-width:0;
     }
     .logo{
-      width:38px; height:38px; border-radius:14px;
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      flex: 0 0 auto;
       display:flex; align-items:center; justify-content:center;
-      font-weight:900;
+      font-weight: 1000;
       background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(139,92,246,0.92));
       box-shadow: 0 10px 22px rgba(59,130,246,0.18);
-      flex:0 0 auto;
     }
     .brandTxt{
       min-width:0;
     }
     .brandTxt .t{
-      font-weight:900;
-      font-size:14px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      font-weight: 950;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .brandTxt .s{
-      font-size:12px;
-      color:var(--muted);
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      margin-top:2px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
+
     .pill{
-      display:inline-flex; align-items:center; gap:8px;
+      flex: 0 0 auto;
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
       padding: 8px 10px;
-      border:1px solid var(--stroke);
+      border: 1px solid var(--stroke);
       background: rgba(255,255,255,0.04);
       border-radius: 999px;
-      font-size:12px;
-      color:var(--muted);
+      font-size: 12px;
+      color: var(--muted);
       user-select:none;
-      flex:0 0 auto;
+      max-width: 45%;
+      min-width: 120px;
+      justify-content: center;
     }
-    .dot{ width:8px; height:8px; border-radius:99px; background:var(--muted2); }
-    .pill.ok .dot{ background:var(--ok); }
-    .pill.warn .dot{ background:var(--warn); }
-    .pill.err .dot{ background:var(--danger); }
+    .pill span{
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    .dot{ width:8px; height:8px; border-radius:99px; background: var(--muted2); }
+    .pill.ok .dot{ background: var(--ok); }
+    .pill.warn .dot{ background: var(--warn); }
+    .pill.err .dot{ background: var(--danger); }
 
-    /* Search */
-    .searchRow{
+    /* INPUTS */
+    .row{
       display:flex;
       gap:10px;
-      margin-top:10px;
+      align-items:center;
+      flex-wrap: wrap;
+      min-width:0;
     }
-    .in{
-      width:100%;
+
+    .in, select, textarea{
+      width: 100%;
+      max-width: 100%;
       padding: 12px 12px;
       border-radius: 14px;
-      border:1px solid var(--stroke2);
+      border: 1px solid var(--stroke2);
       background: rgba(0,0,0,0.28);
       color: var(--txt);
-      outline:none;
-      font-size:14px;
+      outline: none;
+      font-size: 14px;
     }
-    .in::placeholder{ color: rgba(255,255,255,0.45); }
+    textarea{ min-height: 120px; resize: vertical; }
+    .in::placeholder, textarea::placeholder{
+      color: rgba(255,255,255,0.45);
+    }
+    .mono{ font-family: var(--mono); }
 
-    /* Cards */
     .card{
-      border:1px solid var(--stroke);
-      background: var(--card);
+      border: 1px solid var(--stroke);
+      background: var(--panel);
       border-radius: var(--r);
       box-shadow: var(--shadow);
       overflow:hidden;
     }
     .card .hd{
       padding: 12px;
-      border-bottom:1px solid var(--stroke);
+      border-bottom: 1px solid var(--stroke);
       background: rgba(255,255,255,0.03);
       display:flex;
       align-items:center;
-      justify-content:space-between;
+      justify-content: space-between;
       gap:10px;
+      min-width:0;
     }
     .card .hd .h{
-      font-weight:900;
-      font-size:13px;
+      font-weight: 950;
+      font-size: 13px;
+      min-width:0;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
-    .card .bd{
-      padding: 12px;
-    }
-    .muted{ color:var(--muted); }
-    .mono{ font-family:var(--mono); }
-    .row{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap:wrap;
-    }
-    .sp{ height:1px; background:var(--stroke); margin: 10px 0; }
+    .card .bd{ padding: 12px; }
 
-    /* Buttons */
     .btn{
-      border:1px solid var(--stroke2);
+      border: 1px solid var(--stroke2);
       background: rgba(255,255,255,0.06);
-      color:var(--txt);
+      color: var(--txt);
       padding: 12px 12px;
       border-radius: 14px;
       cursor:pointer;
-      font-weight:900;
-      font-size:13px;
+      font-weight: 950;
+      font-size: 13px;
       display:inline-flex;
       align-items:center;
-      gap:8px;
+      justify-content:center;
+      gap: 8px;
       user-select:none;
       -webkit-tap-highlight-color: transparent;
+      max-width: 100%;
     }
     .btn:active{ transform: translateY(1px); }
     .btn.primary{
@@ -194,100 +223,123 @@
       background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(139,92,246,0.92));
     }
     .btn.danger{
-      border:1px solid rgba(255,77,77,0.45);
-      background: rgba(255,77,77,0.10);
+      border: 1px solid rgba(255,77,77,0.45);
+      background: rgba(255,77,77,0.12);
       color: #ffd1d1;
     }
     .btn.ghost{
       background: transparent;
       border: 1px dashed var(--stroke2);
-      box-shadow:none;
     }
     .btn.small{
       padding: 10px 10px;
-      font-size:12px;
       border-radius: 12px;
+      font-size: 12px;
     }
-    .btn.wide{ width:100%; justify-content:center; }
+    .wide{ width:100%; }
 
-    /* Posts list */
-    .list{ display:flex; flex-direction:column; gap:10px; }
+    .muted{ color: var(--muted); }
+    .mini{ font-size: 12px; color: var(--muted); line-height:1.45; }
+
+    .sep{
+      height:1px;
+      background: var(--stroke);
+      margin: 10px 0;
+    }
+
+    /* POSTS LIST */
+    .list{
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+    }
     .post{
-      border:1px solid var(--stroke);
+      border: 1px solid var(--stroke);
       background: rgba(255,255,255,0.05);
       border-radius: 18px;
       padding: 12px;
       display:flex;
-      flex-direction:column;
-      gap:10px;
+      flex-direction: column;
+      gap: 10px;
+      min-width:0;
     }
-    .post .t{
-      font-weight:900;
-      font-size:14px;
-      line-height:1.25;
+    .post .title{
+      font-weight: 950;
+      font-size: 14px;
+      line-height: 1.25;
     }
     .chips{
       display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      color:var(--muted);
-      font-size:12px;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      min-width:0;
     }
     .chip{
       display:inline-flex;
       align-items:center;
-      gap:6px;
+      gap: 6px;
       padding: 6px 9px;
       border-radius: 999px;
-      border:1px solid var(--stroke2);
-      background: rgba(0,0,0,0.22);
+      border: 1px solid var(--stroke2);
+      background: rgba(0,0,0,0.20);
+      max-width: 100%;
+      min-width:0;
     }
-    .chip b{ color:var(--txt); }
-    .post .tools{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      justify-content:flex-start;
-    }
-    .snippet{
-      font-size:13px;
-      color: rgba(255,255,255,0.88);
-      line-height:1.4;
-      white-space: pre-wrap;
+    .chip b{
+      color: var(--txt);
+      max-width: 100%;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    /* Bottom nav */
+    .snippet{
+      font-size: 13px;
+      line-height: 1.45;
+      color: rgba(255,255,255,0.90);
+    }
+
+    .tools{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items:center;
+    }
+
+    /* BOTTOM NAV */
     .bottomNav{
       position: fixed;
       left:0; right:0; bottom:0;
+      z-index: 40;
       padding-bottom: var(--safeBot);
-      z-index:30;
-      background: rgba(11,16,32,0.78);
+      background: rgba(11,16,32,0.82);
       backdrop-filter: blur(12px);
-      border-top:1px solid var(--stroke);
+      border-top: 1px solid var(--stroke);
     }
     .bottomNav .bar{
-      max-width: 520px;
+      max-width: 560px;
       margin: 0 auto;
+      padding: 10px 12px;
       display:grid;
       grid-template-columns: 1fr 1fr 1fr;
       gap: 8px;
-      padding: 10px 12px;
     }
     .navBtn{
-      border:1px solid var(--stroke2);
+      border: 1px solid var(--stroke2);
       background: rgba(255,255,255,0.05);
       border-radius: 16px;
       padding: 10px 8px;
       display:flex;
-      align-items:center;
       justify-content:center;
-      gap:8px;
-      font-weight:900;
-      font-size:13px;
-      color:var(--muted);
-      cursor:pointer;
+      align-items:center;
+      gap: 8px;
+      font-weight: 950;
+      font-size: 13px;
+      color: var(--muted);
       user-select:none;
+      cursor:pointer;
       -webkit-tap-highlight-color: transparent;
     }
     .navBtn.active{
@@ -296,140 +348,119 @@
       border-color: rgba(59,130,246,0.35);
     }
 
-    /* Toast */
+    /* TOAST */
     .toast{
       position: fixed;
       left: 12px;
       right: 12px;
-      bottom: calc(78px + var(--safeBot));
-      z-index: 50;
-      max-width: 520px;
-      margin:0 auto;
+      bottom: calc(80px + var(--safeBot));
+      z-index: 90;
+      max-width: 560px;
+      margin: 0 auto;
       display:none;
       padding: 12px 12px;
       border-radius: 16px;
-      border:1px solid var(--stroke2);
+      border: 1px solid var(--stroke2);
       background: rgba(0,0,0,0.55);
       backdrop-filter: blur(10px);
       box-shadow: var(--shadow);
-      color: var(--txt);
-      font-size:13px;
-      line-height:1.35;
+      font-size: 13px;
+      line-height: 1.35;
     }
     .toast.ok{ border-color: rgba(47,226,138,0.35); background: rgba(47,226,138,0.12); }
-    .toast.err{ border-color: rgba(255,77,77,0.45); background: rgba(255,77,77,0.12); }
     .toast.warn{ border-color: rgba(255,176,32,0.45); background: rgba(255,176,32,0.12); }
+    .toast.err{ border-color: rgba(255,77,77,0.45); background: rgba(255,77,77,0.12); }
 
-    /* Sheet modal */
+    /* SHEET MODAL */
     .overlay{
       position: fixed;
       inset:0;
-      z-index: 60;
-      background: rgba(0,0,0,0.62);
+      z-index: 80;
       display:none;
-      align-items:flex-end;
-      justify-content:center;
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(0,0,0,0.62);
       padding: 12px;
       padding-bottom: calc(12px + var(--safeBot));
     }
     .sheet{
-      width: min(520px, 100%);
-      border:1px solid var(--stroke);
+      width: 100%;
+      max-width: 560px;
+      border: 1px solid var(--stroke);
       background: rgba(15,20,40,0.96);
       border-radius: 22px;
       box-shadow: 0 24px 90px rgba(0,0,0,0.68);
-      overflow:hidden;
-      max-height: 88vh;
+      overflow: hidden;
+      max-height: 86vh;
       display:flex;
-      flex-direction:column;
+      flex-direction: column;
     }
     .sheetHd{
       padding: 12px;
-      border-bottom:1px solid var(--stroke);
+      border-bottom: 1px solid var(--stroke);
       display:flex;
       align-items:center;
-      justify-content:space-between;
+      justify-content: space-between;
       gap:10px;
       background: rgba(255,255,255,0.03);
+      min-width:0;
     }
     .sheetHd .ttl{
       font-weight: 1000;
       font-size: 14px;
+      min-width:0;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .sheetBd{
       padding: 12px;
       overflow:auto;
+      min-width:0;
     }
     .sheetFt{
       padding: 12px;
-      border-top:1px solid var(--stroke);
+      border-top: 1px solid var(--stroke);
       background: rgba(255,255,255,0.02);
       display:flex;
       gap:10px;
-      flex-wrap:wrap;
-      justify-content:space-between;
-    }
-    .field{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      margin-bottom: 10px;
-    }
-    .field label{
-      font-size:12px;
-      color:var(--muted);
-    }
-    textarea.in{ min-height: 110px; resize: vertical; }
-    .mini{
-      font-size:12px;
-      color:var(--muted);
-      line-height:1.4;
+      justify-content: space-between;
+      flex-wrap: wrap;
     }
 
-    /* Progress */
-    .prog{
-      height: 10px;
-      border-radius: 999px;
-      border:1px solid var(--stroke2);
-      background: rgba(255,255,255,0.06);
-      overflow:hidden;
-    }
-    .bar{
-      height:100%;
-      width:0%;
-      background: linear-gradient(90deg, rgba(59,130,246,0.95), rgba(139,92,246,0.92));
-    }
-
-    /* Comments */
+    /* COMMENTS TREE */
     .cNode{
-      border:1px solid var(--stroke);
+      border: 1px solid var(--stroke);
       background: rgba(255,255,255,0.05);
       border-radius: 16px;
       padding: 10px;
+      margin-top: 10px;
       display:flex;
-      flex-direction:column;
-      gap:8px;
-      margin-top:10px;
+      flex-direction: column;
+      gap: 8px;
+      min-width:0;
     }
     .cHead{
       display:flex;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
+      justify-content: space-between;
       align-items:flex-start;
+      gap:10px;
+      flex-wrap: wrap;
+      min-width:0;
     }
     .cMeta{
       display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      color:var(--muted);
-      font-size:12px;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+      min-width:0;
     }
     .cText{
-      white-space:pre-wrap;
-      font-size:13px;
-      line-height:1.4;
+      font-size: 13px;
+      line-height: 1.45;
       color: rgba(255,255,255,0.90);
+      white-space: pre-wrap;
     }
     .indent{
       margin-right: 10px;
@@ -438,100 +469,108 @@
     }
 
     .hidden{ display:none !important; }
+
+    /* PROGRESS */
+    .prog{
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,0.06);
+      overflow:hidden;
+    }
+    .prog > div{
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, rgba(59,130,246,0.95), rgba(139,92,246,0.92));
+    }
   </style>
 </head>
 
 <body>
-  <div class="top">
-    <div class="brandRow">
-      <div class="brand">
-        <div class="logo">A</div>
-        <div class="brandTxt">
-          <div class="t">Admin Mobile — ניהול פורום</div>
-          <div class="s">Realtime DB · עריכה/מחיקה/עשה-סדר · מובייל־פירסט</div>
+  <div class="container">
+    <div class="topbar">
+      <div class="brandRow">
+        <div class="brand">
+          <div class="logo">A</div>
+          <div class="brandTxt">
+            <div class="t">Admin Mobile v2</div>
+            <div class="s">מובייל נקי · עריכה/מחיקה/עשה-סדר · בלי בלגן</div>
+          </div>
+        </div>
+        <div id="authPill" class="pill warn" title="סטטוס">
+          <span class="dot"></span>
+          <span id="authTxt">לא מחובר</span>
         </div>
       </div>
-      <div id="authPill" class="pill warn">
-        <span class="dot"></span>
-        <span id="authTxt">לא מחובר</span>
+
+      <div class="row" style="margin-top:10px;">
+        <input id="qSearch" class="in" type="search" placeholder="חיפוש פוסט (כותרת/טקסט/מחבר/ID)..." />
+        <button id="btnRefresh" class="btn" type="button">🔄</button>
       </div>
     </div>
 
-    <div class="searchRow">
-      <input id="q" class="in" type="search" placeholder="חפש פוסט לפי כותרת/טקסט/מחבר/ID…" />
-      <button id="btnRefresh" class="btn" type="button">🔄</button>
-    </div>
-  </div>
-
-  <div class="app">
-    <!-- LOGIN -->
+    <!-- VIEW: LOGIN -->
     <div id="viewLogin" class="card">
       <div class="hd">
         <div class="h">כניסה</div>
-        <div class="muted" style="font-size:12px;">admins/{uid}=true</div>
+        <div class="mini">admins/{uid}=true</div>
       </div>
       <div class="bd">
-        <div class="field">
-          <label>אימייל</label>
-          <input id="loginEmail" class="in" type="email" placeholder="admin@example.com">
-        </div>
-        <div class="field">
-          <label>סיסמה</label>
-          <input id="loginPass" class="in" type="password" placeholder="••••••••">
-        </div>
         <div class="row">
-          <button id="btnLogin" class="btn primary wide" type="button">🔐 התחבר</button>
-          <button id="btnLogout" class="btn danger wide hidden" type="button">⎋ התנתקות</button>
+          <input id="loginEmail" class="in" type="email" placeholder="אימייל אדמין" />
+          <input id="loginPass" class="in" type="password" placeholder="סיסמה" />
         </div>
-        <div class="sp"></div>
-        <div class="mini" id="loginNote">טיפ: שמור משתמש אדמין נפרד.</div>
+        <div class="row" style="margin-top:10px;">
+          <button id="btnLogin" class="btn primary wide" type="button">🔐 התחבר</button>
+          <button id="btnLogout" class="btn danger wide hidden" type="button">⎋ התנתק</button>
+        </div>
+        <div class="sep"></div>
+        <div class="mini">
+          אם התחברת אבל אתה לא אדמין — המערכת תנתק אותך אוטומטית.
+        </div>
       </div>
     </div>
 
-    <!-- POSTS -->
-    <div id="viewPosts" class="hidden">
-      <div class="card" style="margin-top:12px;">
+    <!-- VIEW: POSTS -->
+    <div id="viewPosts" class="hidden" style="margin-top:12px;">
+      <div class="card">
         <div class="hd">
           <div class="h">פוסטים</div>
-          <div class="muted" style="font-size:12px;">
-            <span id="badgePosts">—</span>
-          </div>
+          <div class="mini" id="badgePosts">—</div>
         </div>
         <div class="bd">
-          <div class="row" style="justify-content:space-between;">
-            <select id="limitSel" class="in" style="padding:10px 12px; width:auto; min-width: 150px;">
-              <option value="50">50</option>
-              <option value="120" selected>120</option>
-              <option value="300">300</option>
-            </select>
-            <select id="sortSel" class="in" style="padding:10px 12px; width:auto; min-width: 170px;">
+          <div class="row">
+            <select id="sortSel" class="in" style="width:auto; flex:1; min-width: 160px;">
               <option value="newest" selected>חדשים למעלה</option>
               <option value="oldest">ישנים למעלה</option>
               <option value="lastComment">תגובה אחרונה</option>
               <option value="comments">כמות תגובות</option>
-              <option value="author">מחבר</option>
-              <option value="title">כותרת</option>
+            </select>
+            <select id="limitSel" class="in" style="width:auto; flex:1; min-width: 140px;">
+              <option value="50">50</option>
+              <option value="120" selected>120</option>
+              <option value="300">300</option>
             </select>
           </div>
 
-          <div class="sp"></div>
+          <div class="sep"></div>
 
           <div id="postsList" class="list">
-            <div class="muted">התחבר כדי לטעון…</div>
+            <div class="mini muted">התחבר כדי לראות פוסטים…</div>
           </div>
 
-          <div class="sp"></div>
-          <button id="btnLoadMore" class="btn ghost wide hidden" type="button">⬇️ טען עוד (עוד 120)</button>
+          <div class="sep"></div>
+          <button id="btnLoadMore" class="btn ghost wide" type="button">⬇️ טען עוד</button>
         </div>
       </div>
     </div>
 
-    <!-- TOOLS -->
-    <div id="viewTools" class="hidden">
-      <div class="card" style="margin-top:12px;">
+    <!-- VIEW: TOOLS -->
+    <div id="viewTools" class="hidden" style="margin-top:12px;">
+      <div class="card">
         <div class="hd">
           <div class="h">כלים</div>
-          <div class="muted" style="font-size:12px;">מהיר ומדויק</div>
+          <div class="mini">מערכת</div>
         </div>
         <div class="bd">
           <button id="btnFixAll" class="btn primary wide" type="button">🧹 עשה סדר לכל הפוסטים</button>
@@ -539,68 +578,44 @@
             מתקן לכל פוסט: <span class="mono">commentsCount</span> + <span class="mono">lastCommentTime</span> לפי העץ ב־<span class="mono">comments/{postId}</span>
           </div>
 
-          <div class="sp"></div>
+          <div class="sep"></div>
 
-          <div class="field">
-            <label>ייצוא פוסטים שמוצגים עכשיו (JSON)</label>
-            <button id="btnExport" class="btn wide" type="button">📦 Export</button>
-          </div>
+          <div class="mini muted" id="toolsMsg">—</div>
+          <div class="prog" style="margin-top:10px;"><div id="progBar"></div></div>
+          <div class="mini muted" id="progTxt" style="margin-top:8px;">—</div>
 
-          <div class="sp"></div>
+          <div class="sep"></div>
 
-          <div class="field">
-            <label>DB Quick (אופציונלי — למתקדמים)</label>
-            <input id="quickPath" class="in mono" placeholder='למשל: posts/POSTID/title'>
-            <textarea id="quickVal" class="in mono" placeholder='value JSON (למשל "כותרת") או {"a":1}'></textarea>
-            <div class="row">
-              <button id="btnQSet" class="btn primary" type="button">SET</button>
-              <button id="btnQUpdate" class="btn" type="button">UPDATE</button>
-              <button id="btnQRemove" class="btn danger" type="button">REMOVE</button>
-            </div>
-            <div class="mini">SET מחליף הכל. UPDATE רק לאובייקט.</div>
-          </div>
-
-          <div class="sp"></div>
-
-          <div id="toolsStatus" class="mini muted">—</div>
-          <div class="prog" style="margin-top:10px;">
-            <div id="progBar" class="bar"></div>
-          </div>
-          <div id="progTxt" class="mini muted" style="margin-top:8px;">—</div>
+          <button id="btnExportVisible" class="btn wide" type="button">📦 ייצא פוסטים בתצוגה (JSON)</button>
         </div>
       </div>
     </div>
 
-    <!-- USERS -->
-    <div id="viewUsers" class="hidden">
-      <div class="card" style="margin-top:12px;">
+    <!-- VIEW: RENAME -->
+    <div id="viewRename" class="hidden" style="margin-top:12px;">
+      <div class="card">
         <div class="hd">
-          <div class="h">משתמשים</div>
-          <div class="muted" style="font-size:12px;">שינוי Username חכם</div>
+          <div class="h">שינוי שם משתמש</div>
+          <div class="mini">לפי שם נוכחי → שם חדש</div>
         </div>
         <div class="bd">
-          <div class="field">
-            <label>UID</label>
-            <input id="uidInput" class="in mono" placeholder="UID של המשתמש (users/{uid})">
-          </div>
-          <div class="field">
-            <label>Username חדש</label>
-            <input id="newUsernameInput" class="in" placeholder="למשל: Yossi_Pro">
-          </div>
-
           <div class="row">
-            <button id="btnRenameUser" class="btn primary wide" type="button">✏️ עדכן Username בכל מקום</button>
+            <input id="oldName" class="in" placeholder="שם נוכחי (לדוגמה: yossi)" />
+            <input id="newName" class="in" placeholder="שם חדש (לדוגמה: yossi_pro)" />
           </div>
-
-          <div class="mini" style="margin-top:8px;">
-            מה זה עושה:
-            <br>1) מעדכן <span class="mono">users/{uid}/username</span>
-            <br>2) סורק פוסטים/תגובות ומחליף שדות מחבר רלוונטיים (author/username/user וכו’)
-            <br><b>שימו לב:</b> זה כלי “כבד” אם יש המון נתונים.
+          <div class="row" style="margin-top:10px;">
+            <button id="btnRename" class="btn primary wide" type="button">✏️ שנה שם בכל מקום</button>
           </div>
-
-          <div class="sp"></div>
-          <div id="usersStatus" class="mini muted">—</div>
+          <div class="sep"></div>
+          <div class="mini">
+            מה מתעדכן:
+            <br>• <span class="mono">users/*/username</span> שבו username == השם הנוכחי
+            <br>• בכל <span class="mono">posts</span> שדות author/username/user/name (אם שווים לשם הנוכחי)
+            <br>• בכל <span class="mono">comments</span> (כולל תתי־תגובות) אותו דבר
+            <br><b>שים לב:</b> אם יש כמה משתמשים עם אותו username — כולם יעודכנו.
+          </div>
+          <div class="sep"></div>
+          <div class="mini muted" id="renameMsg">—</div>
         </div>
       </div>
     </div>
@@ -611,44 +626,46 @@
     <div class="bar">
       <div id="navPosts" class="navBtn active">📰 פוסטים</div>
       <div id="navTools" class="navBtn">🧰 כלים</div>
-      <div id="navUsers" class="navBtn">👤 משתמשים</div>
+      <div id="navRename" class="navBtn">👤 שינוי שם</div>
     </div>
   </div>
 
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 
-  <!-- Sheet: Editor (post/comment/reply) -->
+  <!-- Editor Sheet -->
   <div id="overlay" class="overlay">
     <div class="sheet">
       <div class="sheetHd">
         <div class="ttl" id="sheetTitle">עריכה</div>
-        <button id="btnSheetClose" class="btn small" type="button">✕</button>
+        <button id="btnCloseSheet" class="btn small" type="button">✕</button>
       </div>
+
       <div class="sheetBd">
-        <div class="mini muted" id="sheetPath">—</div>
-        <div class="sp"></div>
+        <div class="mini muted wrapText" id="sheetPath">—</div>
+        <div class="sep"></div>
 
         <div id="editorFields"></div>
 
-        <div class="sp"></div>
+        <div class="sep"></div>
 
         <details>
-          <summary class="btn ghost wide" style="justify-content:center;">🧾 מתקדם: עריכת JSON מלאה</summary>
+          <summary class="btn ghost wide">🧾 מתקדם: JSON מלא</summary>
           <div style="margin-top:10px;">
-            <textarea id="rawJson" class="in mono" style="min-height:180px;" placeholder="JSON מלא של האובייקט"></textarea>
+            <textarea id="rawJson" class="in mono" style="min-height:180px;" placeholder="JSON מלא"></textarea>
             <button id="btnSaveJson" class="btn wide" type="button">💾 שמור JSON (SET)</button>
             <div class="mini muted" style="margin-top:6px;">זה מחליף את כל ה־node בנתיב.</div>
           </div>
         </details>
 
-        <div class="sp"></div>
+        <div class="sep"></div>
 
-        <details id="commentsSection" class="hidden">
-          <summary class="btn wide" style="justify-content:center;">💬 תגובות לפוסט</summary>
-          <div id="commentsWrap" style="margin-top:10px;"></div>
+        <details id="commentsBox" class="hidden">
+          <summary class="btn wide">💬 תגובות לפוסט</summary>
+          <div id="commentsWrap"></div>
         </details>
       </div>
+
       <div class="sheetFt">
         <button id="btnSaveFields" class="btn primary" type="button">💾 שמור</button>
         <button id="btnDeleteNode" class="btn danger" type="button">🗑 מחק</button>
@@ -658,98 +675,98 @@
 
 <script>
 /* =========================
-   CONFIG
+   CONFIG (נתיבים)
 ========================= */
 var ADMIN_PATH = "admins";
 var POSTS_PATH = "posts";
 var COMMENTS_PATH = "comments";
 var USERS_PATH = "users";
-var STORAGE_POST_FOLDER = "post-images"; // post-images/{postId}/...
-
-var MAX_REPLIES_DEPTH = 8; // רינדור + סריקה לעומק תתי-תגובות
+var STORAGE_POST_FOLDER = "post-images";
+var MAX_REPLIES_DEPTH = 10;
 
 /* =========================
    STATE
 ========================= */
 var S = {
-  user: null,
-  uid: "",
-  isAdmin: false,
-  posts: [],
-  postsMap: {},
-  lastKey: null,
-  loading: false,
-  current: { type:"", path:"", postId:"", obj:null }
+  user:null,
+  uid:"",
+  isAdmin:false,
+  posts:[],
+  postsMap:{},
+  want:120,
+  busy:false,
+  current:{ type:"", path:"", postId:"", obj:null }
 };
 
 /* =========================
-   DOM
+   HELPERS
 ========================= */
 function el(id){ return document.getElementById(id); }
-function txt(id, v){ var x=el(id); if(x) x.textContent = v; }
-function show(id, on){ var x=el(id); if(x) x.classList.toggle("hidden", !on); }
-function pill(type, text){
-  var p=el("authPill"), t=el("authTxt");
-  if(!p||!t) return;
+function safe(v){ return (v===undefined||v===null) ? "" : String(v); }
+function num(v){ var n=Number(v||0); return isNaN(n)?0:n; }
+function escapeHtml(s){
+  s = safe(s);
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+          .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+}
+function pretty(v){ try{ return JSON.stringify(v,null,2); }catch(e){ return safe(v); } }
+function tryParseJson(txt){ try{ return {ok:true, v: JSON.parse(txt)}; }catch(e){ return {ok:false, e:e}; } }
+function fmtDate(ts){
+  try{ ts = num(ts); if(!ts) return "—"; return new Date(ts).toLocaleString("he-IL"); }
+  catch(e){ return "—"; }
+}
+function toast(msg,type){
+  var t = el("toast");
+  t.classList.remove("ok","warn","err");
+  if(type) t.classList.add(type);
+  t.textContent = msg || "";
+  t.style.display = "block";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ t.style.display="none"; }, 2300);
+}
+function pill(type,text){
+  var p = el("authPill"), t = el("authTxt");
   p.classList.remove("ok","warn","err");
   p.classList.add(type);
   t.textContent = text || "";
 }
-function toast(msg, type){
-  var box=el("toast");
-  box.classList.remove("ok","err","warn");
-  if(type) box.classList.add(type);
-  box.textContent = msg || "";
-  box.style.display = "block";
-  clearTimeout(toast._t);
-  toast._t = setTimeout(function(){ box.style.display="none"; }, 2400);
-}
 function confirmDanger(msg){
   return window.confirm("⚠️ " + msg + "\n\nהאם אתה בטוח?");
 }
-function safe(v){ return (v===undefined || v===null) ? "" : String(v); }
-function num(v){ var n=Number(v||0); return isNaN(n)?0:n; }
-function fmtDate(ts){
-  try{ ts = Number(ts||0)||0; if(!ts) return "—"; return new Date(ts).toLocaleString("he-IL"); }
-  catch(e){ return "—"; }
-}
-function escapeHtml(s){
-  s=safe(s);
-  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-}
-function pretty(v){
-  try{ return JSON.stringify(v, null, 2); }catch(e){ return safe(v); }
-}
-function tryParseJson(s){
-  try{ return {ok:true, v: JSON.parse(s)}; }catch(e){ return {ok:false, e:e}; }
+function setBusy(flag){
+  S.busy = !!flag;
+  el("btnRefresh").disabled = S.busy;
+  el("btnFixAll").disabled = S.busy;
+  el("btnRename").disabled = S.busy;
+  el("btnLoadMore").disabled = S.busy;
 }
 function prog(pct, text){
   pct = Math.max(0, Math.min(100, Math.round(Number(pct||0))));
   el("progBar").style.width = pct + "%";
-  txt("progTxt", text || (pct+"%"));
+  el("progTxt").textContent = text || (pct + "%");
 }
 function progReset(){
   el("progBar").style.width = "0%";
-  txt("progTxt","—");
+  el("progTxt").textContent = "—";
 }
 
 /* =========================
    NAV
 ========================= */
-function setActiveNav(which){
-  ["navPosts","navTools","navUsers"].forEach(function(id){
-    el(id).classList.toggle("active", id===which);
+function setActive(tab){
+  ["navPosts","navTools","navRename"].forEach(function(id){
+    el(id).classList.toggle("active", id===tab);
   });
-  show("viewPosts", which==="navPosts");
-  show("viewTools", which==="navTools");
-  show("viewUsers", which==="navUsers");
+  el("viewPosts").classList.toggle("hidden", tab!=="navPosts");
+  el("viewTools").classList.toggle("hidden", tab!=="navTools");
+  el("viewRename").classList.toggle("hidden", tab!=="navRename");
 }
-el("navPosts").onclick = function(){ setActiveNav("navPosts"); };
-el("navTools").onclick = function(){ setActiveNav("navTools"); };
-el("navUsers").onclick = function(){ setActiveNav("navUsers"); };
+el("navPosts").onclick = function(){ setActive("navPosts"); };
+el("navTools").onclick = function(){ setActive("navTools"); };
+el("navRename").onclick = function(){ setActive("navRename"); };
 
 /* =========================
-   ADMIN CHECK
+   AUTH + ADMIN CHECK
 ========================= */
 function checkAdmin(uid){
   return firebase.database().ref(ADMIN_PATH + "/" + uid).once("value").then(function(s){
@@ -758,14 +775,10 @@ function checkAdmin(uid){
   });
 }
 
-/* =========================
-   AUTH
-========================= */
 function login(){
   var email = safe(el("loginEmail").value).trim();
-  var pass = safe(el("loginPass").value);
-  if(!email || !pass){ toast("חסר אימייל/סיסמה", "warn"); return; }
-
+  var pass  = safe(el("loginPass").value);
+  if(!email || !pass){ toast("חסר אימייל/סיסמה","warn"); return; }
   pill("warn","מתחבר…");
   firebase.auth().signInWithEmailAndPassword(email, pass)
     .catch(function(err){
@@ -773,9 +786,8 @@ function login(){
       toast("שגיאת התחברות: " + safe(err && err.message || err), "err");
     });
 }
-function logout(){
-  firebase.auth().signOut();
-}
+function logout(){ firebase.auth().signOut(); }
+
 el("btnLogin").onclick = login;
 el("btnLogout").onclick = logout;
 
@@ -785,13 +797,13 @@ firebase.auth().onAuthStateChanged(function(u){
   if(!u){
     S.isAdmin = false;
     pill("warn","לא מחובר");
-    show("btnLogin", true);
-    show("btnLogout", false);
-    show("viewPosts", false);
-    show("viewTools", false);
-    show("viewUsers", false);
-    txt("postsList","התחבר כדי לטעון…");
-    txt("badgePosts","—");
+    el("btnLogin").classList.remove("hidden");
+    el("btnLogout").classList.add("hidden");
+    el("viewLogin").classList.remove("hidden");
+    el("viewPosts").classList.add("hidden");
+    el("viewTools").classList.add("hidden");
+    el("viewRename").classList.add("hidden");
+    el("postsList").innerHTML = '<div class="mini muted">התחבר כדי לראות פוסטים…</div>';
     return;
   }
 
@@ -799,59 +811,37 @@ firebase.auth().onAuthStateChanged(function(u){
   checkAdmin(u.uid).then(function(isAdmin){
     S.isAdmin = !!isAdmin;
     if(!S.isAdmin){
-      pill("err","מחובר אך לא אדמין");
+      pill("err","לא אדמין");
       toast("המשתמש הזה לא מוגדר אדמין ב־admins/{uid}", "err");
       return firebase.auth().signOut();
     }
 
-    pill("ok","מחובר כאדמין");
-    show("btnLogin", false);
-    show("btnLogout", true);
+    pill("ok","אדמין מחובר");
+    el("btnLogin").classList.add("hidden");
+    el("btnLogout").classList.remove("hidden");
+    el("viewLogin").classList.add("hidden");
 
-    // default view
-    setActiveNav("navPosts");
-    show("viewPosts", true);
-    show("viewTools", true);
-    show("viewUsers", true);
+    setActive("navPosts");
+    el("viewPosts").classList.remove("hidden");
+    el("viewTools").classList.remove("hidden");
+    el("viewRename").classList.remove("hidden");
 
-    // initial load
     resetAndLoadPosts();
   }).catch(function(){
-    pill("err","שגיאה בבדיקת אדמין");
+    pill("err","שגיאה");
   });
 });
 
 /* =========================
-   POSTS LOAD (paging by time)
+   POSTS LOAD + FILTER/SORT
 ========================= */
-function resetAndLoadPosts(){
-  S.posts = [];
-  S.postsMap = {};
-  S.lastKey = null;
-  el("postsList").innerHTML = '<div class="muted">טוען…</div>';
-  show("btnLoadMore", false);
-  loadPostsPage(true);
-}
-
-function getSortKey(p, sort){
-  if(sort==="comments") return num(p.commentsCount);
-  if(sort==="author") return safe(p.author).toLowerCase();
-  if(sort==="title") return safe(p.title).toLowerCase();
-  if(sort==="lastComment"){
-    var t = num(p.lastCommentTime) || num(p.time);
-    return t;
-  }
-  return num(p.time);
-}
-
 function normalizePost(id, v){
   v = v || {};
   return {
-    id: id,
+    id:id,
     title: safe(v.title),
     text: safe(v.text),
     author: safe(v.author || v.username || v.user || v.name),
-    authorUid: safe(v.authorUid || v.uid || v.userId),
     time: num(v.time),
     likes: num(v.likes),
     commentsCount: (v.commentsCount===undefined || v.commentsCount===null) ? null : num(v.commentsCount),
@@ -861,168 +851,341 @@ function normalizePost(id, v){
   };
 }
 
-function loadPostsPage(reset){
+function resetAndLoadPosts(){
   if(!S.isAdmin) return;
-  if(S.loading) return;
-  S.loading = true;
+  S.want = num(el("limitSel").value || 120) || 120;
+  el("postsList").innerHTML = '<div class="mini muted">טוען…</div>';
+  loadPosts(S.want);
+}
 
-  var limit = num(el("limitSel").value || 120) || 120;
+function loadPosts(want){
+  if(!S.isAdmin) return;
+  setBusy(true);
+
   var sort = safe(el("sortSel").value || "newest");
-  var q = safe(el("q").value).trim().toLowerCase();
+  var q = safe(el("qSearch").value).trim().toLowerCase();
 
-  var ref = firebase.database().ref(POSTS_PATH).orderByChild("time");
-  if(S.lastKey){
-    // paging with time is tricky; simplest: keep increasing limit using load more.
-    // We'll implement "load more" by increasing limit each time (mobile friendly, minimal complexity).
-  }
+  firebase.database().ref(POSTS_PATH).orderByChild("time").limitToLast(want).once("value")
+    .then(function(snap){
+      var arr = [];
+      snap.forEach(function(ch){
+        arr.push(normalizePost(ch.key, ch.val()));
+      });
 
-  // strategy: always load last N by time where N = currentLoaded + limit
-  var want = S.posts.length + limit;
-  ref.limitToLast(want).once("value").then(function(snap){
-    var arr = [];
-    snap.forEach(function(ch){
-      arr.push(normalizePost(ch.key, ch.val()));
+      // sort
+      if(sort==="oldest"){
+        arr.sort(function(a,b){ return num(a.time)-num(b.time); });
+      }else if(sort==="comments"){
+        arr.sort(function(a,b){ return num(b.commentsCount)-num(a.commentsCount); });
+      }else if(sort==="lastComment"){
+        arr.sort(function(a,b){
+          var ta = num(a.lastCommentTime)||num(a.time);
+          var tb = num(b.lastCommentTime)||num(b.time);
+          return tb-ta;
+        });
+      }else{
+        arr.sort(function(a,b){ return num(b.time)-num(a.time); });
+      }
+
+      // filter
+      if(q){
+        arr = arr.filter(function(p){
+          var blob = (p.id+" "+p.title+" "+p.text+" "+p.author).toLowerCase();
+          return blob.indexOf(q)!==-1;
+        });
+      }
+
+      S.posts = arr;
+      S.postsMap = {};
+      arr.forEach(function(p){ S.postsMap[p.id]=p; });
+
+      el("badgePosts").textContent = "כמות: " + arr.length;
+      renderPosts();
+    })
+    .catch(function(err){
+      toast("שגיאה בטעינת פוסטים: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){
+      setBusy(false);
     });
+}
 
-    // sort client
-    if(sort==="oldest"){
-      arr.sort(function(a,b){ return num(a.time)-num(b.time); });
-    }else if(sort==="author"){
-      arr.sort(function(a,b){ return safe(a.author).localeCompare(safe(b.author),"he"); });
-    }else if(sort==="title"){
-      arr.sort(function(a,b){ return safe(a.title).localeCompare(safe(b.title),"he"); });
-    }else if(sort==="comments"){
-      arr.sort(function(a,b){ return num(b.commentsCount)-num(a.commentsCount); });
-    }else if(sort==="lastComment"){
-      arr.sort(function(a,b){
-        var ta = num(a.lastCommentTime)||num(a.time);
-        var tb = num(b.lastCommentTime)||num(b.time);
-        return tb-ta;
-      });
-    }else{
-      arr.sort(function(a,b){ return num(b.time)-num(a.time); });
-    }
-
-    // filter
-    if(q){
-      arr = arr.filter(function(p){
-        var blob = (p.id+" "+p.title+" "+p.text+" "+p.author+" "+p.authorUid).toLowerCase();
-        return blob.indexOf(q)!==-1;
-      });
-    }
-
-    S.posts = arr;
-    S.postsMap = {};
-    arr.forEach(function(p){ S.postsMap[p.id]=p; });
-
-    txt("badgePosts", "כמות: " + arr.length);
-    renderPosts();
-
-    // show load more
-    show("btnLoadMore", true);
-  }).catch(function(err){
-    toast("שגיאה בטעינת פוסטים: " + safe(err && err.message || err), "err");
-  }).finally(function(){
-    S.loading = false;
-  });
+function shorten(t,n){
+  t = safe(t);
+  if(t.length<=n) return t;
+  return t.slice(0,n) + "…";
 }
 
 function renderPosts(){
   var host = el("postsList");
   host.innerHTML = "";
   if(!S.posts.length){
-    host.innerHTML = '<div class="muted">אין פוסטים בתצוגה.</div>';
+    host.innerHTML = '<div class="mini muted">אין פוסטים בתצוגה.</div>';
     return;
   }
+
   S.posts.forEach(function(p){
-    host.appendChild(buildPostCard(p));
+    var cc = (p.commentsCount===null) ? "?" : String(num(p.commentsCount));
+    var lc = p.lastCommentTime ? fmtDate(p.lastCommentTime) : "—";
+
+    var card = document.createElement("div");
+    card.className = "post";
+    card.innerHTML = `
+      <div class="title wrapText">${escapeHtml(p.title || "(ללא כותרת)")}</div>
+      <div class="chips">
+        <span class="chip">ID: <b class="mono">${escapeHtml(p.id)}</b></span>
+        <span class="chip">מאת: <b class="wrapText">${escapeHtml(p.author || "—")}</b></span>
+        <span class="chip">זמן: <b>${escapeHtml(fmtDate(p.time))}</b></span>
+        <span class="chip">תגובות: <b class="mono">${escapeHtml(cc)}</b></span>
+        <span class="chip">אחרונה: <b>${escapeHtml(lc)}</b></span>
+      </div>
+      <div class="snippet wrapText">${escapeHtml(shorten(p.text, 180))}</div>
+      <div class="tools">
+        <button class="btn small" data-act="edit">✏️ ערוך</button>
+        <button class="btn small" data-act="comments">💬 תגובות</button>
+        <button class="btn small" data-act="recalc">🧮 תקן מונים</button>
+        <button class="btn small danger" data-act="delete">🗑 מחק</button>
+      </div>
+    `;
+
+    card.addEventListener("click", function(e){
+      var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
+      if(!b) return;
+      var act = b.getAttribute("data-act");
+      if(act==="edit") openPostEditor(p.id, false);
+      if(act==="comments") openPostEditor(p.id, true);
+      if(act==="recalc") recalcPostMeta(p.id, true);
+      if(act==="delete") deepDeletePost(p.id, true);
+    });
+
+    host.appendChild(card);
   });
 }
 
-function shorten(t, n){
-  t = safe(t);
-  if(t.length <= n) return t;
-  return t.slice(0,n) + "…";
-}
-
-function chip(label, value, mono){
-  return '<span class="chip">'+escapeHtml(label)+': <b class="'+(mono?'mono':'')+'">'+escapeHtml(value)+'</b></span>';
-}
-
-function buildPostCard(p){
-  var d = document.createElement("div");
-  d.className = "post";
-
-  var cc = (p.commentsCount===null ? "?" : String(num(p.commentsCount)));
-  var lc = p.lastCommentTime ? fmtDate(p.lastCommentTime) : "—";
-
-  d.innerHTML = `
-    <div class="t">${escapeHtml(p.title || "(ללא כותרת)")}</div>
-    <div class="chips">
-      ${chip("ID", p.id, true)}
-      ${chip("מאת", p.author || "—")}
-      ${chip("זמן", fmtDate(p.time))}
-      ${chip("תגובות", cc, true)}
-      ${chip("אחרונה", lc)}
-    </div>
-    <div class="snippet">${escapeHtml(shorten(p.text, 160))}</div>
-    <div class="tools">
-      <button class="btn small" data-act="edit">✏️ ערוך</button>
-      <button class="btn small" data-act="comments">💬 תגובות</button>
-      <button class="btn small" data-act="recalc">🧮 תקן מונים</button>
-      <button class="btn small danger" data-act="delete">🗑 מחק פוסט</button>
-    </div>
-  `;
-
-  d.addEventListener("click", function(e){
-    var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
-    if(!b) return;
-    var act = b.getAttribute("data-act");
-    if(act==="edit") openEditorForPost(p.id, false);
-    if(act==="comments") openEditorForPost(p.id, true);
-    if(act==="recalc") recalcPostMeta(p.id, true);
-    if(act==="delete") deepDeletePost(p.id);
-  });
-
-  return d;
-}
-
-el("btnRefresh").onclick = function(){
-  if(!S.isAdmin) return;
-  resetAndLoadPosts();
+el("btnRefresh").onclick = function(){ resetAndLoadPosts(); };
+el("sortSel").onchange = function(){ resetAndLoadPosts(); };
+el("limitSel").onchange = function(){ resetAndLoadPosts(); };
+el("qSearch").oninput = function(){
+  // חיפוש מהיר – פשוט טוען מחדש מה־state הקיים
+  renderPosts();
+  // אם רוצים חיפוש “עמוק” יותר, אפשר לקרוא ל-loadPosts(S.want) – אבל זה כבד
 };
-el("limitSel").onchange = resetAndLoadPosts;
-el("sortSel").onchange = resetAndLoadPosts;
-el("q").oninput = function(){
-  // סינון מידי על מה שכבר נטען
-  renderPostsFromQuery();
-};
-
-function renderPostsFromQuery(){
-  var q = safe(el("q").value).trim().toLowerCase();
-  if(!q){
-    renderPosts();
-    return;
-  }
-  var host = el("postsList");
-  host.innerHTML = "";
-  var filtered = S.posts.filter(function(p){
-    var blob = (p.id+" "+p.title+" "+p.text+" "+p.author+" "+p.authorUid).toLowerCase();
-    return blob.indexOf(q)!==-1;
-  });
-  txt("badgePosts", "כמות: " + filtered.length);
-  if(!filtered.length){
-    host.innerHTML = '<div class="muted">לא נמצאו תוצאות.</div>';
-    return;
-  }
-  filtered.forEach(function(p){ host.appendChild(buildPostCard(p)); });
-}
 el("btnLoadMore").onclick = function(){
-  loadPostsPage(false);
+  S.want = S.want + (num(el("limitSel").value||120)||120);
+  loadPosts(S.want);
 };
 
 /* =========================
-   COMMENTS TREE HELPERS
+   EDITOR SHEET
+========================= */
+function fieldInput(label, id, value, mono){
+  var wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <div class="mini">${escapeHtml(label)}</div>
+    <input id="${escapeHtml(id)}" class="in ${mono?'mono':''}" value="${escapeHtml(value||"")}">
+  `;
+  return wrap;
+}
+function fieldArea(label, id, value){
+  var wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <div class="mini">${escapeHtml(label)}</div>
+    <textarea id="${escapeHtml(id)}" class="in">${escapeHtml(value||"")}</textarea>
+  `;
+  return wrap;
+}
+
+function openSheet(title, path, type, postId, obj){
+  S.current = { type:type, path:path, postId:postId||"", obj:obj||{} };
+  el("sheetTitle").textContent = title;
+  el("sheetPath").textContent = "Path: " + path;
+  el("rawJson").value = pretty(obj||{});
+
+  var host = el("editorFields");
+  host.innerHTML = "";
+
+  if(type==="post"){
+    host.appendChild(fieldInput("כותרת", "f_title", safe(obj.title)));
+    host.appendChild(fieldArea("תוכן", "f_text", safe(obj.text)));
+    host.appendChild(fieldInput("מחבר", "f_author", safe(obj.author||obj.username||obj.user||obj.name)));
+    host.appendChild(fieldInput("time (timestamp)", "f_time", String(num(obj.time)), true));
+    host.appendChild(fieldInput("likes", "f_likes", String(num(obj.likes)), true));
+    host.appendChild(fieldInput("commentsCount", "f_commentsCount", (obj.commentsCount===undefined||obj.commentsCount===null)?"":String(num(obj.commentsCount)), true));
+    host.appendChild(fieldInput("lastCommentTime", "f_lastCommentTime", String(num(obj.lastCommentTime)), true));
+    host.appendChild(fieldInput("imagePath", "f_imagePath", safe(obj.imagePath||""), true));
+
+    el("commentsBox").classList.remove("hidden");
+    el("btnDeleteNode").textContent = "🗑 מחק פוסט (עמוק)";
+  }else{
+    host.appendChild(fieldInput("מחבר", "f_author", safe(obj.author||obj.username||obj.user||obj.name)));
+    host.appendChild(fieldArea("טקסט", "f_text", safe(obj.text||obj.body||obj.message)));
+    host.appendChild(fieldInput("time (timestamp)", "f_time", String(num(obj.time)), true));
+
+    el("commentsBox").classList.add("hidden");
+    el("btnDeleteNode").textContent = "🗑 מחק תגובה (עם ילדים)";
+  }
+
+  el("overlay").style.display = "flex";
+}
+
+function closeSheet(){
+  el("overlay").style.display = "none";
+  el("commentsWrap").innerHTML = "";
+  el("commentsBox").open = false;
+}
+
+el("btnCloseSheet").onclick = closeSheet;
+el("overlay").addEventListener("click", function(e){
+  if(e.target === el("overlay")) closeSheet();
+});
+
+/* =========================
+   POST EDIT
+========================= */
+function openPostEditor(postId, autoLoadComments){
+  var p = S.postsMap[postId];
+  if(!p){ toast("לא מצאתי פוסט בתצוגה","warn"); return; }
+  var path = POSTS_PATH + "/" + postId;
+  openSheet("✏️ עריכת פוסט", path, "post", postId, p.raw || {});
+  if(autoLoadComments){
+    el("commentsBox").open = true;
+    loadCommentsForPost(postId);
+  }
+}
+
+function openCommentEditor(path, postId, obj){
+  openSheet("✏️ עריכת תגובה", path, "comment", postId, obj||{});
+}
+
+/* SAVE FIELDS */
+el("btnSaveFields").onclick = function(){
+  if(!S.isAdmin) return;
+  var c = S.current;
+  if(!c.path) return;
+
+  if(c.type==="post"){
+    var up = {};
+    up[c.path + "/title"] = safe(el("f_title").value);
+    up[c.path + "/text"] = safe(el("f_text").value);
+    up[c.path + "/author"] = safe(el("f_author").value) || null;
+    up[c.path + "/time"] = num(el("f_time").value);
+    up[c.path + "/likes"] = num(el("f_likes").value);
+
+    var cc = safe(el("f_commentsCount").value).trim();
+    up[c.path + "/commentsCount"] = (cc==="" ? null : num(cc));
+
+    up[c.path + "/lastCommentTime"] = num(el("f_lastCommentTime").value);
+
+    var ip = safe(el("f_imagePath").value).trim();
+    up[c.path + "/imagePath"] = ip ? ip : null;
+
+    if(!confirmDanger("לשמור פוסט?")) return;
+
+    setBusy(true);
+    firebase.database().ref().update(up)
+      .then(function(){
+        toast("נשמר ✅","ok");
+        return resetAndLoadPosts();
+      })
+      .catch(function(err){
+        toast("שגיאה בשמירה: " + safe(err && err.message || err), "err");
+      })
+      .finally(function(){ setBusy(false); });
+  }else{
+    var author = safe(el("f_author").value);
+    var text = safe(el("f_text").value);
+    var time = num(el("f_time").value);
+
+    var up2 = {};
+    // מכסה סכימות שונות
+    up2[c.path + "/author"] = author || null;
+    up2[c.path + "/username"] = author || null;
+    up2[c.path + "/user"] = author || null;
+    up2[c.path + "/name"] = author || null;
+
+    up2[c.path + "/text"] = text;
+    up2[c.path + "/body"] = text;
+    up2[c.path + "/message"] = text;
+
+    up2[c.path + "/time"] = time;
+
+    if(!confirmDanger("לשמור תגובה?")) return;
+
+    setBusy(true);
+    firebase.database().ref().update(up2)
+      .then(function(){
+        toast("תגובה נשמרה ✅","ok");
+        if(c.postId){
+          return recalcPostMeta(c.postId, false).then(function(){
+            return loadCommentsForPost(c.postId);
+          }).then(resetAndLoadPosts);
+        }
+        return resetAndLoadPosts();
+      })
+      .catch(function(err){
+        toast("שגיאה בשמירה: " + safe(err && err.message || err), "err");
+      })
+      .finally(function(){ setBusy(false); });
+  }
+};
+
+/* SAVE JSON (SET) */
+el("btnSaveJson").onclick = function(){
+  if(!S.isAdmin) return;
+  var c = S.current;
+  var parsed = tryParseJson(safe(el("rawJson").value));
+  if(!parsed.ok){ toast("JSON לא תקין","err"); return; }
+  if(!confirmDanger("לשמור JSON (SET)? זה מחליף הכל.")) return;
+
+  setBusy(true);
+  firebase.database().ref(c.path).set(parsed.v)
+    .then(function(){
+      toast("JSON נשמר ✅","ok");
+      if(c.type==="comment" && c.postId){
+        return recalcPostMeta(c.postId, false).then(function(){
+          return loadCommentsForPost(c.postId);
+        }).then(resetAndLoadPosts);
+      }
+      return resetAndLoadPosts();
+    })
+    .catch(function(err){
+      toast("שגיאה: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){ setBusy(false); });
+};
+
+/* DELETE */
+el("btnDeleteNode").onclick = function(){
+  if(!S.isAdmin) return;
+  var c = S.current;
+  if(!c.path) return;
+
+  if(c.type==="post"){
+    deepDeletePost(c.postId, false);
+    return;
+  }
+
+  if(!confirmDanger("למחוק תגובה? כל הילדים שלה ימחקו אוטומטית.")) return;
+
+  setBusy(true);
+  firebase.database().ref(c.path).remove()
+    .then(function(){
+      toast("תגובה נמחקה ✅","ok");
+      if(c.postId){
+        return recalcPostMeta(c.postId, false).then(function(){
+          return loadCommentsForPost(c.postId);
+        }).then(resetAndLoadPosts);
+      }
+      return resetAndLoadPosts();
+    })
+    .catch(function(err){
+      toast("שגיאה במחיקה: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){ setBusy(false); });
+};
+
+/* =========================
+   COMMENTS TREE
 ========================= */
 function pickRepliesContainers(v){
   var arr = [];
@@ -1036,18 +1199,108 @@ function pickRepliesContainers(v){
   return arr;
 }
 
+function loadCommentsForPost(postId){
+  el("commentsWrap").innerHTML = '<div class="mini muted">טוען תגובות…</div>';
+
+  return firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value")
+    .then(function(snap){
+      var obj = snap.exists() ? (snap.val()||{}) : {};
+      el("commentsWrap").innerHTML = "";
+      if(!obj || typeof obj!=="object" || !Object.keys(obj).length){
+        el("commentsWrap").innerHTML = '<div class="mini muted">אין תגובות לפוסט הזה.</div>';
+        return;
+      }
+
+      var keys = Object.keys(obj);
+      keys.sort(function(a,b){ return num((obj[a]||{}).time) - num((obj[b]||{}).time); });
+
+      keys.forEach(function(cid){
+        var path = COMMENTS_PATH + "/" + postId + "/" + cid;
+        el("commentsWrap").appendChild(buildCommentNode(postId, cid, path, obj[cid], 0));
+      });
+    })
+    .catch(function(err){
+      el("commentsWrap").innerHTML = '<div class="mini muted wrapText">שגיאה: '+escapeHtml(safe(err && err.message || err))+'</div>';
+    });
+}
+
+function buildCommentNode(postId, key, path, data, depth){
+  data = data || {};
+  var author = safe(data.author || data.username || data.user || data.name || "—");
+  var text = safe(data.text || data.body || data.message || "");
+  var time = num(data.time);
+
+  var box = document.createElement("div");
+  box.className = "cNode" + (depth>0 ? " indent" : "");
+  box.innerHTML = `
+    <div class="cHead">
+      <div class="cMeta">
+        <span class="chip">key: <b class="mono">${escapeHtml(key)}</b></span>
+        <span class="chip">מאת: <b class="wrapText">${escapeHtml(author)}</b></span>
+        <span class="chip">זמן: <b>${escapeHtml(time?fmtDate(time):"—")}</b></span>
+      </div>
+      <div class="tools">
+        <button class="btn small" data-act="edit">✏️</button>
+        <button class="btn small danger" data-act="del">🗑</button>
+      </div>
+    </div>
+    <div class="cText wrapText">${escapeHtml(text)}</div>
+  `;
+
+  box.addEventListener("click", function(e){
+    var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
+    if(!b) return;
+    var act = b.getAttribute("data-act");
+    if(act==="edit"){
+      openCommentEditor(path, postId, data);
+    }
+    if(act==="del"){
+      if(!confirmDanger("למחוק תגובה? הילדים שלה ימחקו אוטומטית.")) return;
+      setBusy(true);
+      firebase.database().ref(path).remove()
+        .then(function(){
+          toast("נמחק ✅","ok");
+          return recalcPostMeta(postId, false).then(function(){
+            return loadCommentsForPost(postId);
+          }).then(resetAndLoadPosts);
+        })
+        .catch(function(err){
+          toast("שגיאה: "+safe(err && err.message || err), "err");
+        })
+        .finally(function(){ setBusy(false); });
+    }
+  });
+
+  if(depth < MAX_REPLIES_DEPTH){
+    pickRepliesContainers(data).forEach(function(cn){
+      var o = cn.obj || {};
+      var rKeys = Object.keys(o);
+      if(!rKeys.length) return;
+
+      rKeys.sort(function(a,b){ return num((o[a]||{}).time) - num((o[b]||{}).time); });
+      rKeys.forEach(function(rid){
+        var childPath = path + "/" + cn.name + "/" + rid;
+        box.appendChild(buildCommentNode(postId, rid, childPath, o[rid], depth+1));
+      });
+    });
+  }
+
+  return box;
+}
+
+/* =========================
+   META RECALC + FIX ALL
+========================= */
 function computeMetaFromCommentsObj(obj){
-  // commentsCount: רק תגובות ברמה הראשונה
-  // lastCommentTime: max time מכל העץ (כולל תתי)
   var countTop = 0;
   var lastTime = 0;
 
   function walk(node, depth){
     if(!node || typeof node!=="object") return;
-    if(node.time!==undefined && node.time!==null){
-      var t = num(node.time);
-      if(t>lastTime) lastTime = t;
-    }
+
+    var t = num(node.time);
+    if(t>lastTime) lastTime = t;
+
     if(depth<=0) return;
     pickRepliesContainers(node).forEach(function(cn){
       var o = cn.obj || {};
@@ -1064,459 +1317,134 @@ function computeMetaFromCommentsObj(obj){
       walk(obj[cid], MAX_REPLIES_DEPTH);
     });
   }
+
   return { commentsCount: countTop, lastCommentTime: lastTime };
 }
 
-/* =========================
-   SHEET EDITOR
-========================= */
-function openSheet(title, path, type, postId, obj){
-  S.current = { type:type, path:path, postId:postId||"", obj: obj||{} };
-  txt("sheetTitle", title);
-  txt("sheetPath", "Path: " + path);
-  el("rawJson").value = pretty(obj||{});
-
-  // clean fields
-  var host = el("editorFields");
-  host.innerHTML = "";
-
-  // build fields by type
-  if(type==="post"){
-    host.appendChild(fieldInput("כותרת", "f_title", safe(obj.title), 120));
-    host.appendChild(fieldArea("תוכן", "f_text", safe(obj.text), 6000));
-    host.appendChild(fieldInput("מחבר (שם)", "f_author", safe(obj.author || obj.username || ""), 80));
-    host.appendChild(fieldInput("UID מחבר (אופציונלי)", "f_authorUid", safe(obj.authorUid || obj.uid || obj.userId || ""), 120, true));
-    host.appendChild(fieldInput("time (timestamp)", "f_time", String(num(obj.time)), 30, true));
-    host.appendChild(fieldInput("likes", "f_likes", String(num(obj.likes)), 30, true));
-    host.appendChild(fieldInput("commentsCount", "f_commentsCount", (obj.commentsCount===undefined||obj.commentsCount===null)?"":String(num(obj.commentsCount)), 30, true));
-    host.appendChild(fieldInput("lastCommentTime", "f_lastCommentTime", String(num(obj.lastCommentTime)), 30, true));
-    host.appendChild(fieldInput("imagePath (אופציונלי)", "f_imagePath", safe(obj.imagePath||""), 240, true));
-
-    // show comments section
-    show("commentsSection", true);
-  }
-  else if(type==="comment"){
-    host.appendChild(fieldInput("מחבר (שם)", "f_author", safe(obj.author || obj.username || obj.user || ""), 80));
-    host.appendChild(fieldInput("UID מחבר (אופציונלי)", "f_authorUid", safe(obj.uid || obj.userId || obj.authorUid || ""), 120, true));
-    host.appendChild(fieldArea("טקסט", "f_text", safe(obj.text || obj.body || obj.message || ""), 6000));
-    host.appendChild(fieldInput("time (timestamp)", "f_time", String(num(obj.time)), 30, true));
-    show("commentsSection", false);
-  }
-  else{
-    // fallback
-    host.appendChild(fieldArea("אובייקט (ראה JSON למטה)", "f_text", "", 0));
-    show("commentsSection", false);
-  }
-
-  // delete button label by type
-  el("btnDeleteNode").textContent = (type==="post") ? "🗑 מחק פוסט (עמוק)" : "🗑 מחק";
-
-  el("overlay").style.display = "flex";
-}
-
-function closeSheet(){
-  el("overlay").style.display = "none";
-  el("commentsWrap").innerHTML = "";
-}
-el("btnSheetClose").onclick = closeSheet;
-el("overlay").addEventListener("click", function(e){
-  if(e.target === el("overlay")) closeSheet();
-});
-
-function fieldInput(label, id, value, max, mono){
-  var wrap = document.createElement("div");
-  wrap.className = "field";
-  wrap.innerHTML = `
-    <label>${escapeHtml(label)}</label>
-    <input id="${escapeHtml(id)}" class="in ${mono?'mono':''}" maxlength="${max||240}" value="${escapeHtml(value||"")}">
-  `;
-  return wrap;
-}
-function fieldArea(label, id, value, max){
-  var wrap = document.createElement("div");
-  wrap.className = "field";
-  wrap.innerHTML = `
-    <label>${escapeHtml(label)}</label>
-    <textarea id="${escapeHtml(id)}" class="in" ${max?('maxlength="'+max+'"'):""}>${escapeHtml(value||"")}</textarea>
-  `;
-  return wrap;
-}
-
-function openEditorForPost(postId, autoLoadComments){
-  var p = S.postsMap[postId];
-  if(!p){ toast("לא מצאתי פוסט בתצוגה", "warn"); return; }
-
-  var path = POSTS_PATH + "/" + postId;
-  openSheet("✏️ עריכת פוסט", path, "post", postId, p.raw || {});
-  if(autoLoadComments){
-    loadCommentsForPost(postId);
-    el("commentsSection").open = true;
-  }else{
-    el("commentsSection").open = false;
-    el("commentsWrap").innerHTML = "";
-  }
-}
-
-function openEditorForComment(path, postId, obj){
-  openSheet("✏️ עריכת תגובה", path, "comment", postId, obj||{});
-}
-
-/* =========================
-   SAVE / DELETE IN SHEET
-========================= */
-el("btnSaveFields").onclick = function(){
-  if(!S.isAdmin) return;
-  var c = S.current;
-  if(!c.path) return;
-
-  if(c.type==="post"){
-    var updates = {};
-    updates[c.path + "/title"] = safe(el("f_title").value);
-    updates[c.path + "/text"] = safe(el("f_text").value);
-    updates[c.path + "/author"] = safe(el("f_author").value) || null;
-
-    var au = safe(el("f_authorUid").value).trim();
-    if(au) updates[c.path + "/authorUid"] = au;
-    else updates[c.path + "/authorUid"] = null;
-
-    updates[c.path + "/time"] = num(el("f_time").value);
-    updates[c.path + "/likes"] = num(el("f_likes").value);
-
-    var cc = safe(el("f_commentsCount").value).trim();
-    updates[c.path + "/commentsCount"] = (cc==="" ? null : num(cc));
-
-    updates[c.path + "/lastCommentTime"] = num(el("f_lastCommentTime").value);
-
-    var ip = safe(el("f_imagePath").value).trim();
-    updates[c.path + "/imagePath"] = (ip ? ip : null);
-
-    if(!confirmDanger("לשמור שדות לפוסט?")) return;
-
-    firebase.database().ref().update(updates).then(function(){
-      toast("נשמר ✅", "ok");
-      return resetAndLoadPosts();
-    }).catch(function(err){
-      toast("שגיאה בשמירה: " + safe(err && err.message || err), "err");
-    });
-  }
-
-  if(c.type==="comment"){
-    var up = {};
-    // ננסה לעדכן כמה שמות אפשריים כדי להתאים לכל סכימה
-    var author = safe(el("f_author").value);
-    var au2 = safe(el("f_authorUid").value).trim();
-    var text = safe(el("f_text").value);
-    var time = num(el("f_time").value);
-
-    up[c.path + "/author"] = author || null;
-    up[c.path + "/username"] = author || null;
-    up[c.path + "/user"] = author || null;
-
-    if(au2){
-      up[c.path + "/uid"] = au2;
-      up[c.path + "/userId"] = au2;
-      up[c.path + "/authorUid"] = au2;
-    }
-
-    up[c.path + "/text"] = text;
-    up[c.path + "/body"] = text;
-    up[c.path + "/message"] = text;
-
-    up[c.path + "/time"] = time;
-
-    if(!confirmDanger("לשמור תגובה?")) return;
-
-    firebase.database().ref().update(up).then(function(){
-      toast("תגובה נשמרה ✅", "ok");
-      if(c.postId){
-        return recalcPostMeta(c.postId, false).then(function(){
-          return loadCommentsForPost(c.postId);
-        }).then(resetAndLoadPosts);
-      }
-      return resetAndLoadPosts();
-    }).catch(function(err){
-      toast("שגיאה בשמירה: " + safe(err && err.message || err), "err");
-    });
-  }
-};
-
-el("btnSaveJson").onclick = function(){
-  if(!S.isAdmin) return;
-  var c = S.current;
-  var parsed = tryParseJson(safe(el("rawJson").value));
-  if(!parsed.ok){ toast("JSON לא תקין", "err"); return; }
-  if(!confirmDanger("לשמור JSON (SET) לנתיב הזה? זה מחליף הכל.")) return;
-
-  firebase.database().ref(c.path).set(parsed.v).then(function(){
-    toast("JSON נשמר ✅", "ok");
-    if(c.type==="comment" && c.postId){
-      return recalcPostMeta(c.postId, false).then(function(){
-        return loadCommentsForPost(c.postId);
-      }).then(resetAndLoadPosts);
-    }
-    return resetAndLoadPosts();
-  }).catch(function(err){
-    toast("שגיאה: " + safe(err && err.message || err), "err");
-  });
-};
-
-el("btnDeleteNode").onclick = function(){
-  if(!S.isAdmin) return;
-  var c = S.current;
-  if(!c.path) return;
-
-  if(c.type==="post"){
-    deepDeletePost(c.postId, true);
-    return;
-  }
-
-  if(!confirmDanger("למחוק את ה־node הזה? כל הילדים שלו ימחקו גם.")) return;
-
-  firebase.database().ref(c.path).remove().then(function(){
-    toast("נמחק ✅", "ok");
-    if(c.postId){
-      return recalcPostMeta(c.postId, false).then(function(){
-        return loadCommentsForPost(c.postId);
-      }).then(resetAndLoadPosts);
-    }
-    return resetAndLoadPosts();
-  }).catch(function(err){
-    toast("שגיאה במחיקה: " + safe(err && err.message || err), "err");
-  });
-};
-
-/* =========================
-   COMMENTS LOAD + RENDER
-========================= */
-function loadCommentsForPost(postId){
-  var wrap = el("commentsWrap");
-  wrap.innerHTML = '<div class="muted">טוען תגובות…</div>';
-
-  return firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value").then(function(s){
-    var obj = s.exists() ? (s.val()||{}) : {};
-    wrap.innerHTML = "";
-    if(!obj || typeof obj!=="object" || !Object.keys(obj).length){
-      wrap.innerHTML = '<div class="muted">אין תגובות לפוסט הזה.</div>';
-      return;
-    }
-
-    // sort top-level by time asc
-    var keys = Object.keys(obj);
-    keys.sort(function(a,b){
-      return num((obj[a]||{}).time) - num((obj[b]||{}).time);
-    });
-
-    keys.forEach(function(cid){
-      var path = COMMENTS_PATH + "/" + postId + "/" + cid;
-      wrap.appendChild(buildCommentNode({
-        postId: postId,
-        key: cid,
-        path: path,
-        data: obj[cid],
-        depth: 0
-      }));
-    });
-  }).catch(function(err){
-    wrap.innerHTML = '<div class="muted">שגיאה בטעינה: '+escapeHtml(safe(err && err.message || err))+'</div>';
-  });
-}
-
-function buildCommentNode(o){
-  var postId = safe(o.postId);
-  var key = safe(o.key);
-  var path = safe(o.path);
-  var data = o.data || {};
-  var depth = num(o.depth);
-
-  var author = safe(data.author || data.username || data.user || data.name || "—");
-  var auid = safe(data.uid || data.userId || data.authorUid || "");
-  var text = safe(data.text || data.body || data.message || "");
-  var time = num(data.time);
-
-  var box = document.createElement("div");
-  box.className = "cNode" + (depth>0 ? " indent" : "");
-  box.innerHTML = `
-    <div class="cHead">
-      <div class="cMeta">
-        <span class="chip">key: <b class="mono">${escapeHtml(key)}</b></span>
-        <span class="chip">מאת: <b>${escapeHtml(author)}</b></span>
-        <span class="chip">זמן: <b>${escapeHtml(time?fmtDate(time):"—")}</b></span>
-        ${auid ? `<span class="chip">uid: <b class="mono">${escapeHtml(auid)}</b></span>` : ``}
-      </div>
-      <div class="row">
-        <button class="btn small" data-act="edit">✏️</button>
-        <button class="btn small danger" data-act="del">🗑</button>
-      </div>
-    </div>
-    <div class="cText">${escapeHtml(text)}</div>
-  `;
-
-  box.addEventListener("click", function(e){
-    var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
-    if(!b) return;
-    var act = b.getAttribute("data-act");
-    if(act==="edit"){
-      openEditorForComment(path, postId, data);
-    }
-    if(act==="del"){
-      if(!confirmDanger("למחוק תגובה? כל תתי-התגובות שלה ימחקו גם.")) return;
-      firebase.database().ref(path).remove().then(function(){
-        toast("תגובה נמחקה ✅", "ok");
-        return recalcPostMeta(postId, false).then(function(){
-          return loadCommentsForPost(postId);
-        }).then(resetAndLoadPosts);
-      }).catch(function(err){
-        toast("שגיאה במחיקה: " + safe(err && err.message || err), "err");
-      });
-    }
-  });
-
-  // children (replies)
-  if(depth < MAX_REPLIES_DEPTH){
-    pickRepliesContainers(data).forEach(function(cn){
-      var obj = cn.obj || {};
-      var rKeys = Object.keys(obj);
-      if(!rKeys.length) return;
-
-      rKeys.sort(function(a,b){
-        return num((obj[a]||{}).time) - num((obj[b]||{}).time);
-      });
-
-      rKeys.forEach(function(rid){
-        var childPath = path + "/" + cn.name + "/" + rid;
-        box.appendChild(buildCommentNode({
-          postId: postId,
-          key: rid,
-          path: childPath,
-          data: obj[rid],
-          depth: depth + 1
-        }));
-      });
-    });
-  }
-
-  return box;
-}
-
-/* =========================
-   META RECALC (single post + fix all)
-========================= */
 function recalcPostMeta(postId, showToast){
-  postId = safe(postId);
-  if(!postId) return Promise.resolve();
+  if(showToast) toast("מתקן מונים…","warn");
+  return firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value")
+    .then(function(snap){
+      var obj = snap.exists() ? (snap.val()||{}) : {};
+      var meta = computeMetaFromCommentsObj(obj);
 
-  if(showToast) toast("מתקן מונים…", "warn");
+      var up = {};
+      up[POSTS_PATH + "/" + postId + "/commentsCount"] = num(meta.commentsCount);
+      up[POSTS_PATH + "/" + postId + "/lastCommentTime"] = num(meta.lastCommentTime);
 
-  return firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value").then(function(s){
-    var obj = s.exists() ? (s.val()||{}) : {};
-    var meta = computeMetaFromCommentsObj(obj);
-
-    var up = {};
-    up[POSTS_PATH + "/" + postId + "/commentsCount"] = num(meta.commentsCount);
-    up[POSTS_PATH + "/" + postId + "/lastCommentTime"] = num(meta.lastCommentTime);
-
-    return firebase.database().ref().update(up).then(function(){
-      if(showToast) toast("מונים עודכנו ✅", "ok");
+      return firebase.database().ref().update(up).then(function(){
+        if(showToast) toast("מונים עודכנו ✅","ok");
+      });
+    })
+    .catch(function(err){
+      toast("שגיאה בתיקון מונים: " + safe(err && err.message || err), "err");
     });
-  }).catch(function(err){
-    toast("שגיאה בתיקון מונים: " + safe(err && err.message || err), "err");
-  });
 }
 
 function fixAllPosts(){
   if(!S.isAdmin) return;
-  if(!confirmDanger("לעשות סדר לכל הפוסטים שנטענו מה-DB? (יכול לקחת זמן)")) return;
+  if(!confirmDanger("“עשה סדר” ירוץ על הרבה פוסטים (מוגבל ל-300). להמשיך?")) return;
 
-  // נטען עד N פוסטים (כאן: 300) כדי לא להרוג מובייל. אפשר לשנות.
+  setBusy(true);
+  progReset();
+  el("toolsMsg").textContent = "טוען פוסטים…";
+  prog(2,"טוען רשימת פוסטים…");
+
   var HARD_LIMIT = 300;
 
-  progReset();
-  prog(2, "טוען רשימת פוסטים…");
-  el("toolsStatus").textContent = "מתחיל…";
+  firebase.database().ref(POSTS_PATH).orderByChild("time").limitToLast(HARD_LIMIT).once("value")
+    .then(function(snap){
+      var ids = [];
+      snap.forEach(function(ch){ ids.push(ch.key); });
 
-  firebase.database().ref(POSTS_PATH).orderByChild("time").limitToLast(HARD_LIMIT).once("value").then(function(s){
-    var ids = [];
-    s.forEach(function(ch){ ids.push(ch.key); });
-
-    if(!ids.length){
-      toast("אין פוסטים לתקן", "warn");
-      progReset();
-      return;
-    }
-
-    var i=0;
-    function step(){
-      if(i>=ids.length){
-        prog(100, "סיום ✅");
-        el("toolsStatus").textContent = "סיימתי “עשה סדר” על " + ids.length + " פוסטים.";
-        toast("סיימתי ✅", "ok");
-        return resetAndLoadPosts();
+      if(!ids.length){
+        el("toolsMsg").textContent = "אין פוסטים לתקן.";
+        toast("אין פוסטים לתקן","warn");
+        return;
       }
-      var pct = Math.round((i/ids.length)*100);
-      prog(pct, "מתקן ("+(i+1)+"/"+ids.length+") " + ids[i]);
-      el("toolsStatus").textContent = "עובד על postId=" + ids[i];
 
-      recalcPostMeta(ids[i], false).finally(function(){
-        i++;
-        setTimeout(step, 25);
-      });
-    }
-    step();
-  }).catch(function(err){
-    toast("שגיאה בעשה-סדר: " + safe(err && err.message || err), "err");
-    el("toolsStatus").textContent = "שגיאה: " + safe(err && err.message || err);
-  });
+      el("toolsMsg").textContent = "מתחיל… ("+ids.length+")";
+      var i=0;
+
+      function step(){
+        if(i>=ids.length){
+          prog(100,"סיום ✅");
+          el("toolsMsg").textContent = "סיימתי “עשה סדר” על " + ids.length + " פוסטים.";
+          toast("סיימתי ✅","ok");
+          return resetAndLoadPosts();
+        }
+        var pct = Math.round((i/ids.length)*100);
+        prog(pct, "מתקן ("+(i+1)+"/"+ids.length+")");
+        el("toolsMsg").textContent = "פוסט: " + ids[i];
+
+        recalcPostMeta(ids[i], false).finally(function(){
+          i++;
+          setTimeout(step, 25);
+        });
+      }
+
+      step();
+    })
+    .catch(function(err){
+      el("toolsMsg").textContent = "שגיאה: " + safe(err && err.message || err);
+      toast("שגיאה בעשה-סדר: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){
+      setBusy(false);
+    });
 }
 el("btnFixAll").onclick = fixAllPosts;
 
 /* =========================
-   DEEP DELETE POST (posts + comments + optional storage folder)
+   DEEP DELETE POST (posts + comments + storage folder best-effort)
 ========================= */
-function deepDeletePost(postId, fromSheet){
-  postId = safe(postId);
+function deepDeletePost(postId, closeSheetAfter){
   if(!postId) return;
-  if(!S.isAdmin) return;
+  if(!confirmDanger("למחוק פוסט עמוק?\nposts/"+postId+"\nוגם comments/"+postId+"\nוגם תמונות ב-storage אם יש")) return;
 
-  if(!confirmDanger("מוחק פוסט עמוק:\nposts/"+postId+"\nוגם comments/"+postId+"\n(וכל הילדים)")) return;
-
-  toast("מוחק…", "warn");
+  setBusy(true);
+  toast("מוחק…","warn");
 
   var up = {};
   up[POSTS_PATH + "/" + postId] = null;
   up[COMMENTS_PATH + "/" + postId] = null;
 
-  // 1) DB remove (multi-path)
-  firebase.database().ref().update(up).then(function(){
-    // 2) Storage best-effort cleanup
-    var folderRef = firebase.storage().ref(STORAGE_POST_FOLDER + "/" + postId);
-    return folderRef.listAll().then(function(res){
-      var ps = [];
-      (res.items || []).forEach(function(itemRef){
-        ps.push(itemRef.delete().catch(function(){}));
-      });
-      return Promise.all(ps);
-    }).catch(function(){ /* ignore */ });
-  }).then(function(){
-    toast("פוסט נמחק ✅", "ok");
-    if(fromSheet) closeSheet();
-    return resetAndLoadPosts();
-  }).catch(function(err){
-    toast("שגיאה במחיקה: " + safe(err && err.message || err), "err");
-  });
+  firebase.database().ref().update(up)
+    .then(function(){
+      // Storage cleanup best-effort
+      var folderRef = firebase.storage().ref(STORAGE_POST_FOLDER + "/" + postId);
+      return folderRef.listAll().then(function(res){
+        var ps = [];
+        (res.items||[]).forEach(function(itemRef){
+          ps.push(itemRef.delete().catch(function(){}));
+        });
+        return Promise.all(ps);
+      }).catch(function(){});
+    })
+    .then(function(){
+      toast("פוסט נמחק ✅","ok");
+      if(closeSheetAfter) closeSheet();
+      return resetAndLoadPosts();
+    })
+    .catch(function(err){
+      toast("שגיאה במחיקה: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){
+      setBusy(false);
+    });
 }
 
 /* =========================
-   EXPORT POSTS JSON (visible)
+   EXPORT visible posts
 ========================= */
-el("btnExport").onclick = function(){
+el("btnExportVisible").onclick = function(){
   if(!S.isAdmin) return;
-  var data = S.posts.map(function(p){
+  var data = (S.posts||[]).map(function(p){
     return {
       id: p.id,
       title: p.title,
       text: p.text,
       author: p.author,
-      authorUid: p.authorUid,
       time: p.time,
       likes: p.likes,
       commentsCount: p.commentsCount,
@@ -1524,6 +1452,7 @@ el("btnExport").onclick = function(){
       imagePath: p.imagePath
     };
   });
+
   var blob = new Blob([pretty(data)], {type:"application/json"});
   var url = URL.createObjectURL(blob);
   var a = document.createElement("a");
@@ -1532,188 +1461,183 @@ el("btnExport").onclick = function(){
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 1200);
-  toast("יוצא קובץ JSON ✅", "ok");
+  setTimeout(function(){ try{ URL.revokeObjectURL(url);}catch(e){} }, 1200);
+  toast("יוצא קובץ ✅","ok");
 };
 
 /* =========================
-   QUICK DB (Tools)
+   RENAME (old username -> new username) NO UID INPUT
+   - update users/*/username where equals oldName
+   - update posts author fields where equals oldName
+   - update comments tree same
+   - chunk updates to avoid huge update payload
 ========================= */
-el("btnQSet").onclick = function(){
-  if(!S.isAdmin) return;
-  var path = safe(el("quickPath").value).trim();
-  var parsed = tryParseJson(safe(el("quickVal").value));
-  if(!path){ toast("חסר path", "warn"); return; }
-  if(!parsed.ok){ toast("value JSON לא תקין", "err"); return; }
-  if(!confirmDanger("SET לנתיב: "+path+" ?")) return;
+function applyUpdatesChunked(updates, chunkSize){
+  chunkSize = chunkSize || 450;
+  var keys = Object.keys(updates||{});
+  if(!keys.length) return Promise.resolve(0);
 
-  firebase.database().ref(path).set(parsed.v).then(function(){
-    toast("SET OK ✅", "ok");
-    resetAndLoadPosts();
-  }).catch(function(e){ toast("שגיאה: "+safe(e && e.message || e), "err"); });
-};
-
-el("btnQUpdate").onclick = function(){
-  if(!S.isAdmin) return;
-  var path = safe(el("quickPath").value).trim();
-  var parsed = tryParseJson(safe(el("quickVal").value));
-  if(!path){ toast("חסר path", "warn"); return; }
-  if(!parsed.ok || typeof parsed.v!=="object" || parsed.v===null || Array.isArray(parsed.v)){
-    toast("UPDATE דורש אובייקט JSON", "err"); return;
+  var i=0, applied=0;
+  function step(){
+    if(i>=keys.length) return Promise.resolve(applied);
+    var part = {};
+    for(var k=0; k<chunkSize && i<keys.length; k++, i++){
+      part[keys[i]] = updates[keys[i]];
+    }
+    return firebase.database().ref().update(part).then(function(){
+      applied += Object.keys(part).length;
+      return step();
+    });
   }
-  if(!confirmDanger("UPDATE לנתיב: "+path+" ?")) return;
-
-  firebase.database().ref(path).update(parsed.v).then(function(){
-    toast("UPDATE OK ✅", "ok");
-    resetAndLoadPosts();
-  }).catch(function(e){ toast("שגיאה: "+safe(e && e.message || e), "err"); });
-};
-
-el("btnQRemove").onclick = function(){
-  if(!S.isAdmin) return;
-  var path = safe(el("quickPath").value).trim();
-  if(!path){ toast("חסר path", "warn"); return; }
-  if(!confirmDanger("REMOVE לנתיב: "+path+" ?")) return;
-
-  firebase.database().ref(path).remove().then(function(){
-    toast("REMOVE OK ✅", "ok");
-    resetAndLoadPosts();
-  }).catch(function(e){ toast("שגיאה: "+safe(e && e.message || e), "err"); });
-};
-
-/* =========================
-   RENAME USER (UID -> username everywhere)
-========================= */
-function shouldUpdateAuthorFields(obj, uid){
-  // אם יש uid/userId/authorUid תואם -> בטוח שזה המשתמש
-  var u = safe(uid);
-  if(!u) return false;
-  var candidates = [
-    safe(obj.uid), safe(obj.userId), safe(obj.authorUid)
-  ].filter(Boolean);
-  if(candidates.indexOf(u)!==-1) return true;
-  return false;
+  return step();
 }
 
-function collectRenameUpdatesInTree(rootObj, rootPath, uid, newName, depth){
+function renameInCommentTree(rootObj, rootPath, oldName, newName, depth){
   depth = depth || MAX_REPLIES_DEPTH;
-  var updates = {};
+  var up = {};
 
-  function applyForNode(node, path){
+  function setIfMatch(node, path){
     if(!node || typeof node!=="object") return;
 
-    if(shouldUpdateAuthorFields(node, uid)){
-      // נעדכן כמה שדות נפוצים כדי לכסות סכימות שונות
-      updates[path + "/author"] = newName;
-      updates[path + "/username"] = newName;
-      updates[path + "/user"] = newName;
-      updates[path + "/name"] = newName;
-    }
+    var fields = ["author","username","user","name"];
+    fields.forEach(function(f){
+      if(node[f] !== undefined && node[f] !== null && safe(node[f]) === oldName){
+        up[path + "/" + f] = newName;
+      }
+    });
 
     if(depth<=0) return;
 
     pickRepliesContainers(node).forEach(function(cn){
       var o = cn.obj || {};
       Object.keys(o).forEach(function(k){
-        applyForNode(o[k], path + "/" + cn.name + "/" + k);
+        setIfMatch(o[k], path + "/" + cn.name + "/" + k);
       });
     });
   }
 
-  // top-level map
   if(rootObj && typeof rootObj==="object"){
     Object.keys(rootObj).forEach(function(k){
-      applyForNode(rootObj[k], rootPath + "/" + k);
+      setIfMatch(rootObj[k], rootPath + "/" + k);
     });
   }
-  return updates;
+
+  return up;
 }
 
-function renameUserEverywhere(uid, newName){
-  uid = safe(uid).trim();
+function renameEverywhere(oldName, newName){
+  oldName = safe(oldName).trim();
   newName = safe(newName).trim();
-  if(!uid || !newName){
-    toast("חסר UID או Username", "warn");
+
+  if(!oldName || !newName){
+    toast("חסר שם נוכחי או חדש","warn");
     return;
   }
-  if(!confirmDanger("לעדכן username בכל מקום עבור UID הזה?\nUID: "+uid+"\nNew: "+newName)) return;
+  if(oldName === newName){
+    toast("אין שינוי (אותו שם)","warn");
+    return;
+  }
+  if(!confirmDanger("לשנות שם בכל מקום?\nמ: " + oldName + "\nל: " + newName)) return;
 
-  txt("usersStatus","מתחיל…");
+  setBusy(true);
   progReset();
-  prog(2, "מעדכן users/{uid}…");
-  toast("עובד…", "warn");
+  el("renameMsg").textContent = "מתחיל…";
+  toast("עובד…","warn");
 
-  var allUpdates = {};
-  allUpdates[USERS_PATH + "/" + uid + "/username"] = newName;
+  var totalUpdates = 0;
 
-  // 1) Update users/{uid}/username
-  firebase.database().ref().update(allUpdates).then(function(){
-    // 2) Scan posts (limited) + update author fields when authorUid matches
-    prog(10, "סורק פוסטים…");
-    return firebase.database().ref(POSTS_PATH).limitToLast(1000).once("value");
-  }).then(function(psSnap){
-    var up = {};
+  // 1) Users scan
+  prog(5,"סורק users…");
+  firebase.database().ref(USERS_PATH).limitToLast(6000).once("value")
+    .then(function(snap){
+      var up = {};
+      var matched = 0;
 
-    psSnap.forEach(function(ch){
-      var id = ch.key;
-      var v = ch.val() || {};
-      var pPath = POSTS_PATH + "/" + id;
+      snap.forEach(function(ch){
+        var uid = ch.key;
+        var v = ch.val() || {};
+        if(safe(v.username) === oldName){
+          up[USERS_PATH + "/" + uid + "/username"] = newName;
+          matched++;
+        }
+      });
 
-      // אם יש authorUid/uid/userId תואם -> עדכן
-      if(shouldUpdateAuthorFields(v, uid)){
-        up[pPath + "/author"] = newName;
-        up[pPath + "/username"] = newName;
-        up[pPath + "/user"] = newName;
-        up[pPath + "/name"] = newName;
-      }
+      el("renameMsg").textContent = "users: נמצאו " + matched + " התאמות.";
+      prog(18,"מעדכן users…");
+
+      return applyUpdatesChunked(up, 500).then(function(n){ totalUpdates += n; });
+    })
+    .then(function(){
+      // 2) Posts scan
+      prog(30,"סורק posts…");
+      return firebase.database().ref(POSTS_PATH).limitToLast(1500).once("value");
+    })
+    .then(function(ps){
+      var up = {};
+      var matched = 0;
+
+      ps.forEach(function(ch){
+        var id = ch.key;
+        var v = ch.val() || {};
+        var base = POSTS_PATH + "/" + id;
+
+        ["author","username","user","name"].forEach(function(f){
+          if(v[f] !== undefined && v[f] !== null && safe(v[f]) === oldName){
+            up[base + "/" + f] = newName;
+            matched++;
+          }
+        });
+      });
+
+      el("renameMsg").textContent += "\nposts: התאמות שדה: " + matched;
+      prog(48,"מעדכן posts…");
+      return applyUpdatesChunked(up, 450).then(function(n){ totalUpdates += n; });
+    })
+    .then(function(){
+      // 3) Comments scan
+      prog(60,"סורק comments…");
+      return firebase.database().ref(COMMENTS_PATH).limitToLast(900).once("value");
+    })
+    .then(function(cs){
+      var bigUp = {};
+      var roots = 0;
+
+      cs.forEach(function(ch){
+        var postId = ch.key;
+        var obj = ch.val() || {};
+        roots++;
+
+        var local = renameInCommentTree(obj, COMMENTS_PATH + "/" + postId, oldName, newName, MAX_REPLIES_DEPTH);
+        Object.keys(local).forEach(function(k){ bigUp[k] = local[k]; });
+      });
+
+      el("renameMsg").textContent += "\ncomments roots: " + roots + " | updates: " + Object.keys(bigUp).length;
+      prog(82,"מעדכן comments…");
+      return applyUpdatesChunked(bigUp, 350).then(function(n){ totalUpdates += n; });
+    })
+    .then(function(){
+      prog(100,"סיום ✅");
+      el("renameMsg").textContent += "\nסיימתי. סה״כ שינויים: " + totalUpdates;
+      toast("סיימתי ✅","ok");
+      return resetAndLoadPosts();
+    })
+    .catch(function(err){
+      el("renameMsg").textContent = "שגיאה: " + safe(err && err.message || err);
+      toast("שגיאה: " + safe(err && err.message || err), "err");
+    })
+    .finally(function(){
+      setBusy(false);
     });
-
-    prog(25, "מעדכן פוסטים…");
-    return firebase.database().ref().update(up);
-  }).then(function(){
-    // 3) Scan comments roots (limited) and update matching nodes
-    prog(40, "סורק תגובות לפי פוסטים…");
-    return firebase.database().ref(COMMENTS_PATH).limitToLast(700).once("value");
-  }).then(function(csSnap){
-    var bigUp = {};
-    var roots = [];
-    csSnap.forEach(function(ch){
-      roots.push({ postId: ch.key, obj: (ch.val()||{}) });
-    });
-
-    // build updates from each comments tree (client side)
-    var total = roots.length || 1;
-    roots.forEach(function(r, i){
-      var rootPath = COMMENTS_PATH + "/" + r.postId;
-      var local = collectRenameUpdatesInTree(r.obj, rootPath, uid, newName, MAX_REPLIES_DEPTH);
-      Object.keys(local).forEach(function(k){ bigUp[k]=local[k]; });
-
-      var pct = 40 + Math.round(((i+1)/total)*40);
-      prog(pct, "בונה עדכונים לתגובות ("+(i+1)+"/"+total+")…");
-    });
-
-    prog(85, "מעדכן תגובות…");
-    // עדכון גדול אחד (אם המון שינויים — זה עדיין עלול להיות כבד)
-    return firebase.database().ref().update(bigUp);
-  }).then(function(){
-    prog(100, "סיום ✅");
-    txt("usersStatus","סיימתי לעדכן username בכל מקום (במסגרת הסריקה).");
-    toast("סיימתי ✅", "ok");
-    resetAndLoadPosts();
-  }).catch(function(err){
-    progReset();
-    txt("usersStatus","שגיאה: " + safe(err && err.message || err));
-    toast("שגיאה: " + safe(err && err.message || err), "err");
-  });
 }
-el("btnRenameUser").onclick = function(){
-  renameUserEverywhere(el("uidInput").value, el("newUsernameInput").value);
+
+el("btnRename").onclick = function(){
+  renameEverywhere(el("oldName").value, el("newName").value);
 };
 
 /* =========================
-   Notes / UX
+   INIT UI
 ========================= */
-toast("מוכן ✅", "ok");
+toast("מוכן ✅","ok");
 </script>
 </body>
 </html>
