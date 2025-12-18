@@ -1,0 +1,2436 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ניהול פורום — Admin</title>
+
+  <!-- Firebase v8 (כמו אצלך) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+  <script src="firebaseConfig.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f1a;
+      --panel: rgba(255,255,255,0.06);
+      --panel2: rgba(255,255,255,0.09);
+      --stroke: rgba(255,255,255,0.12);
+      --stroke2: rgba(255,255,255,0.18);
+      --txt: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.70);
+      --muted2: rgba(255,255,255,0.55);
+      --danger: #ff4d4d;
+      --warn: #ffb020;
+      --ok: #2fe28a;
+      --blue: #3b82f6;
+      --violet: #8b5cf6;
+      --shadow: 0 12px 40px rgba(0,0,0,0.45);
+      --radius: 18px;
+      --radius2: 14px;
+      --gap: 12px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: var(--font);
+      background:
+        radial-gradient(1200px 600px at 10% 0%, rgba(59,130,246,0.22), transparent 55%),
+        radial-gradient(900px 500px at 90% 20%, rgba(139,92,246,0.20), transparent 55%),
+        radial-gradient(800px 600px at 50% 90%, rgba(47,226,138,0.10), transparent 60%),
+        var(--bg);
+      color: var(--txt);
+      min-height:100vh;
+    }
+
+    a{ color:inherit; }
+    .wrap{ max-width: 1280px; margin: 0 auto; padding: 18px; }
+
+    .topbar{
+      position: sticky;
+      top:0;
+      z-index:50;
+      backdrop-filter: blur(12px);
+      background: rgba(11,15,26,0.75);
+      border-bottom: 1px solid var(--stroke);
+    }
+
+    .topbar .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 14px;
+      padding: 14px 18px;
+      max-width:1280px;
+      margin:0 auto;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      min-width: 220px;
+    }
+    .logo{
+      width: 38px; height: 38px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(139,92,246,0.92));
+      box-shadow: 0 10px 22px rgba(59,130,246,0.16);
+      display:flex; align-items:center; justify-content:center;
+      font-weight: 900;
+    }
+    .brand h1{
+      margin:0;
+      font-size: 16px;
+      letter-spacing: 0.2px;
+    }
+    .brand .sub{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top:2px;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 12px;
+      border:1px solid var(--stroke);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      user-select:none;
+    }
+    .pill b{ color: var(--txt); font-weight: 700; }
+    .pill .dot{
+      width: 8px; height: 8px;
+      border-radius: 99px;
+      background: var(--muted2);
+      display:inline-block;
+    }
+    .pill.ok .dot{ background: var(--ok); }
+    .pill.warn .dot{ background: var(--warn); }
+    .pill.err .dot{ background: var(--danger); }
+
+    .actions{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content:flex-end;
+      min-width: 360px;
+    }
+
+    .btn{
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,0.06);
+      color: var(--txt);
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-weight: 700;
+      font-size: 13px;
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      user-select:none;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      border: none;
+      background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(139,92,246,0.92));
+    }
+    .btn.danger{
+      border: 1px solid rgba(255,77,77,0.45);
+      background: rgba(255,77,77,0.10);
+      color: #ffd1d1;
+    }
+    .btn.ghost{
+      background: transparent;
+      border: 1px dashed var(--stroke2);
+      box-shadow:none;
+    }
+    .btn.small{
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow:none;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    @media (max-width: 1100px){
+      .grid{ grid-template-columns: 1fr; }
+      .actions{ min-width:unset; }
+      .brand{ min-width:unset; }
+    }
+
+    .card{
+      border: 1px solid var(--stroke);
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .head{
+      padding: 14px 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.03);
+    }
+    .card .head h2{
+      margin:0;
+      font-size: 14px;
+      letter-spacing:0.2px;
+    }
+    .card .head .hint{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .card .body{
+      padding: 14px;
+    }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .field label{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    input, select, textarea{
+      width:100%;
+      padding: 11px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke2);
+      outline:none;
+      background: rgba(0,0,0,0.25);
+      color: var(--txt);
+      font-family: var(--font);
+      font-size: 13px;
+    }
+    textarea{ min-height: 120px; resize: vertical; }
+    input::placeholder, textarea::placeholder{ color: rgba(255,255,255,0.45); }
+
+    .split{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 520px){ .split{ grid-template-columns: 1fr; } }
+
+    .muted{ color: var(--muted); }
+    .mono{ font-family: var(--mono); }
+
+    .tabs{
+      display:flex;
+      gap: 8px;
+      flex-wrap:wrap;
+    }
+    .tab{
+      padding: 9px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,0.04);
+      cursor:pointer;
+      font-weight: 800;
+      font-size: 12px;
+      color: var(--muted);
+      user-select:none;
+    }
+    .tab.active{
+      background: rgba(59,130,246,0.20);
+      border-color: rgba(59,130,246,0.35);
+      color: var(--txt);
+    }
+
+    .table{
+      width:100%;
+      border-collapse: collapse;
+      overflow:hidden;
+      border-radius: 16px;
+      border:1px solid var(--stroke);
+    }
+    .table th, .table td{
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--stroke);
+      font-size: 12px;
+      text-align:right;
+      vertical-align: top;
+    }
+    .table th{
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .table tr:hover td{ background: rgba(255,255,255,0.03); }
+    .table .rowActions{
+      display:flex;
+      gap: 8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .kbd{
+      padding: 2px 7px;
+      border-radius: 8px;
+      border:1px solid var(--stroke2);
+      background: rgba(255,255,255,0.05);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      display:inline-block;
+    }
+
+    .status{
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: pre-wrap;
+      line-height: 1.35;
+    }
+    .status.ok{ border-color: rgba(47,226,138,0.35); background: rgba(47,226,138,0.10); color: #d2ffe9; }
+    .status.err{ border-color: rgba(255,77,77,0.40); background: rgba(255,77,77,0.10); color: #ffd1d1; }
+    .status.warn{ border-color: rgba(255,176,32,0.40); background: rgba(255,176,32,0.10); color: #ffe7bd; }
+
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+    }
+    .postCard{
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.05);
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 8px;
+    }
+    .postCard .top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap: 10px;
+    }
+    .postCard .title{
+      font-weight: 900;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+    .postCard .meta{
+      display:flex;
+      gap: 10px;
+      flex-wrap:wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      gap: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke2);
+      background: rgba(0,0,0,0.22);
+      font-size: 11px;
+      color: var(--muted);
+      user-select:none;
+    }
+    .tag b{ color: var(--txt); }
+
+    .postCard .tools{
+      display:flex;
+      gap: 8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .hr{ height:1px; background: var(--stroke); margin: 10px 0; }
+
+    .modalOverlay{
+      position: fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,0.65);
+      padding: 16px;
+      z-index: 9999;
+    }
+    .modal{
+      width: min(980px, 100%);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      background: rgba(15,20,35,0.96);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+      overflow:hidden;
+    }
+    .modal .mHead{
+      padding: 14px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap: 10px;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.03);
+    }
+    .modal .mHead .title{
+      font-weight: 900;
+      font-size: 14px;
+    }
+    .modal .mBody{
+      padding: 14px;
+      max-height: 76vh;
+      overflow:auto;
+    }
+    .modal .mFoot{
+      padding: 14px;
+      border-top: 1px solid var(--stroke);
+      display:flex;
+      justify-content:space-between;
+      gap: 10px;
+      flex-wrap:wrap;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .jsonBox{
+      width:100%;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke2);
+      background: rgba(0,0,0,0.25);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: rgba(255,255,255,0.85);
+      white-space: pre;
+      overflow:auto;
+      max-height: 360px;
+    }
+
+    .commentNode{
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.04);
+      border-radius: 16px;
+      padding: 10px;
+      display:flex;
+      flex-direction:column;
+      gap: 8px;
+    }
+    .commentNode .row{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap: 10px;
+      flex-wrap:wrap;
+    }
+    .commentNode .text{
+      color: rgba(255,255,255,0.90);
+      font-size: 13px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+    .commentNode .meta{
+      color: var(--muted);
+      font-size: 12px;
+      display:flex;
+      gap: 10px;
+      flex-wrap:wrap;
+    }
+    .commentNode .tools{
+      display:flex;
+      gap: 8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .indent{
+      padding-right: 18px;
+      border-right: 2px dashed rgba(255,255,255,0.12);
+      margin-right: 8px;
+    }
+
+    .progressWrap{
+      width:100%;
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,0.05);
+      overflow:hidden;
+    }
+    .progressBar{
+      width:0%;
+      height:100%;
+      background: linear-gradient(90deg, rgba(59,130,246,0.95), rgba(139,92,246,0.92));
+    }
+
+    .miniNote{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .twoCol{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 900px){ .twoCol{ grid-template-columns: 1fr; } }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap: 6px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,0.04);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .badge.ok{ border-color: rgba(47,226,138,0.35); background: rgba(47,226,138,0.10); color: #d2ffe9; }
+    .badge.warn{ border-color: rgba(255,176,32,0.40); background: rgba(255,176,32,0.10); color: #ffe7bd; }
+    .badge.err{ border-color: rgba(255,77,77,0.40); background: rgba(255,77,77,0.10); color: #ffd1d1; }
+
+    .imgPreview{
+      width:100%;
+      border-radius: 16px;
+      border: 1px solid var(--stroke2);
+      overflow:hidden;
+      background: rgba(255,255,255,0.03);
+    }
+    .imgPreview img{
+      width:100%;
+      display:block;
+      height:auto;
+      max-height: 360px;
+      object-fit: contain;
+      background: rgba(0,0,0,0.20);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="row">
+      <div class="brand">
+        <div class="logo">A</div>
+        <div>
+          <h1>Admin — ניהול פורום</h1>
+          <div class="sub">Realtime DB · Auth · Storage · “עשה סדר” בלחיצה</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div id="authPill" class="pill warn" title="סטטוס התחברות">
+          <span class="dot"></span>
+          <span id="authPillText">לא מחובר</span>
+        </div>
+
+        <button id="btnOpenDb" class="btn ghost" type="button">🧭 סייר DB</button>
+        <button id="btnOpenLogs" class="btn ghost" type="button">🧾 לוגים</button>
+
+        <button id="btnFixAll" class="btn" type="button">🧹 עשה סדר לכל הפוסטים</button>
+        <button id="btnRefresh" class="btn" type="button">🔄 רענון</button>
+        <button id="btnLogout" class="btn danger" type="button">⎋ התנתקות</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid">
+      <!-- LEFT: Controls -->
+      <div class="card">
+        <div class="head">
+          <div>
+            <h2>כניסה / בקרה</h2>
+            <div class="hint">אדמין מזוהה דרך <span class="kbd">admins/{uid}=true</span></div>
+          </div>
+          <div class="tabs" id="leftTabs">
+            <div class="tab active" data-tab="tabLogin">כניסה</div>
+            <div class="tab" data-tab="tabFilters">חיפוש</div>
+            <div class="tab" data-tab="tabTools">כלים</div>
+          </div>
+        </div>
+
+        <div class="body">
+          <!-- Login tab -->
+          <div id="tabLogin" class="tabPane">
+            <div class="field">
+              <label>אימייל</label>
+              <input id="loginEmail" type="email" placeholder="admin@example.com" />
+            </div>
+            <div class="field">
+              <label>סיסמה</label>
+              <input id="loginPass" type="password" placeholder="••••••••" />
+            </div>
+
+            <div class="split">
+              <button id="btnLogin" class="btn primary" type="button">🔐 התחבר</button>
+              <button id="btnWhoAmI" class="btn" type="button">👤 מי אני?</button>
+            </div>
+
+            <div class="status" id="loginStatus" style="display:none;"></div>
+
+            <div class="hr"></div>
+            <div class="miniNote">
+              ✅ אחרי התחברות האתר בודק שאתה אדמין (DB). אם לא — הוא מנתק אותך.<br/>
+              טיפ: תשמור לעצמך “משתמש אדמין” נפרד.
+            </div>
+          </div>
+
+          <!-- Filters tab -->
+          <div id="tabFilters" class="tabPane" style="display:none;">
+            <div class="field">
+              <label>חיפוש (כותרת/טקסט/מחבר/מזהה)</label>
+              <input id="qSearch" type="search" placeholder="לדוגמה: 'יוסי' / 'מחשב' / postId..." />
+            </div>
+
+            <div class="split">
+              <div class="field" style="margin:0;">
+                <label>מיון</label>
+                <select id="qSort">
+                  <option value="lastComment">תגובה אחרונה (מומלץ)</option>
+                  <option value="newest" selected>חדשים למעלה</option>
+                  <option value="oldest">ישנים למעלה</option>
+                  <option value="author">מחבר</option>
+                  <option value="title">כותרת</option>
+                  <option value="comments">כמות תגובות</option>
+                </select>
+              </div>
+              <div class="field" style="margin:0;">
+                <label>הגבלה להצגה</label>
+                <select id="qLimit">
+                  <option value="50">50</option>
+                  <option value="120" selected>120</option>
+                  <option value="300">300</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="split">
+              <button id="btnApplyFilters" class="btn primary" type="button">🔎 החל</button>
+              <button id="btnClearFilters" class="btn" type="button">🧼 נקה</button>
+            </div>
+
+            <div class="status" id="filterStatus" style="display:none;"></div>
+
+            <div class="hr"></div>
+            <div class="miniNote">
+              הערה: “תגובה אחרונה” נשען על <span class="kbd">posts/{id}/lastCommentTime</span> או חישוב מהתגובות אם חסר.
+            </div>
+          </div>
+
+          <!-- Tools tab -->
+          <div id="tabTools" class="tabPane" style="display:none;">
+            <div class="field">
+              <label>פעולות מערכת</label>
+              <div class="miniNote">
+                הכפתורים פה עושים “סדר” בצורה לקוח-צד. זה עובד — רק יכול להיות כבד על DB אם יש המון מידע.
+              </div>
+            </div>
+
+            <button id="btnScanOrphans" class="btn" type="button">🕵️ בדיקת יתומים (תגובות בלי פוסט / תמונות בלי פוסט)</button>
+            <button id="btnRecalcVisible" class="btn" type="button">🧮 תקן מונים לפוסטים שמוצגים עכשיו</button>
+            <button id="btnExportPosts" class="btn" type="button">📦 ייצוא פוסטים (JSON)</button>
+
+            <div class="hr"></div>
+
+            <div class="field">
+              <label>הדבקת JSON לפעולה מהירה</label>
+              <textarea id="quickJson" placeholder='לדוגמה: {"path":"posts/POSTID/title","value":"כותרת חדשה"}'></textarea>
+              <div class="split">
+                <button id="btnQuickSet" class="btn primary" type="button">✅ set</button>
+                <button id="btnQuickUpdate" class="btn" type="button">🧩 update</button>
+              </div>
+              <button id="btnQuickRemove" class="btn danger" type="button">🗑 remove</button>
+            </div>
+
+            <div class="status" id="toolsStatus" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Main content -->
+      <div class="card">
+        <div class="head">
+          <div>
+            <h2>פוסטים</h2>
+            <div class="hint">עריכה · מחיקה עמוקה · ניהול תגובות · תיקון מונים</div>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+            <span class="badge" id="badgePosts">טוען…</span>
+            <span class="badge" id="badgeComments">תגובות: —</span>
+            <span class="badge" id="badgeAdmin">אדמין: —</span>
+          </div>
+        </div>
+
+        <div class="body">
+          <div id="postsList" class="list">
+            <div class="status">מתחבר…</div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="twoCol">
+            <div class="status" id="mainStatus" style="display:none;"></div>
+            <div class="status" id="progressStatus" style="display:none;">
+              <div class="miniNote">התקדמות:</div>
+              <div class="progressWrap"><div id="progressBar" class="progressBar"></div></div>
+              <div id="progressText" class="miniNote" style="margin-top:8px;">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Post Editor -->
+  <div id="modalPostOverlay" class="modalOverlay">
+    <div class="modal">
+      <div class="mHead">
+        <div class="title">עריכת פוסט</div>
+        <button class="btn small" id="btnClosePostModal" type="button">✕</button>
+      </div>
+      <div class="mBody">
+        <div class="twoCol">
+          <div>
+            <div class="field">
+              <label>Post ID</label>
+              <input id="editPostId" class="mono" type="text" readonly />
+            </div>
+            <div class="field">
+              <label>כותרת</label>
+              <input id="editPostTitle" type="text" maxlength="120" />
+            </div>
+            <div class="field">
+              <label>תוכן</label>
+              <textarea id="editPostText" maxlength="6000"></textarea>
+            </div>
+            <div class="split">
+              <div class="field" style="margin:0;">
+                <label>מחבר</label>
+                <input id="editPostAuthor" type="text" maxlength="80"/>
+              </div>
+              <div class="field" style="margin:0;">
+                <label>זמן (timestamp)</label>
+                <input id="editPostTime" class="mono" type="number"/>
+              </div>
+            </div>
+
+            <div class="split">
+              <div class="field" style="margin:0;">
+                <label>commentsCount</label>
+                <input id="editPostCommentsCount" class="mono" type="number"/>
+              </div>
+              <div class="field" style="margin:0;">
+                <label>lastCommentTime</label>
+                <input id="editPostLastCommentTime" class="mono" type="number"/>
+              </div>
+            </div>
+
+            <div class="split">
+              <div class="field" style="margin:0;">
+                <label>imagePath</label>
+                <input id="editPostImagePath" class="mono" type="text" placeholder="post-images/postId/..." />
+              </div>
+              <div class="field" style="margin:0;">
+                <label>likes</label>
+                <input id="editPostLikes" class="mono" type="number"/>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>עריכת JSON (למי שמבין)</label>
+              <textarea id="editPostRawJson" class="mono" placeholder="כאן יופיע JSON מלא של הפוסט"></textarea>
+              <div class="miniNote">אפשר לערוך כאן וללחוץ “שמור JSON”.</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="field">
+              <label>תמונה (תצוגה)</label>
+              <div class="imgPreview"><img id="editPostImg" alt="תמונה" src="" /></div>
+              <div class="split" style="margin-top:10px;">
+                <button id="btnLoadPostImage" class="btn" type="button">🖼 טען תמונה</button>
+                <button id="btnDeletePostImage" class="btn danger" type="button">🗑 מחק תמונה (Storage)</button>
+              </div>
+              <div class="miniNote">
+                אם מוגדר <span class="kbd">imagePath</span> – ננסה להביא URL חתום דרך Cloud Function (אם הגדרת).
+              </div>
+            </div>
+
+            <div class="field">
+              <label>תגובות לפוסט (כולל תתי־תגובות)</label>
+              <div class="split">
+                <button id="btnLoadComments" class="btn" type="button">💬 טען תגובות</button>
+                <button id="btnRecalcMeta" class="btn primary" type="button">🧮 תקן מונים/תגובה אחרונה</button>
+              </div>
+              <div id="commentsArea" class="list" style="margin-top:10px;"></div>
+            </div>
+
+            <div class="field">
+              <label>Raw: comments/{postId}</label>
+              <div id="commentsJson" class="jsonBox" style="display:none;"></div>
+            </div>
+
+            <div class="status" id="postModalStatus" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mFoot">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="btnSavePostFields" class="btn primary" type="button">💾 שמור שדות</button>
+          <button id="btnSavePostJson" class="btn" type="button">🧾 שמור JSON</button>
+          <button id="btnSoftDeletePost" class="btn danger" type="button">🗑 מחק פוסט (עמוק)</button>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="btnClonePost" class="btn" type="button">🧬 שכפל פוסט</button>
+          <button id="btnClosePostModal2" class="btn" type="button">סגור</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: DB Explorer -->
+  <div id="modalDbOverlay" class="modalOverlay">
+    <div class="modal">
+      <div class="mHead">
+        <div class="title">🧭 סייר DB (קריאה/כתיבה/מחיקה)</div>
+        <button class="btn small" id="btnCloseDbModal" type="button">✕</button>
+      </div>
+      <div class="mBody">
+        <div class="twoCol">
+          <div>
+            <div class="field">
+              <label>Path (למשל: posts / comments/POSTID / users/UID)</label>
+              <input id="dbPath" class="mono" type="text" placeholder="posts" />
+            </div>
+
+            <div class="split">
+              <button id="btnDbGet" class="btn primary" type="button">📥 GET</button>
+              <button id="btnDbListen" class="btn" type="button">📡 LISTEN</button>
+            </div>
+
+            <div class="split" style="margin-top:10px;">
+              <button id="btnDbSet" class="btn" type="button">✅ SET</button>
+              <button id="btnDbUpdate" class="btn" type="button">🧩 UPDATE</button>
+            </div>
+
+            <button id="btnDbRemove" class="btn danger" style="margin-top:10px;" type="button">🗑 REMOVE</button>
+
+            <div class="hr"></div>
+
+            <div class="field">
+              <label>Value (JSON)</label>
+              <textarea id="dbValue" class="mono" placeholder='{"title":"חדש"} או "מחרוזת" או 123'></textarea>
+              <div class="miniNote">SET מחליף הכל. UPDATE מוסיף/מעדכן שדות.</div>
+            </div>
+
+            <div class="status" id="dbStatus" style="display:none;"></div>
+          </div>
+
+          <div>
+            <div class="field">
+              <label>תוצאה</label>
+              <div id="dbResult" class="jsonBox">—</div>
+            </div>
+
+            <div class="field">
+              <label>טיפים מהירים</label>
+              <div class="miniNote">
+                • כדי לתקן מונים לפוסט אחד: <span class="kbd">posts/POSTID</span> ואז ב“עריכת פוסט” תלחץ “תקן מונים”.<br/>
+                • למחיקה עמוקה: “עריכת פוסט” → “מחק פוסט (עמוק)”.<br/>
+                • לתיקון כללי: למעלה “עשה סדר לכל הפוסטים”.<br/>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mFoot">
+        <div class="miniNote">LISTEN נשאר פעיל עד שסוגרים חלון או לוחצים שוב.</div>
+        <button id="btnCloseDbModal2" class="btn" type="button">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Logs -->
+  <div id="modalLogsOverlay" class="modalOverlay">
+    <div class="modal">
+      <div class="mHead">
+        <div class="title">🧾 לוג פעולות</div>
+        <button class="btn small" id="btnCloseLogsModal" type="button">✕</button>
+      </div>
+      <div class="mBody">
+        <div class="split">
+          <button id="btnLoadLogs" class="btn primary" type="button">טען לוגים</button>
+          <button id="btnClearLogs" class="btn danger" type="button">נקה לוגים (מסוכן)</button>
+        </div>
+        <div class="hr"></div>
+        <div id="logsBox" class="jsonBox">—</div>
+        <div class="status" id="logsStatus" style="display:none;"></div>
+      </div>
+      <div class="mFoot">
+        <div class="miniNote">נשמר בנתיב: <span class="kbd">adminLogs</span></div>
+        <button id="btnCloseLogsModal2" class="btn" type="button">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**************************************************************************
+     * CONFIG
+     **************************************************************************/
+    // אם יש לך פונקציה כמו בפורום: getImageUrl?path=... שמחזירה {ok:true,url,expiresAt}
+    // אם אין — השאר ריק וזה ינסה getDownloadURL().
+    var GET_IMAGE_URL_ENDPOINT = "https://us-central1-bigone-86490.cloudfunctions.net/getImageUrl";
+
+    // בדיקת אדמין
+    var ADMIN_PATH = "admins"; // admins/{uid} === true
+
+    // בסיס נתונים
+    var POSTS_PATH = "posts";
+    var COMMENTS_PATH = "comments";
+    var USERS_PATH = "users";
+    var LOGS_PATH = "adminLogs";
+
+    // ביצועים
+    var DEFAULT_LIMIT = 120;
+    var MAX_REPLIES_DEPTH = 6; // מגביל רינדור תתי־תגובות (כדי לא לקרוס)
+
+    /**************************************************************************
+     * STATE
+     **************************************************************************/
+    var state = {
+      user: null,
+      uid: "",
+      isAdmin: false,
+      posts: [],     // [{id, ...data}]
+      postsMap: {},  // id -> object
+      currentPostId: "",
+      currentComments: null,
+      dbListenRef: null,
+      dbListenOn: false,
+      busy: false
+    };
+
+    /**************************************************************************
+     * DOM HELPERS
+     **************************************************************************/
+    function el(id){ return document.getElementById(id); }
+
+    function setPill(type, text){
+      var pill = el("authPill");
+      var t = el("authPillText");
+      if (!pill || !t) return;
+      pill.classList.remove("ok","warn","err");
+      pill.classList.add(type);
+      t.textContent = text || "";
+    }
+
+    function showStatus(targetId, msg, type){
+      var box = el(targetId);
+      if (!box) return;
+      if (!msg){
+        box.style.display = "none";
+        box.textContent = "";
+        box.classList.remove("ok","err","warn");
+        return;
+      }
+      box.style.display = "block";
+      box.textContent = msg;
+      box.classList.remove("ok","err","warn");
+      if (type) box.classList.add(type);
+    }
+
+    function fmtDate(ts){
+      try{
+        if (!ts) return "—";
+        return new Date(Number(ts)).toLocaleString("he-IL");
+      }catch(e){
+        return "—";
+      }
+    }
+
+    function safeText(v){
+      if (v === undefined || v === null) return "";
+      return String(v);
+    }
+
+    function tryJsonParse(txt){
+      try{
+        return { ok:true, value: JSON.parse(txt) };
+      }catch(e){
+        return { ok:false, err: e };
+      }
+    }
+
+    function toPrettyJson(v){
+      try{ return JSON.stringify(v, null, 2); }catch(e){ return String(v); }
+    }
+
+    function confirmDanger(msg){
+      return window.confirm("⚠️ " + msg + "\n\nהאם אתה בטוח?");
+    }
+
+    function progressShow(pct, text){
+      var ps = el("progressStatus");
+      var pb = el("progressBar");
+      var pt = el("progressText");
+      if (!ps || !pb || !pt) return;
+      ps.style.display = "block";
+      var x = Math.max(0, Math.min(100, Number(pct || 0)));
+      pb.style.width = x + "%";
+      pt.textContent = text || (x + "%");
+    }
+
+    function progressHide(){
+      var ps = el("progressStatus");
+      if (ps) ps.style.display = "none";
+      var pb = el("progressBar");
+      if (pb) pb.style.width = "0%";
+      var pt = el("progressText");
+      if (pt) pt.textContent = "—";
+    }
+
+    function setBusy(flag){
+      state.busy = !!flag;
+      el("btnRefresh").disabled = state.busy;
+      el("btnFixAll").disabled = state.busy;
+      el("btnLogout").disabled = state.busy;
+    }
+
+    /**************************************************************************
+     * LOGGING
+     **************************************************************************/
+    function logAdmin(action, payload){
+      try{
+        if (!state.uid) return;
+        var obj = {
+          action: safeText(action),
+          uid: state.uid,
+          time: Date.now(),
+          payload: payload || {}
+        };
+        firebase.database().ref(LOGS_PATH).push(obj);
+      }catch(e){}
+    }
+
+    /**************************************************************************
+     * ADMIN CHECK
+     **************************************************************************/
+    function checkAdmin(uid){
+      return firebase.database().ref(ADMIN_PATH + "/" + uid).once("value").then(function(s){
+        return !!(s.exists() && (s.val() === true || s.val() === 1 || s.val() === "true"));
+      });
+    }
+
+    /**************************************************************************
+     * IMAGE URL (signed or storage)
+     **************************************************************************/
+    var _idTokenCache = { token:"", at:0 };
+    function getIdTokenFast(force){
+      return new Promise(function(resolve,reject){
+        try{
+          var now = Date.now();
+          if (!force && _idTokenCache.token && (now - _idTokenCache.at) < 45000){
+            resolve(_idTokenCache.token);
+            return;
+          }
+          var u = firebase.auth().currentUser;
+          if (!u) { reject("no_user"); return; }
+          u.getIdToken(!!force).then(function(t){
+            _idTokenCache.token = safeText(t||"");
+            _idTokenCache.at = Date.now();
+            resolve(_idTokenCache.token);
+          }).catch(reject);
+        }catch(e){ reject(e); }
+      });
+    }
+
+    function sanitizeUrl(u){
+      u = safeText(u).trim();
+      if (!u) return "";
+      if (u.indexOf("https://")===0 || u.indexOf("http://")===0) return u;
+      return "";
+    }
+
+    function getSignedImageUrl(imagePath){
+      return new Promise(function(resolve,reject){
+        imagePath = safeText(imagePath).trim();
+        if (!imagePath) { reject("no_path"); return; }
+
+        // try cloud function first
+        if (GET_IMAGE_URL_ENDPOINT && GET_IMAGE_URL_ENDPOINT.indexOf("http")===0){
+          getIdTokenFast(false).then(function(token){
+            return fetch(GET_IMAGE_URL_ENDPOINT + "?path=" + encodeURIComponent(imagePath), {
+              method:"GET",
+              headers:{ "Authorization":"Bearer " + token }
+            });
+          }).then(function(resp){
+            if (!resp || !resp.ok) throw "bad_status";
+            return resp.json();
+          }).then(function(data){
+            if (!data || !data.ok || !data.url) throw "bad_payload";
+            var url = sanitizeUrl(data.url);
+            if (!url) throw "bad_url";
+            resolve(url);
+          }).catch(function(){
+            // fallback to storage (if rules allow)
+            firebase.storage().ref(imagePath).getDownloadURL().then(function(url){
+              url = sanitizeUrl(url);
+              if (!url) throw "bad_url";
+              resolve(url);
+            }).catch(reject);
+          });
+          return;
+        }
+
+        // direct storage
+        firebase.storage().ref(imagePath).getDownloadURL().then(function(url){
+          url = sanitizeUrl(url);
+          if (!url) throw "bad_url";
+          resolve(url);
+        }).catch(reject);
+      });
+    }
+
+    /**************************************************************************
+     * POSTS LOAD + FILTER/SORT
+     **************************************************************************/
+    function loadPosts(){
+      if (!state.isAdmin) {
+        showStatus("mainStatus","לא אדמין. אין אפשרות לטעון.","err");
+        return;
+      }
+      setBusy(true);
+      showStatus("mainStatus","טוען פוסטים…","warn");
+      progressHide();
+
+      var q = safeText(el("qSearch").value).trim().toLowerCase();
+      var sort = safeText(el("qSort").value || "newest");
+      var limit = Number(el("qLimit").value || DEFAULT_LIMIT);
+
+      return firebase.database().ref(POSTES_REF()).orderByChild("time").limitToLast(limit).once("value")
+        .then(function(snap){
+          var arr = [];
+          snap.forEach(function(ps){
+            var v = ps.val() || {};
+            var id = ps.key;
+            arr.push({ id: id, data: v });
+          });
+
+          // normalize
+          var norm = arr.map(function(x){
+            var v = x.data || {};
+            return {
+              id: x.id,
+              title: safeText(v.title),
+              text: safeText(v.text),
+              author: safeText(v.author),
+              time: Number(v.time||0)||0,
+              likes: Number(v.likes||0)||0,
+              commentsCount: (v.commentsCount===undefined || v.commentsCount===null) ? null : Number(v.commentsCount||0),
+              lastCommentTime: Number(v.lastCommentTime||0)||0,
+              imagePath: safeText(v.imagePath||"").trim(),
+              image: sanitizeUrl(v.image||""),
+              raw: v
+            };
+          });
+
+          // filter
+          if (q){
+            norm = norm.filter(function(p){
+              var blob = (p.id+" "+p.title+" "+p.text+" "+p.author+" "+p.imagePath).toLowerCase();
+              return blob.indexOf(q)!==-1;
+            });
+          }
+
+          // sort
+          if (sort==="oldest"){
+            norm.sort(function(a,b){ return (a.time||0)-(b.time||0); });
+          }else if (sort==="author"){
+            norm.sort(function(a,b){ return (a.author||"").localeCompare(b.author||"","he"); });
+          }else if (sort==="title"){
+            norm.sort(function(a,b){ return (a.title||"").localeCompare(b.title||"","he"); });
+          }else if (sort==="comments"){
+            norm.sort(function(a,b){ return (Number(b.commentsCount||0)-Number(a.commentsCount||0)); });
+          }else if (sort==="lastComment"){
+            norm.sort(function(a,b){
+              var ta = Number(a.lastCommentTime||0) || Number(a.time||0) || 0;
+              var tb = Number(b.lastCommentTime||0) || Number(b.time||0) || 0;
+              return tb - ta;
+            });
+          }else{
+            norm.sort(function(a,b){ return (b.time||0)-(a.time||0); });
+          }
+
+          state.posts = norm;
+          state.postsMap = {};
+          norm.forEach(function(p){ state.postsMap[p.id]=p; });
+
+          el("badgePosts").textContent = "פוסטים: " + norm.length;
+          el("badgeAdmin").textContent = "אדמין: " + (state.uid ? state.uid.slice(0,8)+"…" : "—");
+
+          renderPostsList();
+          showStatus("mainStatus","נטענו " + norm.length + " פוסטים.","ok");
+        })
+        .catch(function(err){
+          showStatus("mainStatus","שגיאה בטעינת פוסטים: " + safeText(err),"err");
+        })
+        .finally(function(){
+          setBusy(false);
+        });
+    }
+
+    function POSTES_REF(){
+      // typo safe
+      return POSTS_PATH;
+    }
+
+    function renderPostsList(){
+      var host = el("postsList");
+      if (!host) return;
+      host.innerHTML = "";
+
+      if (!state.posts || !state.posts.length){
+        host.innerHTML = '<div class="status warn">אין פוסטים בתצוגה (או שהפילטר סינן הכל).</div>';
+        return;
+      }
+
+      var totalCommentsKnown = 0;
+      var haveCount = 0;
+      state.posts.forEach(function(p){
+        if (p.commentsCount!==null && p.commentsCount!==undefined){
+          totalCommentsKnown += Number(p.commentsCount||0);
+          haveCount++;
+        }
+      });
+      el("badgeComments").textContent = haveCount ? ("תגובות(מונים ידועים): " + totalCommentsKnown) : "תגובות: —";
+
+      for (var i=0;i<state.posts.length;i++){
+        host.appendChild(buildPostCard(state.posts[i]));
+      }
+    }
+
+    function buildPostCard(p){
+      var d = document.createElement("div");
+      d.className = "postCard";
+      d.setAttribute("data-id", p.id);
+
+      var lastT = Number(p.lastCommentTime||0) || 0;
+      var cc = (p.commentsCount===null || p.commentsCount===undefined) ? "?" : String(Number(p.commentsCount||0));
+      var imgFlag = (p.imagePath || p.image) ? "🖼️" : "—";
+
+      d.innerHTML = `
+        <div class="top">
+          <div>
+            <div class="title">${escapeHtml(p.title || "(ללא כותרת)")}</div>
+            <div class="meta">
+              <span class="tag">ID: <b class="mono">${escapeHtml(p.id)}</b></span>
+              <span class="tag">מאת: <b>${escapeHtml(p.author||"—")}</b></span>
+              <span class="tag">זמן: <b>${escapeHtml(fmtDate(p.time))}</b></span>
+              <span class="tag">תגובות: <b>${escapeHtml(cc)}</b></span>
+              <span class="tag">אחרונה: <b>${escapeHtml(lastT?fmtDate(lastT):"—")}</b></span>
+              <span class="tag">תמונה: <b>${escapeHtml(imgFlag)}</b></span>
+            </div>
+          </div>
+
+          <div class="tools">
+            <button class="btn small" data-act="edit">✏️ ערוך</button>
+            <button class="btn small" data-act="comments">💬 תגובות</button>
+            <button class="btn small" data-act="recalc">🧮 תקן מונים</button>
+            <button class="btn small danger" data-act="delete">🗑 מחק עמוק</button>
+          </div>
+        </div>
+
+        <div class="miniNote">${escapeHtml(shorten(p.text, 220))}</div>
+      `;
+
+      d.addEventListener("click", function(e){
+        var btn = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
+        if (!btn) return;
+        var act = btn.getAttribute("data-act");
+        var id = p.id;
+
+        if (act==="edit"){
+          openPostModal(id);
+        }else if (act==="comments"){
+          openPostModal(id, true);
+        }else if (act==="recalc"){
+          recalcPostMeta(id, true);
+        }else if (act==="delete"){
+          deepDeletePost(id);
+        }
+      });
+
+      return d;
+    }
+
+    function shorten(t, n){
+      t = safeText(t);
+      if (t.length <= n) return t;
+      return t.slice(0, n) + "…";
+    }
+
+    function escapeHtml(s){
+      s = safeText(s);
+      return s
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#039;");
+    }
+
+    /**************************************************************************
+     * POST MODAL
+     **************************************************************************/
+    function openPostModal(postId, autoLoadComments){
+      postId = safeText(postId);
+      var p = state.postsMap[postId];
+      if (!p){
+        showStatus("mainStatus","לא מצאתי פוסט כזה בתצוגה.","warn");
+        return;
+      }
+      state.currentPostId = postId;
+      state.currentComments = null;
+
+      // fill fields
+      el("editPostId").value = postId;
+      el("editPostTitle").value = safeText(p.title);
+      el("editPostText").value = safeText(p.text);
+      el("editPostAuthor").value = safeText(p.author);
+      el("editPostTime").value = Number(p.time||0)||0;
+      el("editPostLikes").value = Number(p.likes||0)||0;
+      el("editPostCommentsCount").value = (p.commentsCount===null||p.commentsCount===undefined) ? "" : Number(p.commentsCount||0);
+      el("editPostLastCommentTime").value = Number(p.lastCommentTime||0)||0;
+      el("editPostImagePath").value = safeText(p.imagePath||"");
+      el("editPostRawJson").value = toPrettyJson(p.raw || {});
+
+      el("commentsArea").innerHTML = "";
+      el("commentsJson").style.display = "none";
+      el("commentsJson").textContent = "";
+
+      el("editPostImg").src = ""; // clear
+      showStatus("postModalStatus","",null);
+
+      el("modalPostOverlay").style.display = "flex";
+
+      logAdmin("open_post_modal",{ postId: postId });
+
+      if (autoLoadComments) {
+        loadCommentsForCurrentPost();
+      }
+    }
+
+    function closePostModal(){
+      el("modalPostOverlay").style.display = "none";
+      state.currentPostId = "";
+      state.currentComments = null;
+    }
+
+    /**************************************************************************
+     * COMMENTS LOAD + RENDER + EDIT/DELETE (כולל תתי־תגובות)
+     **************************************************************************/
+    function loadCommentsForCurrentPost(){
+      var postId = safeText(state.currentPostId);
+      if (!postId) return;
+      showStatus("postModalStatus","טוען תגובות…","warn");
+      el("commentsArea").innerHTML = "";
+
+      firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value")
+        .then(function(snap){
+          var obj = snap.exists() ? (snap.val()||{}) : {};
+          state.currentComments = obj;
+
+          // show raw
+          el("commentsJson").style.display = "block";
+          el("commentsJson").textContent = toPrettyJson(obj);
+
+          // render tree
+          renderCommentsTree(obj);
+
+          showStatus("postModalStatus","תגובות נטענו.","ok");
+          logAdmin("load_comments",{ postId: postId, topCount: snap.exists()?snap.numChildren():0 });
+        })
+        .catch(function(err){
+          showStatus("postModalStatus","שגיאה בטעינת תגובות: " + safeText(err),"err");
+        });
+    }
+
+    function renderCommentsTree(commentsObj){
+      var host = el("commentsArea");
+      host.innerHTML = "";
+
+      if (!commentsObj || typeof commentsObj!=="object" || !Object.keys(commentsObj).length){
+        host.innerHTML = '<div class="status warn">אין תגובות לפוסט הזה.</div>';
+        return;
+      }
+
+      // commentsObj: {commentId: {text,author,time,replies?...}}
+      var keys = Object.keys(commentsObj);
+
+      // sort by time asc
+      keys.sort(function(a,b){
+        var ta = Number((commentsObj[a]||{}).time||0)||0;
+        var tb = Number((commentsObj[b]||{}).time||0)||0;
+        return ta - tb;
+      });
+
+      keys.forEach(function(cid){
+        var node = commentsObj[cid];
+        host.appendChild(buildCommentNode({
+          postId: state.currentPostId,
+          key: cid,
+          data: node,
+          path: COMMENTS_PATH + "/" + state.currentPostId + "/" + cid,
+          depth: 0
+        }));
+      });
+    }
+
+    function pickRepliesContainers(v){
+      // תומך בכמה שמות אפשריים
+      var arr = [];
+      if (v && typeof v==="object"){
+        if (v.replies && typeof v.replies==="object") arr.push({ name:"replies", obj: v.replies });
+        if (v.reply && typeof v.reply==="object") arr.push({ name:"reply", obj: v.reply });
+        if (v.responses && typeof v.responses==="object") arr.push({ name:"responses", obj: v.responses });
+        if (v.children && typeof v.children==="object") arr.push({ name:"children", obj: v.children });
+        if (v.subReplies && typeof v.subReplies==="object") arr.push({ name:"subReplies", obj: v.subReplies });
+      }
+      return arr;
+    }
+
+    function buildCommentNode(opts){
+      var postId = safeText(opts.postId);
+      var key = safeText(opts.key);
+      var data = opts.data || {};
+      var path = safeText(opts.path);
+      var depth = Number(opts.depth||0);
+
+      var box = document.createElement("div");
+      box.className = "commentNode" + (depth>0 ? " indent" : "");
+
+      var author = safeText(data.author || data.user || data.username || "—");
+      var text = safeText(data.text || data.body || data.message || "");
+      var time = Number(data.time||0)||0;
+
+      box.innerHTML = `
+        <div class="row">
+          <div class="meta">
+            <span class="tag">key: <b class="mono">${escapeHtml(key)}</b></span>
+            <span class="tag">מאת: <b>${escapeHtml(author)}</b></span>
+            <span class="tag">זמן: <b>${escapeHtml(time?fmtDate(time):"—")}</b></span>
+          </div>
+          <div class="tools">
+            <button class="btn small" data-act="edit">✏️ ערוך</button>
+            <button class="btn small" data-act="json">🧾 JSON</button>
+            <button class="btn small danger" data-act="del">🗑 מחק</button>
+          </div>
+        </div>
+        <div class="text">${escapeHtml(text)}</div>
+      `;
+
+      // actions
+      box.addEventListener("click", function(e){
+        var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
+        if (!b) return;
+        var act = b.getAttribute("data-act");
+
+        if (act==="edit"){
+          editNode(path, data);
+        }else if (act==="json"){
+          alert(toPrettyJson(data));
+        }else if (act==="del"){
+          deleteNode(path, true);
+        }
+      });
+
+      // render replies recursively
+      if (depth < MAX_REPLIES_DEPTH){
+        var containers = pickRepliesContainers(data);
+        containers.forEach(function(cn){
+          var obj = cn.obj || {};
+          var rKeys = Object.keys(obj);
+          if (!rKeys.length) return;
+
+          rKeys.sort(function(a,b){
+            var ta = Number((obj[a]||{}).time||0)||0;
+            var tb = Number((obj[b]||{}).time||0)||0;
+            return ta - tb;
+          });
+
+          rKeys.forEach(function(rid){
+            var childPath = path + "/" + cn.name + "/" + rid;
+            var child = obj[rid];
+            box.appendChild(buildCommentNode({
+              postId: postId,
+              key: rid,
+              data: child,
+              path: childPath,
+              depth: depth + 1
+            }));
+          });
+        });
+      }else{
+        var note = document.createElement("div");
+        note.className = "miniNote muted";
+        note.textContent = "הגעת למגבלת עומק תתי־תגובות ("+MAX_REPLIES_DEPTH+").";
+        box.appendChild(note);
+      }
+
+      return box;
+    }
+
+    function editNode(path, currentVal){
+      if (!state.isAdmin) return;
+      var json = prompt("ערוך JSON מלא עבור הנתיב:\n"+path, toPrettyJson(currentVal||{}));
+      if (json === null) return;
+
+      var parsed = tryJsonParse(json);
+      if (!parsed.ok){
+        alert("JSON לא תקין.");
+        return;
+      }
+
+      if (!confirmDanger("לשמור SET לנתיב הזה? (מחליף הכל)")){
+        return;
+      }
+
+      firebase.database().ref(path).set(parsed.value)
+        .then(function(){
+          logAdmin("edit_node_set",{ path: path });
+          // רענון תגובות אם זה תחת הפוסט הנוכחי
+          if (state.currentPostId && path.indexOf(COMMENTS_PATH + "/" + state.currentPostId)===0){
+            loadCommentsForCurrentPost();
+          }else{
+            loadPosts();
+          }
+        })
+        .catch(function(e){
+          alert("שגיאה בשמירה: " + safeText(e));
+        });
+    }
+
+    function deleteNode(path, autoRecalc){
+      if (!state.isAdmin) return;
+      if (!confirmDanger("למחוק את הנתיב הזה?\n" + path)) return;
+
+      firebase.database().ref(path).remove()
+        .then(function(){
+          logAdmin("delete_node",{ path: path });
+
+          // אם מחקת תגובה/תת-תגובה של פוסט פתוח -> תקן מונים
+          if (autoRecalc && state.currentPostId && path.indexOf(COMMENTS_PATH + "/" + state.currentPostId)===0){
+            return recalcPostMeta(state.currentPostId, false).then(function(){
+              return loadCommentsForCurrentPost();
+            });
+          }
+
+          return loadPosts();
+        })
+        .catch(function(e){
+          alert("שגיאה במחיקה: " + safeText(e));
+        });
+    }
+
+    /**************************************************************************
+     * META RECALC — זה ה"כפתור שיעשה סדר"
+     **************************************************************************/
+    function computeMetaFromCommentsObj(obj){
+      // Top-level count בלבד (תתי־תגובות לא מוסיפות למונה)
+      // lastCommentTime = max זמן מכל העץ (כולל תתי־תגובות)
+      var countTop = 0;
+      var lastTime = 0;
+
+      function walk(node, depth){
+        if (!node || typeof node!=="object") return;
+        // try time
+        if (node.time!==undefined && node.time!==null){
+          var t = Number(node.time||0)||0;
+          if (t>lastTime) lastTime=t;
+        }
+        if (depth<=0) return;
+
+        var containers = pickRepliesContainers(node);
+        containers.forEach(function(cn){
+          var o = cn.obj || {};
+          Object.keys(o).forEach(function(k){
+            walk(o[k], depth-1);
+          });
+        });
+      }
+
+      if (obj && typeof obj==="object"){
+        var keys = Object.keys(obj);
+        countTop = keys.length;
+        keys.forEach(function(cid){
+          var c = obj[cid];
+          walk(c, MAX_REPLIES_DEPTH);
+        });
+      }
+
+      return { commentsCount: countTop, lastCommentTime: lastTime };
+    }
+
+    function recalcPostMeta(postId, showToast){
+      postId = safeText(postId);
+      if (!postId) return Promise.resolve();
+
+      if (showToast){
+        showStatus("mainStatus","מתקן מונים לפוסט: "+postId,"warn");
+      }
+      showStatus("postModalStatus","מתקן מונים…","warn");
+
+      return firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value")
+        .then(function(snap){
+          var obj = snap.exists() ? (snap.val()||{}) : {};
+          var meta = computeMetaFromCommentsObj(obj);
+
+          // אם אין תגובות בכלל, lastCommentTime = 0 (או fallback לזמן פוסט אם תרצה)
+          var updates = {};
+          updates[POSTS_PATH + "/" + postId + "/commentsCount"] = Number(meta.commentsCount||0);
+          updates[POSTS_PATH + "/" + postId + "/lastCommentTime"] = Number(meta.lastCommentTime||0);
+
+          return firebase.database().ref().update(updates).then(function(){
+            logAdmin("recalc_post_meta",{ postId: postId, meta: meta });
+
+            // עדכון state מקומי
+            var p = state.postsMap[postId];
+            if (p){
+              p.commentsCount = Number(meta.commentsCount||0);
+              p.lastCommentTime = Number(meta.lastCommentTime||0);
+              p.raw = p.raw || {};
+              p.raw.commentsCount = p.commentsCount;
+              p.raw.lastCommentTime = p.lastCommentTime;
+            }
+
+            // רענון UI
+            renderPostsList();
+
+            showStatus("postModalStatus","מונים עודכנו ✅","ok");
+            if (showToast) showStatus("mainStatus","מונים עודכנו לפוסט "+postId,"ok");
+          });
+        })
+        .catch(function(err){
+          var msg = "שגיאה בתיקון מונים: " + safeText(err);
+          showStatus("postModalStatus",msg,"err");
+          if (showToast) showStatus("mainStatus",msg,"err");
+        });
+    }
+
+    function recalcMetaForVisible(){
+      if (!state.posts || !state.posts.length) return;
+      if (!confirmDanger("לתקן מונים לכל הפוסטים שמוצגים עכשיו?")) return;
+
+      setBusy(true);
+      progressShow(1,"מתחיל תיקון מונים לתצוגה…");
+      var ids = state.posts.map(function(p){ return p.id; });
+
+      var i=0;
+      function step(){
+        if (i>=ids.length){
+          progressShow(100,"סיום ✅");
+          setTimeout(progressHide, 900);
+          setBusy(false);
+          showStatus("toolsStatus","סיימתי לתקן מונים לתצוגה.","ok");
+          return;
+        }
+        var pct = Math.round((i/ids.length)*100);
+        progressShow(pct, "מתקן ("+(i+1)+"/"+ids.length+") — " + ids[i]);
+        recalcPostMeta(ids[i], false).finally(function(){
+          i++;
+          setTimeout(step, 40);
+        });
+      }
+      step();
+    }
+
+    function fixAllPosts(){
+      if (!state.isAdmin) return;
+      if (!confirmDanger("זה ירוץ על הרבה פוסטים. להמשיך?")) return;
+
+      setBusy(true);
+      showStatus("mainStatus","טוען רשימת פוסטים מלאה לתיקון…","warn");
+      progressShow(1,"טוען פוסטים…");
+
+      // נטען עד 300 (אפשר להגדיל אם תרצה)
+      firebase.database().ref(POSTS_PATH).orderByChild("time").limitToLast(300).once("value")
+        .then(function(snap){
+          var ids = [];
+          snap.forEach(function(ps){ ids.push(ps.key); });
+
+          // סדר לפי זמן פוסט (לא חובה)
+          showStatus("mainStatus","מתחיל “עשה סדר” ("+ids.length+" פוסטים)…","warn");
+          logAdmin("fix_all_start",{ count: ids.length });
+
+          var idx=0;
+          function next(){
+            if (idx>=ids.length){
+              progressShow(100,"סיום ✅");
+              setTimeout(progressHide, 900);
+              showStatus("mainStatus","“עשה סדר” הסתיים.","ok");
+              logAdmin("fix_all_done",{ count: ids.length });
+              return loadPosts();
+            }
+            var pct = Math.round((idx/ids.length)*100);
+            progressShow(pct, "מתקן פוסט ("+(idx+1)+"/"+ids.length+") — " + ids[idx]);
+            recalcPostMeta(ids[idx], false).finally(function(){
+              idx++;
+              setTimeout(next, 30);
+            });
+          }
+          next();
+        })
+        .catch(function(err){
+          showStatus("mainStatus","שגיאה בעשה-סדר: "+safeText(err),"err");
+        })
+        .finally(function(){
+          setBusy(false);
+        });
+    }
+
+    /**************************************************************************
+     * DEEP DELETE POST (פוסט + תגובות + תמונה ב-Storage)
+     **************************************************************************/
+    function deepDeletePost(postId){
+      postId = safeText(postId);
+      if (!postId) return;
+      if (!state.isAdmin) return;
+
+      var p = state.postsMap[postId];
+      var imagePath = p ? safeText(p.imagePath||"").trim() : "";
+
+      if (!confirmDanger("מוחק פוסט עמוק:\nposts/"+postId+"\nוגם comments/"+postId+"\nוגם תמונות (אם יש)\n\nלהמשיך?")) return;
+
+      setBusy(true);
+      showStatus("mainStatus","מוחק פוסט עמוק…","warn");
+
+      // 1) מחיקת DB (multi-path)
+      var updates = {};
+      updates[POSTS_PATH + "/" + postId] = null;
+      updates[COMMENTS_PATH + "/" + postId] = null;
+
+      firebase.database().ref().update(updates)
+        .then(function(){
+          logAdmin("deep_delete_post_db",{ postId: postId });
+
+          // 2) מחיקת Storage (תיקיה שלמה) - אין “delete folder” ישירות, צריך listAll
+          // אם אין imagePath, עדיין ננסה למחוק את folder post-images/postId/
+          var folderRef = firebase.storage().ref("post-images/" + postId);
+          return folderRef.listAll().then(function(res){
+            var promises = [];
+            res.items.forEach(function(itemRef){
+              promises.push(itemRef.delete().catch(function(){ }));
+            });
+            return Promise.all(promises).then(function(){
+              logAdmin("deep_delete_post_storage",{ postId: postId, deleted: (res.items||[]).length });
+            });
+          }).catch(function(){
+            // אם אין הרשאות/אין פריטים — לא נכשיל את המחיקה
+          });
+        })
+        .then(function(){
+          showStatus("mainStatus","הפוסט נמחק (DB) + ניסיתי לנקות Storage.","ok");
+          if (state.currentPostId === postId) closePostModal();
+          return loadPosts();
+        })
+        .catch(function(err){
+          showStatus("mainStatus","שגיאה במחיקה עמוקה: "+safeText(err),"err");
+        })
+        .finally(function(){
+          setBusy(false);
+        });
+    }
+
+    /**************************************************************************
+     * POST EDIT SAVE
+     **************************************************************************/
+    function savePostFields(){
+      if (!state.isAdmin) return;
+      var id = safeText(el("editPostId").value).trim();
+      if (!id) return;
+
+      var updates = {};
+      updates[POSTS_PATH + "/" + id + "/title"] = safeText(el("editPostTitle").value);
+      updates[POSTS_PATH + "/" + id + "/text"] = safeText(el("editPostText").value);
+      updates[POSTS_PATH + "/" + id + "/author"] = safeText(el("editPostAuthor").value);
+      updates[POSTS_PATH + "/" + id + "/time"] = Number(el("editPostTime").value||0)||0;
+      updates[POSTS_PATH + "/" + id + "/likes"] = Number(el("editPostLikes").value||0)||0;
+
+      var cc = safeText(el("editPostCommentsCount").value).trim();
+      var lct = safeText(el("editPostLastCommentTime").value).trim();
+      updates[POSTS_PATH + "/" + id + "/commentsCount"] = (cc==="" ? null : Number(cc||0)||0);
+      updates[POSTS_PATH + "/" + id + "/lastCommentTime"] = (lct==="" ? 0 : Number(lct||0)||0);
+
+      updates[POSTS_PATH + "/" + id + "/imagePath"] = safeText(el("editPostImagePath").value).trim() || null;
+
+      if (!confirmDanger("לשמור את השדות לפוסט?")) return;
+
+      firebase.database().ref().update(updates)
+        .then(function(){
+          logAdmin("save_post_fields",{ postId: id });
+          showStatus("postModalStatus","נשמר ✅","ok");
+          return loadPosts();
+        })
+        .catch(function(e){
+          showStatus("postModalStatus","שגיאה בשמירה: "+safeText(e),"err");
+        });
+    }
+
+    function savePostJson(){
+      if (!state.isAdmin) return;
+      var id = safeText(el("editPostId").value).trim();
+      if (!id) return;
+
+      var raw = safeText(el("editPostRawJson").value);
+      var parsed = tryJsonParse(raw);
+      if (!parsed.ok){
+        showStatus("postModalStatus","JSON לא תקין.","err");
+        return;
+      }
+
+      if (!confirmDanger("לשמור JSON (SET) לפוסט? זה מחליף הכל ב posts/"+id)) return;
+
+      firebase.database().ref(POSTS_PATH + "/" + id).set(parsed.value)
+        .then(function(){
+          logAdmin("save_post_json",{ postId: id });
+          showStatus("postModalStatus","JSON נשמר ✅","ok");
+          return loadPosts();
+        })
+        .catch(function(e){
+          showStatus("postModalStatus","שגיאה בשמירת JSON: "+safeText(e),"err");
+        });
+    }
+
+    function clonePost(){
+      if (!state.isAdmin) return;
+      var id = safeText(el("editPostId").value).trim();
+      if (!id) return;
+      var p = state.postsMap[id];
+      if (!p) return;
+
+      if (!confirmDanger("לשכפל את הפוסט הזה לפוסט חדש? (בלי תגובות, בלי תמונה)")) return;
+
+      var obj = {
+        title: (p.title||"") + " (העתק)",
+        text: safeText(p.text),
+        author: safeText(p.author),
+        time: Date.now(),
+        likes: 0,
+        commentsCount: 0,
+        lastCommentTime: 0,
+        image: null,
+        imagePath: null
+      };
+
+      firebase.database().ref(POSTS_PATH).push(obj)
+        .then(function(ref){
+          logAdmin("clone_post",{ from: id, to: ref.key });
+          showStatus("postModalStatus","שוכפל ✅ newId=" + ref.key,"ok");
+          return loadPosts();
+        })
+        .catch(function(e){
+          showStatus("postModalStatus","שגיאה בשכפול: "+safeText(e),"err");
+        });
+    }
+
+    /**************************************************************************
+     * IMAGE ACTIONS
+     **************************************************************************/
+    function loadPostImage(){
+      var id = safeText(el("editPostId").value).trim();
+      if (!id) return;
+      var img = el("editPostImg");
+      img.src = "";
+
+      var p = state.postsMap[id];
+      var path = p ? safeText(p.imagePath||"").trim() : safeText(el("editPostImagePath").value).trim();
+      var legacy = p ? sanitizeUrl(p.image||"") : "";
+
+      showStatus("postModalStatus","טוען תמונה…","warn");
+
+      if (legacy){
+        img.src = legacy;
+        showStatus("postModalStatus","נטענה תמונה (legacy url).","ok");
+        return;
+      }
+
+      if (!path){
+        showStatus("postModalStatus","אין imagePath בפוסט.","warn");
+        return;
+      }
+
+      getSignedImageUrl(path)
+        .then(function(url){
+          img.src = url;
+          showStatus("postModalStatus","תמונה נטענה ✅","ok");
+        })
+        .catch(function(e){
+          showStatus("postModalStatus","לא הצלחתי לטעון תמונה: "+safeText(e),"err");
+        });
+    }
+
+    function deletePostImage(){
+      if (!state.isAdmin) return;
+      var id = safeText(el("editPostId").value).trim();
+      if (!id) return;
+
+      var path = safeText(el("editPostImagePath").value).trim();
+      if (!path){
+        showStatus("postModalStatus","אין imagePath למחיקה.","warn");
+        return;
+      }
+      if (!confirmDanger("למחוק תמונה ב-Storage?\n"+path)) return;
+
+      firebase.storage().ref(path).delete()
+        .then(function(){
+          logAdmin("delete_image",{ postId: id, path: path });
+          // לא חובה לשנות DB, אבל כדאי
+          return firebase.database().ref(POSTS_PATH + "/" + id + "/imagePath").set(null);
+        })
+        .then(function(){
+          el("editPostImagePath").value = "";
+          el("editPostImg").src = "";
+          showStatus("postModalStatus","תמונה נמחקה ✅","ok");
+          return loadPosts();
+        })
+        .catch(function(e){
+          showStatus("postModalStatus","שגיאה במחיקת תמונה: "+safeText(e),"err");
+        });
+    }
+
+    /**************************************************************************
+     * DB EXPLORER
+     **************************************************************************/
+    function dbGet(){
+      if (!state.isAdmin) return;
+      var path = safeText(el("dbPath").value).trim();
+      if (!path) return;
+
+      showStatus("dbStatus","טוען…","warn");
+      firebase.database().ref(path).once("value")
+        .then(function(snap){
+          var val = snap.exists()?snap.val():null;
+          el("dbResult").textContent = toPrettyJson(val);
+          showStatus("dbStatus","OK","ok");
+          logAdmin("db_get",{ path: path });
+        })
+        .catch(function(e){
+          showStatus("dbStatus","שגיאה: "+safeText(e),"err");
+        });
+    }
+
+    function dbListen(){
+      if (!state.isAdmin) return;
+      var path = safeText(el("dbPath").value).trim();
+      if (!path) return;
+
+      if (state.dbListenOn && state.dbListenRef){
+        try{ state.dbListenRef.off(); }catch(e){}
+        state.dbListenOn = false;
+        state.dbListenRef = null;
+        showStatus("dbStatus","LISTEN הופסק.","warn");
+        return;
+      }
+
+      showStatus("dbStatus","LISTEN פעיל…","warn");
+      var ref = firebase.database().ref(path);
+      state.dbListenRef = ref;
+      state.dbListenOn = true;
+
+      ref.on("value", function(snap){
+        var val = snap.exists()?snap.val():null;
+        el("dbResult").textContent = toPrettyJson(val);
+      }, function(err){
+        showStatus("dbStatus","LISTEN error: "+safeText(err),"err");
+      });
+
+      logAdmin("db_listen_on",{ path: path });
+    }
+
+    function dbSet(){
+      if (!state.isAdmin) return;
+      var path = safeText(el("dbPath").value).trim();
+      if (!path) return;
+
+      var parsed = tryJsonParse(safeText(el("dbValue").value));
+      if (!parsed.ok){
+        showStatus("dbStatus","JSON לא תקין.","err");
+        return;
+      }
+      if (!confirmDanger("SET לנתיב: "+path+" ?")) return;
+
+      firebase.database().ref(path).set(parsed.value)
+        .then(function(){
+          showStatus("dbStatus","SET OK","ok");
+          logAdmin("db_set",{ path: path });
+          dbGet();
+        })
+        .catch(function(e){
+          showStatus("dbStatus","שגיאה: "+safeText(e),"err");
+        });
+    }
+
+    function dbUpdate(){
+      if (!state.isAdmin) return;
+      var path = safeText(el("dbPath").value).trim();
+      if (!path) return;
+
+      var parsed = tryJsonParse(safeText(el("dbValue").value));
+      if (!parsed.ok || typeof parsed.value!=="object" || parsed.value===null || Array.isArray(parsed.value)){
+        showStatus("dbStatus","UPDATE דורש אובייקט JSON.","err");
+        return;
+      }
+      if (!confirmDanger("UPDATE לנתיב: "+path+" ?")) return;
+
+      firebase.database().ref(path).update(parsed.value)
+        .then(function(){
+          showStatus("dbStatus","UPDATE OK","ok");
+          logAdmin("db_update",{ path: path });
+          dbGet();
+        })
+        .catch(function(e){
+          showStatus("dbStatus","שגיאה: "+safeText(e),"err");
+        });
+    }
+
+    function dbRemove(){
+      if (!state.isAdmin) return;
+      var path = safeText(el("dbPath").value).trim();
+      if (!path) return;
+      if (!confirmDanger("REMOVE לנתיב: "+path+" ?")) return;
+
+      firebase.database().ref(path).remove()
+        .then(function(){
+          showStatus("dbStatus","REMOVE OK","ok");
+          logAdmin("db_remove",{ path: path });
+          el("dbResult").textContent = "—";
+        })
+        .catch(function(e){
+          showStatus("dbStatus","שגיאה: "+safeText(e),"err");
+        });
+    }
+
+    /**************************************************************************
+     * ORPHANS SCAN (תגובות בלי פוסט / תמונות בלי פוסט)
+     **************************************************************************/
+    function scanOrphans(){
+      if (!state.isAdmin) return;
+      if (!confirmDanger("לסרוק יתומים? זה עלול לקחת זמן אם יש הרבה נתונים.")) return;
+
+      setBusy(true);
+      progressShow(1,"טוען פוסטים ותגובות…");
+
+      var postsIds = {};
+      var commentsIds = {};
+      var report = { orphansComments: [], orphansPosts: [], notes: [] };
+
+      Promise.all([
+        firebase.database().ref(POSTS_PATH).limitToLast(500).once("value"),
+        firebase.database().ref(COMMENTS_PATH).limitToLast(500).once("value")
+      ]).then(function(res){
+        var ps = res[0], cs = res[1];
+
+        ps.forEach(function(s){ postsIds[s.key]=true; });
+        cs.forEach(function(s){ commentsIds[s.key]=true; });
+
+        // comments that have no post
+        Object.keys(commentsIds).forEach(function(pid){
+          if (!postsIds[pid]) report.orphansComments.push(pid);
+        });
+
+        // posts that have no comments (לא באמת יתום, אבל מידע)
+        Object.keys(postsIds).forEach(function(pid){
+          if (!commentsIds[pid]) report.orphansPosts.push(pid);
+        });
+
+        showStatus("toolsStatus",
+          "סריקה הסתיימה.\n" +
+          "תגובות בלי פוסט: " + report.orphansComments.length + "\n" +
+          "פוסטים בלי תגובות: " + report.orphansPosts.length + "\n\n" +
+          "רשימת תגובות יתומות (postId):\n" + report.orphansComments.slice(0,80).join(", "),
+          report.orphansComments.length ? "warn" : "ok"
+        );
+
+        logAdmin("scan_orphans",{
+          orphansComments: report.orphansComments.length,
+          postsWithoutComments: report.orphansPosts.length
+        });
+      }).catch(function(e){
+        showStatus("toolsStatus","שגיאה בסריקה: "+safeText(e),"err");
+      }).finally(function(){
+        progressHide();
+        setBusy(false);
+      });
+    }
+
+    /**************************************************************************
+     * EXPORT POSTS JSON
+     **************************************************************************/
+    function exportPosts(){
+      if (!state.isAdmin) return;
+      var data = state.posts.map(function(p){
+        return {
+          id: p.id,
+          title: p.title,
+          text: p.text,
+          author: p.author,
+          time: p.time,
+          likes: p.likes,
+          commentsCount: p.commentsCount,
+          lastCommentTime: p.lastCommentTime,
+          imagePath: p.imagePath
+        };
+      });
+
+      var blob = new Blob([toPrettyJson(data)], { type:"application/json" });
+      var url = URL.createObjectURL(blob);
+
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "posts_export_" + Date.now() + ".json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 1200);
+      logAdmin("export_posts",{ count: data.length });
+      showStatus("toolsStatus","יוצא קובץ JSON עם "+data.length+" פוסטים.","ok");
+    }
+
+    /**************************************************************************
+     * QUICK JSON SET/UPDATE/REMOVE
+     **************************************************************************/
+    function quickAction(kind){
+      if (!state.isAdmin) return;
+
+      var raw = safeText(el("quickJson").value);
+      var parsed = tryJsonParse(raw);
+      if (!parsed.ok || !parsed.value || typeof parsed.value!=="object"){
+        showStatus("toolsStatus","JSON לא תקין (צריך אובייקט עם path/value).","err");
+        return;
+      }
+      var path = safeText(parsed.value.path).trim();
+      var value = parsed.value.value;
+
+      if (!path){
+        showStatus("toolsStatus","חסר path ב-JSON.","err");
+        return;
+      }
+
+      if (kind==="set"){
+        if (!confirmDanger("SET לנתיב: "+path+" ?")) return;
+        firebase.database().ref(path).set(value)
+          .then(function(){
+            logAdmin("quick_set",{ path: path });
+            showStatus("toolsStatus","SET OK","ok");
+            loadPosts();
+          })
+          .catch(function(e){
+            showStatus("toolsStatus","שגיאה: "+safeText(e),"err");
+          });
+      }else if (kind==="update"){
+        if (typeof value!=="object" || value===null || Array.isArray(value)){
+          showStatus("toolsStatus","UPDATE דורש value שהוא אובייקט.","err");
+          return;
+        }
+        if (!confirmDanger("UPDATE לנתיב: "+path+" ?")) return;
+        firebase.database().ref(path).update(value)
+          .then(function(){
+            logAdmin("quick_update",{ path: path });
+            showStatus("toolsStatus","UPDATE OK","ok");
+            loadPosts();
+          })
+          .catch(function(e){
+            showStatus("toolsStatus","שגיאה: "+safeText(e),"err");
+          });
+      }else if (kind==="remove"){
+        if (!confirmDanger("REMOVE לנתיב: "+path+" ?")) return;
+        firebase.database().ref(path).remove()
+          .then(function(){
+            logAdmin("quick_remove",{ path: path });
+            showStatus("toolsStatus","REMOVE OK","ok");
+            loadPosts();
+          })
+          .catch(function(e){
+            showStatus("toolsStatus","שגיאה: "+safeText(e),"err");
+          });
+      }
+    }
+
+    /**************************************************************************
+     * LOGS
+     **************************************************************************/
+    function loadLogs(){
+      if (!state.isAdmin) return;
+      showStatus("logsStatus","טוען…","warn");
+      firebase.database().ref(LOGS_PATH).limitToLast(200).once("value")
+        .then(function(s){
+          el("logsBox").textContent = toPrettyJson(s.exists()?s.val():{});
+          showStatus("logsStatus","OK","ok");
+        })
+        .catch(function(e){
+          showStatus("logsStatus","שגיאה: "+safeText(e),"err");
+        });
+    }
+
+    function clearLogs(){
+      if (!state.isAdmin) return;
+      if (!confirmDanger("למחוק את כל הלוגים?")) return;
+      firebase.database().ref(LOGS_PATH).remove()
+        .then(function(){
+          el("logsBox").textContent = "—";
+          showStatus("logsStatus","נמחק.","ok");
+          logAdmin("clear_logs",{});
+        })
+        .catch(function(e){
+          showStatus("logsStatus","שגיאה: "+safeText(e),"err");
+        });
+    }
+
+    /**************************************************************************
+     * AUTH
+     **************************************************************************/
+    function login(){
+      var email = safeText(el("loginEmail").value).trim();
+      var pass = safeText(el("loginPass").value);
+
+      if (!email || !pass){
+        showStatus("loginStatus","חסר אימייל/סיסמה.","warn");
+        return;
+      }
+
+      showStatus("loginStatus","מתחבר…","warn");
+      setPill("warn","מתחבר…");
+
+      firebase.auth().signInWithEmailAndPassword(email, pass)
+        .then(function(cred){
+          state.user = cred.user;
+          state.uid = cred.user.uid;
+
+          return checkAdmin(state.uid);
+        })
+        .then(function(isAdmin){
+          state.isAdmin = !!isAdmin;
+
+          if (!state.isAdmin){
+            showStatus("loginStatus","התחברת אבל אתה לא אדמין (admins/{uid} לא true). מתנתק…","err");
+            setPill("err","לא אדמין");
+            el("badgeAdmin").textContent = "אדמין: לא";
+            logAdmin("login_not_admin",{ uid: state.uid });
+            return firebase.auth().signOut();
+          }
+
+          setPill("ok","מחובר כאדמין");
+          showStatus("loginStatus","מחובר ✅ (אדמין)","ok");
+          el("badgeAdmin").textContent = "אדמין: כן";
+
+          logAdmin("login_ok",{ uid: state.uid });
+          return loadPosts();
+        })
+        .catch(function(err){
+          showStatus("loginStatus","שגיאת התחברות: "+safeText(err),"err");
+          setPill("err","כשל התחברות");
+        });
+    }
+
+    function logout(){
+      firebase.auth().signOut().finally(function(){
+        state.user = null;
+        state.uid = "";
+        state.isAdmin = false;
+        setPill("warn","לא מחובר");
+        el("postsList").innerHTML = '<div class="status warn">התנתקת. התחבר שוב.</div>';
+        el("badgeAdmin").textContent = "אדמין: —";
+        el("badgePosts").textContent = "טוען…";
+        el("badgeComments").textContent = "תגובות: —";
+      });
+    }
+
+    function whoAmI(){
+      var u = firebase.auth().currentUser;
+      if (!u){
+        showStatus("loginStatus","לא מחובר.","warn");
+        return;
+      }
+      showStatus("loginStatus","UID: "+u.uid+"\nEmail: "+(u.email||"—"),"ok");
+    }
+
+    firebase.auth().onAuthStateChanged(function(u){
+      state.user = u || null;
+      state.uid = u ? u.uid : "";
+      if (!u){
+        state.isAdmin = false;
+        setPill("warn","לא מחובר");
+        return;
+      }
+
+      setPill("warn","בודק אדמין…");
+      checkAdmin(u.uid).then(function(isAdmin){
+        state.isAdmin = !!isAdmin;
+        if (!state.isAdmin){
+          setPill("err","מחובר אך לא אדמין");
+          el("badgeAdmin").textContent = "אדמין: לא";
+          // ביטחון: מנתק
+          firebase.auth().signOut();
+          return;
+        }
+        setPill("ok","מחובר כאדמין");
+        el("badgeAdmin").textContent = "אדמין: כן";
+        loadPosts();
+      }).catch(function(){
+        setPill("err","שגיאה בבדיקת אדמין");
+      });
+    });
+
+    /**************************************************************************
+     * TABS
+     **************************************************************************/
+    function bindTabs(){
+      var tabs = el("leftTabs");
+      tabs.addEventListener("click", function(e){
+        var t = e.target && e.target.closest ? e.target.closest(".tab") : null;
+        if (!t) return;
+        var id = t.getAttribute("data-tab");
+
+        Array.prototype.slice.call(tabs.querySelectorAll(".tab")).forEach(function(x){
+          x.classList.toggle("active", x === t);
+        });
+
+        ["tabLogin","tabFilters","tabTools"].forEach(function(pid){
+          el(pid).style.display = (pid===id) ? "block" : "none";
+        });
+      });
+    }
+
+    /**************************************************************************
+     * MODALS open/close
+     **************************************************************************/
+    function bindModals(){
+      // Post modal close
+      el("btnClosePostModal").onclick = closePostModal;
+      el("btnClosePostModal2").onclick = closePostModal;
+      el("modalPostOverlay").addEventListener("click", function(e){
+        if (e.target === el("modalPostOverlay")) closePostModal();
+      });
+
+      // DB modal
+      el("btnOpenDb").onclick = function(){ el("modalDbOverlay").style.display="flex"; };
+      el("btnCloseDbModal").onclick = function(){ el("modalDbOverlay").style.display="none"; stopDbListenIfAny(); };
+      el("btnCloseDbModal2").onclick = function(){ el("modalDbOverlay").style.display="none"; stopDbListenIfAny(); };
+      el("modalDbOverlay").addEventListener("click", function(e){
+        if (e.target === el("modalDbOverlay")) { el("modalDbOverlay").style.display="none"; stopDbListenIfAny(); }
+      });
+
+      // Logs modal
+      el("btnOpenLogs").onclick = function(){ el("modalLogsOverlay").style.display="flex"; };
+      el("btnCloseLogsModal").onclick = function(){ el("modalLogsOverlay").style.display="none"; };
+      el("btnCloseLogsModal2").onclick = function(){ el("modalLogsOverlay").style.display="none"; };
+      el("modalLogsOverlay").addEventListener("click", function(e){
+        if (e.target === el("modalLogsOverlay")) el("modalLogsOverlay").style.display="none";
+      });
+    }
+
+    function stopDbListenIfAny(){
+      if (state.dbListenOn && state.dbListenRef){
+        try{ state.dbListenRef.off(); }catch(e){}
+      }
+      state.dbListenOn = false;
+      state.dbListenRef = null;
+      showStatus("dbStatus","",null);
+    }
+
+    /**************************************************************************
+     * BIND UI
+     **************************************************************************/
+    function bindUI(){
+      bindTabs();
+      bindModals();
+
+      el("btnLogin").onclick = login;
+      el("btnLogout").onclick = logout;
+      el("btnWhoAmI").onclick = whoAmI;
+
+      el("btnRefresh").onclick = function(){ loadPosts(); };
+
+      el("btnApplyFilters").onclick = function(){
+        showStatus("filterStatus","מחיל חיפוש/מיון…","warn");
+        loadPosts().finally(function(){ showStatus("filterStatus","הוחל ✅","ok"); });
+      };
+      el("btnClearFilters").onclick = function(){
+        el("qSearch").value = "";
+        el("qSort").value = "newest";
+        el("qLimit").value = String(DEFAULT_LIMIT);
+        showStatus("filterStatus","נוקה ✅","ok");
+        loadPosts();
+      };
+
+      el("btnFixAll").onclick = fixAllPosts;
+
+      el("btnScanOrphans").onclick = scanOrphans;
+      el("btnRecalcVisible").onclick = recalcMetaForVisible;
+      el("btnExportPosts").onclick = exportPosts;
+
+      el("btnQuickSet").onclick = function(){ quickAction("set"); };
+      el("btnQuickUpdate").onclick = function(){ quickAction("update"); };
+      el("btnQuickRemove").onclick = function(){ quickAction("remove"); };
+
+      // Post modal buttons
+      el("btnLoadComments").onclick = loadCommentsForCurrentPost;
+      el("btnRecalcMeta").onclick = function(){ recalcPostMeta(state.currentPostId, true); };
+      el("btnSavePostFields").onclick = savePostFields;
+      el("btnSavePostJson").onclick = savePostJson;
+      el("btnSoftDeletePost").onclick = function(){ deepDeletePost(state.currentPostId); };
+      el("btnClonePost").onclick = clonePost;
+
+      el("btnLoadPostImage").onclick = loadPostImage;
+      el("btnDeletePostImage").onclick = deletePostImage;
+
+      // DB explorer
+      el("btnDbGet").onclick = dbGet;
+      el("btnDbListen").onclick = dbListen;
+      el("btnDbSet").onclick = dbSet;
+      el("btnDbUpdate").onclick = dbUpdate;
+      el("btnDbRemove").onclick = dbRemove;
+
+      // Logs
+      el("btnLoadLogs").onclick = loadLogs;
+      el("btnClearLogs").onclick = clearLogs;
+    }
+
+    /**************************************************************************
+     * INIT
+     **************************************************************************/
+    bindUI();
+
+    // תצוגה ראשונית
+    el("postsList").innerHTML = '<div class="status warn">התחבר כדי לנהל.</div>';
+  </script>
+</body>
+</html>
