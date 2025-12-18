@@ -1143,29 +1143,74 @@ function buildCommentNode(postId, key, path, data, depth){
 /* =========================
    META RECALC + FIX ALL
 ========================= */
+
+/* === FIXED: now counts & finds lastCommentTime across replies too (any nested keys) === */
 function computeMetaFromCommentsObj(obj){
-  var countTop = 0;
+  var commentsCount = 0;
   var lastTime = 0;
 
+  function isObj(v){ return !!v && typeof v === "object"; }
+
+  function isCommentLike(node){
+    if(!isObj(node)) return false;
+
+    var hasText =
+      (node.text!==undefined && node.text!==null && safe(node.text)!=="") ||
+      (node.body!==undefined && node.body!==null && safe(node.body)!=="") ||
+      (node.message!==undefined && node.message!==null && safe(node.message)!=="");
+
+    var hasAuthor =
+      (node.author!==undefined && node.author!==null && safe(node.author)!=="") ||
+      (node.username!==undefined && node.username!==null && safe(node.username)!=="") ||
+      (node.user!==undefined && node.user!==null && safe(node.user)!=="") ||
+      (node.name!==undefined && node.name!==null && safe(node.name)!=="");
+
+    var hasTime = (node.time!==undefined && node.time!==null && num(node.time)>0);
+
+    return (hasTime && (hasText || hasAuthor)) || (hasText && hasAuthor);
+  }
+
+  var seen = [];
+  function wasSeen(o){
+    for(var i=0;i<seen.length;i++){ if(seen[i]===o) return true; }
+    return false;
+  }
+
   function walk(node, depth){
-    if(!node || typeof node!=="object") return;
+    if(!isObj(node) || depth<=0) return;
+    if(wasSeen(node)) return;
+    seen.push(node);
+
     var t = num(node.time);
     if(t>lastTime) lastTime = t;
 
-    if(depth<=0) return;
+    if(isCommentLike(node)) commentsCount += 1;
+
+    // First: known reply containers
     pickRepliesContainers(node).forEach(function(cn){
       var o = cn.obj || {};
-      Object.keys(o).forEach(function(k){ walk(o[k], depth-1); });
+      Object.keys(o).forEach(function(k){
+        walk(o[k], depth-1);
+      });
+    });
+
+    // Fallback: traverse any other nested objects (covers unknown container keys)
+    Object.keys(node).forEach(function(k){
+      var v = node[k];
+      if(!isObj(v)) return;
+      // Skip keys already handled explicitly (to avoid redundant work)
+      if(k==="replies" || k==="reply" || k==="responses" || k==="children" || k==="subReplies") return;
+      walk(v, depth-1);
     });
   }
 
   if(obj && typeof obj==="object"){
-    var keys = Object.keys(obj);
-    countTop = keys.length;
-    keys.forEach(function(cid){ walk(obj[cid], MAX_REPLIES_DEPTH); });
+    Object.keys(obj).forEach(function(cid){
+      walk(obj[cid], MAX_REPLIES_DEPTH + 8);
+    });
   }
 
-  return { commentsCount: countTop, lastCommentTime: lastTime };
+  return { commentsCount: num(commentsCount), lastCommentTime: num(lastTime) };
 }
 
 function recalcPostMeta(postId, showToast){
