@@ -536,6 +536,22 @@
   </div>
 
 <script>
+/* ===============================                    
+   חסימה מיידית – לא WebView                    
+   =============================== */                    
+(function () {                    
+  try {                    
+    if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {                    
+      location.replace("forbidden.html");                    
+      return;                    
+    }                    
+  } catch (e) {                    
+    location.replace("forbidden.html");                    
+    return;                    
+  }                    
+})();                    
+
+/* =========================================================================================                    
 /* ============ HARDEN INIT (works with ANY firebaseConfig.js style) ============ */
 (function(){
   function showInitErr(msg){
