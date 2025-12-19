@@ -1056,26 +1056,130 @@ function pickRepliesContainers(v){
 function loadCommentsForPost(postId){
   el("commentsWrap").innerHTML = '<div class="mini muted">טוען תגובות…</div>';
 
-  return firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value")
-    .then(function(snap){
-      var obj = snap.exists() ? (snap.val()||{}) : {};
-      el("commentsWrap").innerHTML = "";
-      if(!obj || typeof obj!=="object" || !Object.keys(obj).length){
-        el("commentsWrap").innerHTML = '<div class="mini muted">אין תגובות לפוסט הזה.</div>';
-        return;
+  return Promise.all([
+    firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value"),
+    firebase.database().ref(REPLIES_PATH + "/" + postId).once("value")
+  ])
+  .then(function(res){
+    var snapC = res[0];
+    var snapR = res[1];
+
+    var commentsObj = snapC.exists() ? (snapC.val()||{}) : {};
+    var repliesRoot = snapR.exists() ? (snapR.val()||{}) : {};
+
+    el("commentsWrap").innerHTML = "";
+
+    if(!commentsObj || typeof commentsObj!=="object" || !Object.keys(commentsObj).length){
+      el("commentsWrap").innerHTML = '<div class="mini muted">אין תגובות לפוסט הזה.</div>';
+      return;
+    }
+
+    var keys = Object.keys(commentsObj);
+    keys.sort(function(a,b){ return num((commentsObj[a]||{}).time) - num((commentsObj[b]||{}).time); });
+
+    keys.forEach(function(cid){
+      var path = COMMENTS_PATH + "/" + postId + "/" + cid;
+
+      // תגובה ראשית
+      var node = buildCommentNode(postId, cid, path, commentsObj[cid], 0);
+
+      // replies ששייכים לתגובה הזו: replies/{postId}/{cid}/...
+      var rObj = (repliesRoot && repliesRoot[cid] && typeof repliesRoot[cid]==="object") ? repliesRoot[cid] : null;
+      if(rObj && Object.keys(rObj).length){
+        var wrap = document.createElement("div");
+        wrap.className = "indent";
+        wrap.style.marginTop = "10px";
+
+        var rKeys = Object.keys(rObj);
+        rKeys.sort(function(a,b){ return num((rObj[a]||{}).time) - num((rObj[b]||{}).time); });
+
+        rKeys.forEach(function(rid){
+          var rPath = REPLIES_PATH + "/" + postId + "/" + cid + "/" + rid;
+          wrap.appendChild(buildReplyNode(postId, rid, rPath, rObj[rid], 0));
+        });
+
+        node.appendChild(wrap);
       }
 
-      var keys = Object.keys(obj);
-      keys.sort(function(a,b){ return num((obj[a]||{}).time) - num((obj[b]||{}).time); });
-
-      keys.forEach(function(cid){
-        var path = COMMENTS_PATH + "/" + postId + "/" + cid;
-        el("commentsWrap").appendChild(buildCommentNode(postId, cid, path, obj[cid], 0));
-      });
-    })
-    .catch(function(err){
-      el("commentsWrap").innerHTML = '<div class="mini muted wrapText">שגיאה: '+escapeHtml(safe(err && err.message || err))+'</div>';
+      el("commentsWrap").appendChild(node);
     });
+  })
+  .catch(function(err){
+    el("commentsWrap").innerHTML = '<div class="mini muted wrapText">שגיאה: '+escapeHtml(safe(err && err.message || err))+'</div>';
+  });
+}
+function replyChildKeys(node){
+  // ב-replies המבנה הוא "מפת מפתחות" בלי קונטיינר קבוע.
+  // כל ילד הוא אובייקט נוסף (מפתח אקראי) שאינו שדה רגיל.
+  if(!node || typeof node!=="object") return [];
+  var reserved = {author:1, text:1, time:1, username:1, user:1, name:1, body:1, message:1};
+  return Object.keys(node).filter(function(k){
+    if(reserved[k]) return false;
+    return node[k] && typeof node[k]==="object";
+  });
+}
+
+function buildReplyNode(postId, key, path, data, depth){
+  data = data || {};
+  var author = safe(data.author || data.username || data.user || data.name || "—");
+  var text = safe(data.text || data.body || data.message || "");
+  var time = num(data.time);
+
+  var box = document.createElement("div");
+  box.className = "cNode" + (depth>0 ? " indent" : "");
+  box.innerHTML = `
+    <div class="cHead">
+      <div class="cMeta">
+        <span class="chip">key: <b class="mono">${escapeHtml(key)}</b></span>
+        <span class="chip">מאת: <b class="wrapText">${escapeHtml(author)}</b></span>
+        <span class="chip">זמן: <b>${escapeHtml(time?fmtDate(time):"—")}</b></span>
+      </div>
+      <div class="tools">
+        <button class="btn small" data-act="edit">✏️</button>
+        <button class="btn small danger" data-act="del">🗑</button>
+      </div>
+    </div>
+    <div class="cText wrapText">${escapeHtml(text)}</div>
+  `;
+
+  box.addEventListener("click", function(e){
+    var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
+    if(!b) return;
+    var act = b.getAttribute("data-act");
+
+    if(act==="edit"){
+      openCommentEditor(path, postId, data);
+    }
+
+    if(act==="del"){
+      if(!confirmDanger("למחוק תגובה? הילדים שלה ימחקו אוטומטית.")) return;
+      setBusy(true);
+      firebase.database().ref(path).remove()
+        .then(function(){
+          toast("נמחק ✅","ok");
+          return recalcPostMeta(postId, false).then(function(){
+            return loadCommentsForPost(postId);
+          }).then(resetAndLoadPosts);
+        })
+        .catch(function(err){
+          toast("שגיאה: "+safe(err && err.message || err), "err");
+        })
+        .finally(function(){ setBusy(false); });
+    }
+  });
+
+  // ילדים (תגובה על תגובה על תגובה...)
+  var kids = replyChildKeys(data);
+  if(kids.length && depth < MAX_REPLIES_DEPTH){
+    kids.sort(function(a,b){
+      return num((data[a]||{}).time) - num((data[b]||{}).time);
+    });
+    kids.forEach(function(kid){
+      box.appendChild(buildReplyNode(postId, kid, path + "/" + kid, data[kid], depth+1));
+    });
+  }
+
+  return box;
 }
 
 function buildCommentNode(postId, key, path, data, depth){
@@ -1111,7 +1215,14 @@ function buildCommentNode(postId, key, path, data, depth){
     if(act==="del"){
       if(!confirmDanger("למחוק תגובה? הילדים שלה ימחקו אוטומטית.")) return;
       setBusy(true);
-      firebase.database().ref(path).remove()
+      var up = {};
+up[path] = null;
+
+if(depth===0){
+  up[REPLIES_PATH + "/" + postId + "/" + key] = null;
+}
+
+firebase.database().ref().update(up)
         .then(function(){
           toast("נמחק ✅","ok");
           return recalcPostMeta(postId, false).then(function(){
@@ -1341,6 +1452,7 @@ function deepDeletePost(postId, closeSheetAfter){
   var up = {};
   up[POSTS_PATH + "/" + postId] = null;
   up[COMMENTS_PATH + "/" + postId] = null;
+  up[REPLIES_PATH + "/" + postId] = null;
 
   firebase.database().ref().update(up)
     .then(function(){
