@@ -588,6 +588,7 @@ var ADMIN_PATH = "admins";
 var POSTS_PATH = "posts";
 var COMMENTS_PATH = "comments";
 var USERS_PATH = "users";
+var REPLIES_PATH = "replies";
 var STORAGE_POST_FOLDER = "post-images";
 var MAX_REPLIES_DEPTH = 10;
 
@@ -1212,25 +1213,67 @@ function computeMetaFromCommentsObj(obj){
 
   return { commentsCount: num(commentsCount), lastCommentTime: num(lastTime) };
 }
+function maxTimeDeep(root, depth){
+  var last = 0;
+  depth = num(depth || 60);
 
+  var seen = [];
+  function mark(o){
+    for(var i=0;i<seen.length;i++){ if(seen[i]===o) return true; }
+    seen.push(o);
+    return false;
+  }
+
+  function walk(node, d){
+    if(!node || typeof node !== "object" || d < 0) return;
+    if(mark(node)) return;
+
+    var t = num(node.time);
+    if(t > last) last = t;
+
+    Object.keys(node).forEach(function(k){
+      var v = node[k];
+      if(v && typeof v === "object") walk(v, d-1);
+    });
+  }
+
+  walk(root, depth);
+  return last;
+}
 function recalcPostMeta(postId, showToast){
   if(showToast) toast("מתקן מונים…","warn");
-  return firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value")
-    .then(function(snap){
-      var obj = snap.exists() ? (snap.val()||{}) : {};
-      var meta = computeMetaFromCommentsObj(obj);
 
-      var up = {};
-      up[POSTS_PATH + "/" + postId + "/commentsCount"] = num(meta.commentsCount);
-      up[POSTS_PATH + "/" + postId + "/lastCommentTime"] = num(meta.lastCommentTime);
+  return Promise.all([
+    firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value"),
+    firebase.database().ref(REPLIES_PATH + "/" + postId).once("value")
+  ])
+  .then(function(res){
+    var snapC = res[0];
+    var snapR = res[1];
 
-      return firebase.database().ref().update(up).then(function(){
-        if(showToast) toast("מונים עודכנו ✅","ok");
-      });
-    })
-    .catch(function(err){
-      toast("שגיאה בתיקון מונים: " + safe(err && err.message || err), "err");
+    var commentsObj = snapC.exists() ? (snapC.val()||{}) : {};
+    var repliesObj  = snapR.exists() ? (snapR.val()||{}) : {};
+
+    // meta מהתגובות הראשיות (כמו שהיה עד היום)
+    var meta = computeMetaFromCommentsObj(commentsObj);
+
+    // זמן אחרון מכל עץ התגובות-על-תגובות
+    var repliesLast = maxTimeDeep(repliesObj, MAX_REPLIES_DEPTH + 25);
+
+    // lastCommentTime סופי = המקסימום בין שניהם
+    var finalLast = Math.max(num(meta.lastCommentTime), num(repliesLast));
+
+    var up = {};
+    up[POSTS_PATH + "/" + postId + "/commentsCount"] = num(meta.commentsCount);
+    up[POSTS_PATH + "/" + postId + "/lastCommentTime"] = num(finalLast);
+
+    return firebase.database().ref().update(up).then(function(){
+      if(showToast) toast("מונים עודכנו ✅","ok");
     });
+  })
+  .catch(function(err){
+    toast("שגיאה בתיקון מונים: " + safe(err && err.message || err), "err");
+  });
 }
 
 function fixAllPosts(){
@@ -1269,7 +1312,8 @@ function fixAllPosts(){
         prog(pct, "מתקן ("+(i+1)+"/"+ids.length+")");
         el("toolsMsg").textContent = "פוסט: " + ids[i];
 
-        recalcPostMeta(ids[i], false).finally(function(){
+        
+recalcPostMeta(ids[i], false).finally(function(){
           i++;
           setTimeout(step, 25);
         });
