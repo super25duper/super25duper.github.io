@@ -13,6 +13,10 @@ body {
   text-align: center;
 }
 
+top-bar h1{
+  font-size:7px;
+}
+
 .forum-container {
   max-width: 900px;
   margin: auto;
