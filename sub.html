@@ -11,7 +11,7 @@
     window.OneSignal = window.OneSignal || [];
     OneSignal.push(function() {
       OneSignal.init({
-        appId: "PUT_YOUR_APP_ID_HERE",
+        appId: "",
         notifyButton: {
           enable: false
         }
@@ -24,6 +24,15 @@
       });
     }
   </script>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "46301aa1-de18-4e4f-a0dd-e100d2cf7b27",
+    });
+  });
+</script>
 
   <style>
     body {
