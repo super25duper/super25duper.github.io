@@ -491,18 +491,27 @@
 /* ===============================                    
    חסימה מיידית – לא WebView                    
    =============================== */                    
-(function () {                    
-  try {                    
-    if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {                    
-      location.replace("forbidden.html");                    
-      return;                    
-    }                    
-  } catch (e) {                    
-    location.replace("forbidden.html");                    
-    return;                    
-  }                    
-})();                    
-        
+              
+        (function () {
+  try {
+    const ua = navigator.userAgent;
+
+    const isKodular =
+      window.AppInventor &&
+      typeof window.AppInventor.getWebViewString === "function";
+
+    const isIphoneSafari =
+      /iPhone/.test(ua) &&
+      /Safari/.test(ua) &&
+      !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+
+    if (!(isKodular || isIphoneSafari)) {
+      location.replace("forbidden.html");
+    }
+  } catch (e) {
+    location.replace("forbidden.html");
+  }
+})();
 /* =========================================================================================                    
    Cache (A) – תצוגה מיידית                    
    ========================================================================================= */                    
