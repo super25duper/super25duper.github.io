@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -536,22 +537,22 @@
   </div>
 
 <script>
-/* ===============================                    
-   חסימה מיידית – לא WebView                    
-   =============================== */                    
-(function () {                    
-  try {                    
-    if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {                    
-      location.replace("forbidden.html");                    
-      return;                    
-    }                    
-  } catch (e) {                    
-    location.replace("forbidden.html");                    
-    return;                    
-  }                    
-})();                    
+/* ===============================
+   חסימה מיידית – לא WebView
+   =============================== */
+(function () {
+  try {
+    if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {
+      location.replace("forbidden.html");
+      return;
+    }
+  } catch (e) {
+    location.replace("forbidden.html");
+    return;
+  }
+})();
 
-/* =========================================================================================                    
+/* =========================================================================================
 /* ============ HARDEN INIT (works with ANY firebaseConfig.js style) ============ */
 (function(){
   function showInitErr(msg){
@@ -609,6 +610,12 @@ var STORAGE_POST_FOLDER = "post-images";
 var MAX_REPLIES_DEPTH = 10;
 
 /* =========================
+   PRESENCE (paths)
+   ========================= */
+var PRESENCE_PATH = "presence";
+var PRESENCE_PING_MS = 25000;
+
+/* =========================
    STATE
 ========================= */
 var S = {
@@ -621,6 +628,14 @@ var S = {
   busy:false,
   current:{ type:"", path:"", postId:"", obj:null }
 };
+
+/* =========================
+   PRESENCE (state)
+   ========================= */
+var presenceRef = null;
+var connectedRef = null;
+var connectedHandler = null;
+var presencePingTimer = null;
 
 /* =========================
    HELPERS
@@ -673,6 +688,90 @@ function progReset(){
 }
 
 /* =========================
+   PRESENCE (Admin tracking)
+   ========================= */
+function stopPresenceTracking(){
+  try{
+    if(presencePingTimer){
+      clearInterval(presencePingTimer);
+      presencePingTimer = null;
+    }
+  }catch(e){}
+
+  try{
+    if(connectedRef && connectedHandler){
+      connectedRef.off("value", connectedHandler);
+    }
+  }catch(e){}
+
+  try{
+    if(presenceRef){
+      // best-effort: cancel onDisconnect + mark offline
+      try{ presenceRef.onDisconnect().cancel(); }catch(e){}
+      presenceRef.update({
+        isOnline: false,
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+      }).catch(function(){});
+    }
+  }catch(e){}
+
+  presenceRef = null;
+  connectedRef = null;
+  connectedHandler = null;
+}
+
+function startPresenceTracking(uid){
+  try{
+    if(!uid || !firebase || !firebase.database) return;
+
+    // reset if already running
+    stopPresenceTracking();
+
+    presenceRef = firebase.database().ref(PRESENCE_PATH + "/" + uid);
+    connectedRef = firebase.database().ref(".info/connected");
+
+    // write a stable "client" marker once (optional, harmless)
+    presenceRef.update({
+      client: "admin",
+      uid: uid
+    }).catch(function(){});
+
+    connectedHandler = function(snap){
+      try{
+        if(snap && snap.val() === true){
+          // If the connection drops, this runs server-side.
+          presenceRef.onDisconnect().update({
+            isOnline: false,
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+          });
+
+          // Mark online now
+          presenceRef.update({
+            isOnline: true,
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+          }).catch(function(){});
+        }
+      }catch(e){}
+    };
+
+    connectedRef.on("value", connectedHandler);
+
+    // heartbeat - keeps presence fresh on platforms that don't reliably fire unload
+    presencePingTimer = setInterval(function(){
+      try{
+        if(presenceRef){
+          presenceRef.update({
+            isOnline: true,
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+          }).catch(function(){});
+        }
+      }catch(e){}
+    }, PRESENCE_PING_MS);
+
+  }catch(e){}
+}
+
+/* =========================
    NAV
 ========================= */
 function setActive(tab){
@@ -708,7 +807,10 @@ function login(){
       toast("שגיאת התחברות: " + safe(err && err.message || err), "err");
     });
 }
-function logout(){ firebase.auth().signOut(); }
+function logout(){
+  stopPresenceTracking();
+  firebase.auth().signOut();
+}
 
 el("btnLogin").onclick = login;
 el("btnLogout").onclick = logout;
@@ -1740,6 +1842,7 @@ el("btnRename").onclick = function(){ renameEverywhere(el("oldName").value, el("
       S.uid = u ? u.uid : "";
 
       if(!u){
+        stopPresenceTracking();
         S.isAdmin = false;
         pill("warn","לא מחובר");
         el("btnLogin").classList.remove("hidden");
@@ -1756,10 +1859,14 @@ el("btnRename").onclick = function(){ renameEverywhere(el("oldName").value, el("
       checkAdmin(u.uid).then(function(isAdmin){
         S.isAdmin = !!isAdmin;
         if(!S.isAdmin){
+          stopPresenceTracking();
           pill("err","לא אדמין");
           toast("לא אדמין (admins/{uid}!=true)","err");
           return firebase.auth().signOut();
         }
+
+        // start presence only after admin is confirmed
+        startPresenceTracking(u.uid);
 
         pill("ok","אדמין מחובר");
         el("btnLogin").classList.add("hidden");
@@ -1782,6 +1889,13 @@ el("btnRename").onclick = function(){ renameEverywhere(el("oldName").value, el("
     toast("Init/Auth נכשל: " + safe(e && e.message || e), "err");
   }
 })();
+
+/* ===============================
+   Cleanup listeners on unload
+   =============================== */
+window.addEventListener("beforeunload", function () {
+  stopPresenceTracking();
+});
 
 /* =========================
    FIX ALL BUTTON + EXPORT already bound
