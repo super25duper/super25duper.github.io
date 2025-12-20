@@ -35,19 +35,33 @@
     }
 
     *{ box-sizing:border-box; }
-    html, body{ height:100%; }
+
+    /* ✅ FIX: background seam / repeat */
+    html, body{ min-height:100%; }
     body{
       margin:0;
       font-family: var(--font);
+      color: var(--txt);
+      overflow-x:hidden;
+      /* ✅ IMPORTANT: avoid last item hidden under bottom nav */
+      padding-bottom: calc(96px + var(--safeBot));
+      background: none;
+      position: relative;
+    }
+    body::before{
+      content:"";
+      position: fixed;
+      inset:0;
+      z-index:-1;
       background:
         radial-gradient(900px 520px at 10% -10%, rgba(59,130,246,0.25), transparent 60%),
         radial-gradient(820px 520px at 90% 10%, rgba(139,92,246,0.20), transparent 60%),
         radial-gradient(900px 650px at 50% 115%, rgba(47,226,138,0.12), transparent 60%),
         var(--bg);
-      color: var(--txt);
-      overflow-x:hidden;
-      padding-bottom: calc(78px + var(--safeBot));
+      background-repeat: no-repeat;
+      background-attachment: fixed;
     }
+
     .wrapText{ overflow-wrap:anywhere; word-break:break-word; }
     .container{
       width:100%;
@@ -220,7 +234,8 @@
       margin:0 auto;
       padding:10px 12px;
       display:grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      /* ✅ 4 tabs now */
+      grid-template-columns: 1fr 1fr 1fr 1fr;
       gap:8px;
     }
     .navBtn{
@@ -248,7 +263,7 @@
     .toast{
       position: fixed;
       left:12px; right:12px;
-      bottom: calc(80px + var(--safeBot));
+      bottom: calc(90px + var(--safeBot));
       z-index:90;
       max-width:560px;
       margin:0 auto;
@@ -363,6 +378,116 @@
       width:0%;
       background: linear-gradient(90deg, rgba(59,130,246,0.95), rgba(139,92,246,0.92));
     }
+
+    /* ✅ NEW: Users monitor UI */
+    .uCard{
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,0.05);
+      border-radius:18px;
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      box-shadow: 0 10px 34px rgba(0,0,0,0.30);
+    }
+    .uHead{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+      min-width:0;
+    }
+    .uName{
+      font-weight:1000;
+      font-size:14px;
+      line-height:1.25;
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .uSub{
+      font-size:12px;
+      color: var(--muted);
+      margin-top:4px;
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      font-family: var(--mono);
+      opacity:0.85;
+    }
+    .uStatus{
+      flex:0 0 auto;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid var(--stroke2);
+      background: rgba(0,0,0,0.20);
+      font-size:12px;
+      font-weight:950;
+      color: var(--muted);
+      user-select:none;
+    }
+    .uStatus .sDot{ width:8px; height:8px; border-radius:99px; background: var(--muted2); }
+    .uCard.online .uStatus{ color: rgba(255,255,255,0.90); border-color: rgba(47,226,138,0.35); background: rgba(47,226,138,0.10); }
+    .uCard.online .uStatus .sDot{ background: var(--ok); }
+    .uCard.offline .uStatus{ border-color: rgba(255,176,32,0.25); background: rgba(255,176,32,0.08); }
+
+    .uGrid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:8px;
+      min-width:0;
+    }
+    .uLine{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      border:1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.18);
+      border-radius:14px;
+      padding:10px 10px;
+      min-width:0;
+    }
+    .uLine .k{
+      font-size:12px;
+      color: var(--muted);
+      white-space:nowrap;
+    }
+    .uLine .v{
+      font-size:13px;
+      color: rgba(255,255,255,0.92);
+      font-weight:950;
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .uFooter{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:2px;
+    }
+    .uBadge{
+      font-size:12px;
+      color: var(--muted);
+    }
+    .uActions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .spacerBottom{
+      height: 10px; /* small extra, body has main padding-bottom */
+    }
   </style>
 </head>
 
@@ -439,6 +564,30 @@
           <button id="btnLoadMore" class="btn ghost wide" type="button">⬇️ טען עוד</button>
         </div>
       </div>
+      <div class="spacerBottom"></div>
+    </div>
+
+    <!-- ✅ NEW: Users Control screen -->
+    <div id="viewUsers" class="hidden" style="margin-top:12px;">
+      <div class="card">
+        <div class="hd">
+          <div class="h">בקרת משתמשים</div>
+          <div class="mini" id="usersBadge">—</div>
+        </div>
+        <div class="bd">
+          <div class="row">
+            <input id="usersSearch" class="in" type="search" placeholder="חיפוש משתמש (שם/uid)..." style="flex:2; min-width:200px;" />
+            <button id="btnUsersRefresh" class="btn" type="button">🔄</button>
+          </div>
+
+          <div class="sep"></div>
+
+          <div id="usersList" class="list">
+            <div class="mini muted">התחבר כדי לראות ניטור…</div>
+          </div>
+        </div>
+      </div>
+      <div class="spacerBottom"></div>
     </div>
 
     <div id="viewTools" class="hidden" style="margin-top:12px;">
@@ -462,24 +611,10 @@
           <div class="sep"></div>
           <button id="btnExportVisible" class="btn wide" type="button">📦 ייצא פוסטים בתצוגה (JSON)</button>
 
-          <!-- ✅ ADDED: LIVE MONITOR (READ-ONLY) -->
-          <div class="sep"></div>
-          <div class="mini" style="font-weight:950;">📡 ניטור לייב (מהפורום)</div>
-          <div class="row" style="margin-top:8px;">
-            <select id="presenceMode" class="in" style="width:auto; flex:1; min-width: 160px;">
-              <option value="online" selected>מחוברים עכשיו</option>
-              <option value="recent">פעילות אחרונה</option>
-            </select>
-            <input id="presenceSearch" class="in" type="search" placeholder="חיפוש משתמש/uid..." style="flex:2; min-width: 180px;" />
-            <button id="btnPresenceRefresh" class="btn" type="button">🔄</button>
-          </div>
-          <div class="mini muted" id="presenceBadge" style="margin-top:8px;">—</div>
-          <div id="presenceList" class="list" style="margin-top:10px;">
-            <div class="mini muted">התחבר כדי לראות ניטור…</div>
-          </div>
-          <!-- ✅ /ADDED -->
+          <!-- ✅ REMOVED: LIVE MONITOR moved to Users tab -->
         </div>
       </div>
+      <div class="spacerBottom"></div>
     </div>
 
     <div id="viewRename" class="hidden" style="margin-top:12px;">
@@ -500,12 +635,14 @@
           <div class="mini muted" id="renameMsg">—</div>
         </div>
       </div>
+      <div class="spacerBottom"></div>
     </div>
   </div>
 
   <div class="bottomNav">
     <div class="bar">
       <div id="navPosts" class="navBtn active">📰 פוסטים</div>
+      <div id="navUsers" class="navBtn">👥 משתמשים</div>
       <div id="navTools" class="navBtn">🧰 כלים</div>
       <div id="navRename" class="navBtn">👤 שינוי שם</div>
     </div>
@@ -625,10 +762,10 @@ var REPLIES_PATH = "replies";
 var STORAGE_POST_FOLDER = "post-images";
 var MAX_REPLIES_DEPTH = 10;
 
-/* ✅ ADDED: forum presence monitoring (READ-ONLY) */
+/* ✅ forum presence monitoring (READ-ONLY) */
 var PRESENCE_PATH = "presence";
-var PRESENCE_RECENT_LIMIT = 250;
-/* ✅ /ADDED */
+var PRESENCE_LIST_LIMIT = 0; // 0 = all. If you ever need: set to e.g. 3000
+/* ✅ /presence */
 
 /* =========================
    STATE
@@ -643,11 +780,10 @@ var S = {
   busy:false,
   current:{ type:"", path:"", postId:"", obj:null },
 
-  /* ✅ ADDED */
-  presenceMode:"online",
+  /* ✅ users monitor */
   presenceArr:[],
   presenceMap:{}
-  /* ✅ /ADDED */
+  /* ✅ /users monitor */
 };
 
 /* =========================
@@ -689,6 +825,9 @@ function setBusy(flag){
   el("btnFixAll").disabled = S.busy;
   el("btnRename").disabled = S.busy;
   el("btnLoadMore").disabled = S.busy;
+
+  // users refresh stays usable, but prevent spam during heavy ops
+  if(el("btnUsersRefresh")) el("btnUsersRefresh").disabled = S.busy;
 }
 function prog(pct, text){
   pct = Math.max(0, Math.min(100, Math.round(Number(pct||0))));
@@ -700,18 +839,107 @@ function progReset(){
   el("progTxt").textContent = "—";
 }
 
+/* ✅ NEW: time formatting (human friendly) */
+function pad2(n){ n = Math.floor(Math.abs(num(n))); return (n<10?("0"+n):String(n)); }
+
+function formatDuration(ms){
+  ms = num(ms);
+  if(ms <= 0) return "—";
+  var s = Math.floor(ms/1000);
+  if(s < 60) return "פחות מדקה";
+  var m = Math.floor(s/60); s = s%60;
+  if(m < 60) return m + " דקות";
+  var h = Math.floor(m/60); m = m%60;
+  if(h < 24){
+    if(m === 0) return h + " שעות";
+    return h + " שעות ו" + m + " דקות";
+  }
+  var d = Math.floor(h/24); h = h%24;
+  if(h === 0) return d + " ימים";
+  return d + " ימים ו" + h + " שעות";
+}
+
+function isSameDay(a,b){
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+
+function formatLastSeenHuman(ts){
+  ts = num(ts);
+  if(!ts) return "—";
+  var now = new Date();
+  var d = new Date(ts);
+  var diff = now.getTime() - ts;
+
+  if(diff < 0) diff = 0;
+
+  var sec = Math.floor(diff/1000);
+  if(sec < 90) return "לפני דקה";
+  var min = Math.floor(sec/60);
+  if(min < 60) return "לפני " + min + " דקות";
+
+  var hr = Math.floor(min/60);
+  var remMin = min%60;
+
+  // today
+  if(isSameDay(now, d)){
+    if(hr <= 6 && remMin > 0){
+      return "לפני " + hr + " שעות ו" + remMin + " דקות";
+    }
+    if(hr < 24){
+      return "לפני " + hr + " שעות" + (remMin ? (" ו" + remMin + " דקות") : "");
+    }
+  }
+
+  // yesterday
+  var y = new Date(now);
+  y.setDate(now.getDate()-1);
+  if(isSameDay(y, d)){
+    return "אתמול בשעה " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
+
+  var days = Math.floor(hr/24);
+  if(days < 7){
+    return "לפני " + days + " ימים";
+  }
+
+  // fallback: date
+  return d.toLocaleDateString("he-IL") + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+}
+
+/* ✅ users: connected duration */
+function computeConnectionInfo(isOnline, connectedAt, lastSeen){
+  connectedAt = num(connectedAt);
+  lastSeen = num(lastSeen);
+
+  if(isOnline){
+    if(connectedAt){
+      var now = Date.now();
+      return { label: "מחובר כבר", value: formatDuration(now - connectedAt) };
+    }
+    return { label: "מחובר כבר", value: "—" };
+  }else{
+    if(connectedAt && lastSeen && lastSeen >= connectedAt){
+      return { label: "היה מחובר", value: formatDuration(lastSeen - connectedAt) };
+    }
+    return { label: "היה מחובר", value: "—" };
+  }
+}
+/* ✅ /time formatting */
+
 /* =========================
    NAV
 ========================= */
 function setActive(tab){
-  ["navPosts","navTools","navRename"].forEach(function(id){
+  ["navPosts","navUsers","navTools","navRename"].forEach(function(id){
     el(id).classList.toggle("active", id===tab);
   });
   el("viewPosts").classList.toggle("hidden", tab!=="navPosts");
+  el("viewUsers").classList.toggle("hidden", tab!=="navUsers");
   el("viewTools").classList.toggle("hidden", tab!=="navTools");
   el("viewRename").classList.toggle("hidden", tab!=="navRename");
 }
 el("navPosts").onclick = function(){ setActive("navPosts"); };
+el("navUsers").onclick = function(){ setActive("navUsers"); renderUsersList(); };
 el("navTools").onclick = function(){ setActive("navTools"); };
 el("navRename").onclick = function(){ setActive("navRename"); };
 
@@ -1744,56 +1972,99 @@ el("btnRename").onclick = function(){ renameEverywhere(el("oldName").value, el("
 })();
 
 /* =========================
-   ✅ ADDED: LIVE MONITOR (READ-ONLY)
+   ✅ USERS MONITOR (presence)
+   DB structure:
+   presence/{uid} = { connectedAt, isOnline, lastSeen, username }
 ========================= */
 var _presenceRef = null;
 var _presenceHandler = null;
 
 function normalizePresence(uid, v){
   v = v || {};
-  var name = safe(v.username || v.name || v.author || v.user || v.displayName || "");
   return {
     uid: uid,
-    name: name,
-    isOnline: (v.isOnline===true || v.online===true || v.state==="online"),
-    lastSeen: num(v.lastSeen || v.last || v.time || v.ts)
+    username: safe(v.username || v.name || v.author || v.user || ""),
+    isOnline: (v.isOnline === true),
+    connectedAt: num(v.connectedAt),
+    lastSeen: num(v.lastSeen)
   };
 }
 
-function renderPresence(){
-  var host = el("presenceList");
+function sortPresence(arr){
+  // Online first, and online sorted by latest connectedAt
+  // Offline sorted by latest lastSeen
+  arr.sort(function(a,b){
+    var ao = a.isOnline ? 1 : 0;
+    var bo = b.isOnline ? 1 : 0;
+    if(bo !== ao) return bo - ao;
+
+    if(a.isOnline && b.isOnline){
+      return num(b.connectedAt) - num(a.connectedAt);
+    }
+    return num(b.lastSeen) - num(a.lastSeen);
+  });
+  return arr;
+}
+
+function renderUsersList(){
+  var host = el("usersList");
   if(!host) return;
 
-  var q = safe(el("presenceSearch").value).trim().toLowerCase();
+  var q = safe(el("usersSearch").value).trim().toLowerCase();
   var arr = (S.presenceArr || []).slice();
 
   if(q){
     arr = arr.filter(function(x){
-      var blob = (safe(x.name)+" "+safe(x.uid)).toLowerCase();
+      var blob = (safe(x.username) + " " + safe(x.uid)).toLowerCase();
       return blob.indexOf(q) !== -1;
     });
   }
 
   if(!arr.length){
-    host.innerHTML = '<div class="mini muted">אין נתונים בתצוגה.</div>';
+    host.innerHTML = '<div class="mini muted">אין משתמשים בתצוגה.</div>';
     return;
   }
 
   host.innerHTML = "";
   arr.forEach(function(x){
+    var isOnline = !!x.isOnline;
+    var name = x.username || "משתמש ללא שם";
+    var lastSeenLabel = isOnline ? "עכשיו" : formatLastSeenHuman(x.lastSeen);
+    var conn = computeConnectionInfo(isOnline, x.connectedAt, x.lastSeen);
+
     var card = document.createElement("div");
-    card.className = "post";
+    card.className = "uCard " + (isOnline ? "online" : "offline");
+
     card.innerHTML = `
-      <div class="title wrapText">${escapeHtml(x.name || "משתמש ללא שם")}</div>
-      <div class="chips">
-        <span class="chip">uid: <b class="mono">${escapeHtml(x.uid)}</b></span>
-        <span class="chip">סטטוס: <b>${escapeHtml(x.isOnline ? "אונליין" : "אופליין")}</b></span>
-        <span class="chip">lastSeen: <b>${escapeHtml(x.lastSeen ? fmtDate(x.lastSeen) : "—")}</b></span>
+      <div class="uHead">
+        <div style="min-width:0;">
+          <div class="uName">${escapeHtml(name)}</div>
+          <div class="uSub wrapText">${escapeHtml(x.uid)}</div>
+        </div>
+        <div class="uStatus">
+          <span class="sDot"></span>
+          <span>${isOnline ? "אונליין" : "אופליין"}</span>
+        </div>
       </div>
-      <div class="mini muted wrapText">Path: ${escapeHtml(PRESENCE_PATH + "/" + x.uid)}</div>
+
+      <div class="uGrid">
+        <div class="uLine">
+          <div class="k">נראה לאחרונה</div>
+          <div class="v">${escapeHtml(lastSeenLabel)}</div>
+        </div>
+        <div class="uLine">
+          <div class="k">${escapeHtml(conn.label)}</div>
+          <div class="v">${escapeHtml(conn.value)}</div>
+        </div>
+      </div>
     `;
+
     host.appendChild(card);
   });
+
+  // keep badge updated even when filtered
+  var onlineCount = (S.presenceArr||[]).filter(function(x){ return !!x.isOnline; }).length;
+  el("usersBadge").textContent = "אונליין: " + onlineCount + " | סה״כ: " + (S.presenceArr||[]).length;
 }
 
 function stopPresenceWatch(){
@@ -1802,87 +2073,67 @@ function stopPresenceWatch(){
       _presenceRef.off("value", _presenceHandler);
     }
   }catch(e){}
+
   _presenceRef = null;
   _presenceHandler = null;
 
   S.presenceArr = [];
   S.presenceMap = {};
-  if(el("presenceBadge")) el("presenceBadge").textContent = "—";
-  if(el("presenceList")) el("presenceList").innerHTML = '<div class="mini muted">התחבר כדי לראות ניטור…</div>';
+
+  if(el("usersBadge")) el("usersBadge").textContent = "—";
+  if(el("usersList")) el("usersList").innerHTML = '<div class="mini muted">התחבר כדי לראות ניטור…</div>';
 }
 
 function startPresenceWatch(){
   if(!S.isAdmin) return;
   stopPresenceWatch();
 
-  S.presenceMode = safe(el("presenceMode").value || "online");
-
-  // online: מי שעכשיו אונליין
-  // recent: מי שהיה פעיל לאחרונה (limit)
-  if(S.presenceMode === "online"){
-    _presenceRef = firebase.database().ref(PRESENCE_PATH).orderByChild("isOnline").equalTo(true);
-  }else{
-    _presenceRef = firebase.database().ref(PRESENCE_PATH).orderByChild("lastSeen").limitToLast(PRESENCE_RECENT_LIMIT);
+  var ref = firebase.database().ref(PRESENCE_PATH);
+  if(PRESENCE_LIST_LIMIT && PRESENCE_LIST_LIMIT > 0){
+    // if ever needed
+    ref = ref.orderByChild("lastSeen").limitToLast(PRESENCE_LIST_LIMIT);
   }
+  _presenceRef = ref;
 
   _presenceHandler = function(snap){
     var arr = [];
     var map = {};
+
     snap.forEach(function(ch){
       var uid = ch.key;
       var item = normalizePresence(uid, ch.val());
+
       map[uid] = item;
       arr.push(item);
     });
 
-    // sort: online first + newest lastSeen first
-    arr.sort(function(a,b){
-      var ao = a.isOnline?1:0, bo = b.isOnline?1:0;
-      if(bo !== ao) return bo-ao;
-      return num(b.lastSeen) - num(a.lastSeen);
-    });
+    sortPresence(arr);
 
     S.presenceArr = arr;
     S.presenceMap = map;
 
-    var onlineCount = arr.filter(function(x){ return !!x.isOnline; }).length;
-    var total = arr.length;
-
-    if(el("presenceBadge")){
-      el("presenceBadge").textContent =
-        (S.presenceMode==="online"
-          ? ("אונליין עכשיו: " + onlineCount)
-          : ("אונליין עכשיו: " + onlineCount + " | מוצגים (אחרונים): " + total)
-        );
-    }
-
-    renderPresence();
+    renderUsersList();
   };
 
   _presenceRef.on("value", _presenceHandler, function(err){
-    toast("שגיאה בניטור: " + safe(err && err.message || err), "err");
+    toast("שגיאה בניטור משתמשים: " + safe(err && err.message || err), "err");
   });
 
-  if(el("presenceList")) el("presenceList").innerHTML = '<div class="mini muted">טוען נתונים…</div>';
+  if(el("usersList")) el("usersList").innerHTML = '<div class="mini muted">טוען משתמשים…</div>';
 }
 
-if(el("presenceMode")){
-  el("presenceMode").onchange = function(){
+if(el("usersSearch")){
+  el("usersSearch").oninput = function(){ renderUsersList(); };
+}
+if(el("btnUsersRefresh")){
+  el("btnUsersRefresh").onclick = function(){
     if(!S.isAdmin) return;
     startPresenceWatch();
-  };
-}
-if(el("presenceSearch")){
-  el("presenceSearch").oninput = function(){ renderPresence(); };
-}
-if(el("btnPresenceRefresh")){
-  el("btnPresenceRefresh").onclick = function(){
-    if(!S.isAdmin) return;
-    startPresenceWatch();
+    toast("מרענן משתמשים…","warn");
   };
 }
 /* =========================
-   ✅ /ADDED
+   ✅ /USERS MONITOR
 ========================= */
 
 /* =========================
@@ -1902,13 +2153,12 @@ if(el("btnPresenceRefresh")){
         el("btnLogout").classList.add("hidden");
         el("viewLogin").classList.remove("hidden");
         el("viewPosts").classList.add("hidden");
+        el("viewUsers").classList.add("hidden");
         el("viewTools").classList.add("hidden");
         el("viewRename").classList.add("hidden");
         el("postsList").innerHTML = '<div class="mini muted">התחבר כדי לראות פוסטים…</div>';
 
-        /* ✅ ADDED */
         stopPresenceWatch();
-        /* ✅ /ADDED */
 
         return;
       }
@@ -1920,9 +2170,7 @@ if(el("btnPresenceRefresh")){
           pill("err","לא אדמין");
           toast("לא אדמין (admins/{uid}!=true)","err");
 
-          /* ✅ ADDED */
           stopPresenceWatch();
-          /* ✅ /ADDED */
 
           return firebase.auth().signOut();
         }
@@ -1934,21 +2182,17 @@ if(el("btnPresenceRefresh")){
 
         setActive("navPosts");
         el("viewPosts").classList.remove("hidden");
+        el("viewUsers").classList.remove("hidden");
         el("viewTools").classList.remove("hidden");
         el("viewRename").classList.remove("hidden");
 
         resetAndLoadPosts();
-
-        /* ✅ ADDED: start live monitor */
         startPresenceWatch();
-        /* ✅ /ADDED */
       }).catch(function(err){
         pill("err","שגיאה");
         toast("שגיאה בבדיקת אדמין: " + safe(err && err.message || err), "err");
 
-        /* ✅ ADDED */
         stopPresenceWatch();
-        /* ✅ /ADDED */
       });
     });
   }catch(e){
