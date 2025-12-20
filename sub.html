@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>הרשמה להתראות</title>
+
+  <!-- OneSignal SDK -->
+  <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async></script>
+
+  <script>
+    window.OneSignal = window.OneSignal || [];
+    OneSignal.push(function() {
+      OneSignal.init({
+        appId: "PUT_YOUR_APP_ID_HERE",
+        notifyButton: {
+          enable: false
+        }
+      });
+    });
+
+    function subscribe() {
+      OneSignal.push(function() {
+        OneSignal.showSlidedownPrompt();
+      });
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      direction: rtl;
+      text-align: center;
+      padding: 40px;
+    }
+    button {
+      padding: 12px 18px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>קבל התראות מהפורום</h2>
+  <p>לחץ על הכפתור כדי לקבל התראות על הודעות חדשות</p>
+
+  <button onclick="subscribe()">הרשמה להתראות</button>
+
+</body>
+</html>
