@@ -8,13 +8,12 @@ body {
 .top-bar {
   background:  rgb(17,17,87);
   color: #fff;
-  padding: 5px;
-  padding-top:14px;
+  padding: 12px 7px 5px 7px;
   text-align: center;
 }
 
 top-bar h1{
-  font-size:7px;
+  font-size:4px;
 }
 
 .forum-container {
