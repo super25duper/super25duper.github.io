@@ -1407,7 +1407,10 @@ var lastOpenId = "";
 var pullStartY = 0;                    
 var pulling = false;                    
 var didTriggerRefresh = false;                    
-var realUsername = "משתמש";                    
+var realUsername = "משתמש";  
+var presenceStartAt = 0;
+var presenceHeartbeatTimer = null;
+var presenceRef = null;                  
         
 /* =========================================================================================          
    Image state (שדרוג)          
@@ -1984,7 +1987,8 @@ document.addEventListener("DOMContentLoaded", function () {
           .ref("users/" + uid + "/username")                    
           .once("value")                    
           .then(function (uSnap) {                    
-            realUsername = uSnap.val() || "משתמש";                    
+            realUsername = uSnap.val() || "משתמש";   
+startPresenceTracking();                 
             setStatus("מחובר כ־" + realUsername, "ok");                    
         
             loadPosts(false);                    
@@ -2445,7 +2449,49 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch (e) { }                    
         
     location.href = "post.html?postId=" + encodeURIComponent(postId);                    
-  }                    
+  }   
+function startPresenceTracking() {
+  if (!uid || !isAuthed) return;
+
+  presenceStartAt = Date.now();
+  presenceRef = firebase.database().ref("presence/" + uid);
+
+  presenceRef.update({
+    username: realUsername || "משתמש",
+    isOnline: true,
+    connectedAt: presenceStartAt,
+    lastSeen: presenceStartAt
+  });
+
+  presenceHeartbeatTimer = setInterval(function () {
+    presenceRef.update({
+      lastSeen: Date.now()
+    });
+  }, 10000);
+
+  presenceRef.onDisconnect().update({
+    isOnline: false,
+    lastSeen: firebase.database.ServerValue.TIMESTAMP
+  });
+}
+
+function stopPresenceTracking() {
+  if (!presenceRef || !presenceStartAt) return;
+
+  var sessionTime = Math.floor((Date.now() - presenceStartAt) / 1000);
+
+  presenceRef.update({
+    isOnline: false,
+    lastSeen: Date.now(),
+    sessionTime: sessionTime,
+    totalTime: firebase.database.ServerValue.increment(sessionTime)
+  });
+
+  if (presenceHeartbeatTimer) {
+    clearInterval(presenceHeartbeatTimer);
+    presenceHeartbeatTimer = null;
+  }
+}                 
         
   function openCreatePostModal() {                    
     createPostErrorHide();                    
@@ -3019,7 +3065,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }          
     } catch (eOff) { }          
   });          
-        
+        stopPresenceTracking();
 });                    
         
 /* =========================================================================================          
