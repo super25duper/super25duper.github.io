@@ -1038,19 +1038,7 @@ function openImageViewer(url) {
   var safe = sanitizeImageUrl(url);          
   if (!safe) return;          
         
-  // ✅ UPDATE: add a one-time onerror handler for clearer UX
-  if (!img.__boundError) {
-    img.__boundError = true;
-    img.addEventListener("error", function () {
-      try {
-        // keep minimal: close viewer and show status
-        overlay.style.display = "none";
-        img.setAttribute("src", "");
-      } catch (eC) { }
-      try { setStatus("לא הצלחתי לטעון את התמונה.", "error"); } catch (eS) { }
-    });
-  }
-
+ 
   bindImgLoadErrorOnce(img);
 img.setAttribute("src", safe);
 overlay.style.display = "flex";
