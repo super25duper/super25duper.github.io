@@ -1051,8 +1051,10 @@ function openImageViewer(url) {
     });
   }
 
-  img.setAttribute("src", safe);          
-  overlay.style.display = "flex";          
+  bindImgLoadErrorOnce(img);
+img.setAttribute("src", safe);
+overlay.style.display = "flex";
+         
         
   /*          
     [REMOVED - no binding to non-existing button]          
