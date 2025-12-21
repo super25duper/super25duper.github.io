@@ -593,58 +593,87 @@ function bytesToHuman(n) {
    SECURE IMAGES (SIGNED URL) — כמו בדף הפורום
    ========================================================================================= */
 
+/* =========================================================================================
+   NEW: Shared Signed URL Cache (sessionStorage)
+   - Caches signed URLs across forum.html and post.html
+   - Automatically clears expired URLs
+   ========================================================================================= */
+const SignedUrlCache = (function() {
+  const CACHE_KEY = "signedUrlCache";
+  let cache = Object.create(null);
+
+  function load() {
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const now = Date.now();
+        for (const path in parsed) {
+          if (parsed[path] && parsed[path].expTs && parsed[path].expTs > now) {
+            cache[path] = parsed[path];
+          }
+        }
+      }
+    } catch (e) {
+      cache = Object.create(null);
+    }
+  }
+
+  function save() {
+    try {
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {}
+  }
+
+  load(); // Load on init
+
+  return {
+    get: function(path) {
+      const p = safeText(path || "");
+      if (!p) return "";
+      const rec = cache[p];
+      if (!rec || !rec.url) return "";
+      if (rec.expTs && Date.now() > rec.expTs) {
+        delete cache[p];
+        save();
+        return "";
+      }
+      return rec.url;
+    },
+    set: function(path, url, expiresAt) { // expiresAt is a timestamp
+      const p = safeText(path || "");
+      const u = sanitizeImageUrl(url || "");
+      if (!p || !u) return;
+      const expTs = Number(expiresAt || 0) || (Date.now() + 110 * 1000);
+      if (expTs <= Date.now()) return;
+      
+      cache[p] = { url: u, expTs: expTs };
+      save();
+    }
+  };
+})();
+
 // אותו endpoint בדיוק כמו בפורום (תשאיר אותו זהה!)
 const GET_IMAGE_URL_ENDPOINT = "https://us-central1-bigone-86490.cloudfunctions.net/getImageUrl";
 
 
-// Cache בזיכרון כדי לא לקרוא לפונקציה שוב ושוב
-const signedUrlCache = Object.create(null); // path => { url, expTs }
-
 /** מנסה לחלץ URL ותוקף מהתגובה */
 function _extractSignedUrlFromPayload(data) {
   try {
-    if (!data) return { url: "", expSeconds: 0 };
+    if (!data) return { url: "", expiresAt: 0 };
+    if (typeof data === "string") return { url: data, expiresAt: Date.now() + 110 * 1000 };
 
-    if (typeof data === "string") {
-      return { url: data, expSeconds: 60 };
+    const url = sanitizeImageUrl(data.url || data.signedUrl || data.downloadUrl || "");
+    let exp = Number(data.expiresAt || data.expires || data.exp || 0) || 0;
+    if (!exp && (data.expiresIn || data.expires_in)) {
+        const seconds = Number(data.expiresIn || data.expires_in || 0);
+        if (seconds > 0) exp = Date.now() + seconds * 1000;
     }
-
-    const url = safeText(data.url || data.signedUrl || data.downloadUrl || "");
-    const exp = Number(data.expiresIn || data.expires_in || data.exp || 0) || 0;
-
-    return { url, expSeconds: exp };
+    if (!exp) exp = Date.now() + 110 * 1000;
+    return { url, expiresAt: exp };
   } catch {
-    return { url: "", expSeconds: 0 };
+    return { url: "", expiresAt: 0 };
   }
-}
-
-function getCachedSignedUrlForPath(path) {
-  try {
-    const p = safeText(path || "");
-    if (!p) return "";
-    const rec = signedUrlCache[p];
-    if (!rec || !rec.url) return "";
-    // אם פג תוקף - מוחקים
-    if (rec.expTs && Date.now() > rec.expTs) {
-      delete signedUrlCache[p];
-      return "";
-    }
-    return rec.url;
-  } catch {
-    return "";
-  }
-}
-
-function setCachedSignedUrlForPath(path, url, expSeconds) {
-  try {
-    const p = safeText(path || "");
-    const u = safeText(url || "");
-    if (!p || !u) return;
-    const exp = Number(expSeconds || 0) || 0;
-    // נשמור מעט פחות מהתוקף כדי להימנע מ"פג בדיוק בזמן"
-    const expTs = exp ? (Date.now() + Math.max(10, exp - 20) * 1000) : (Date.now() + 40 * 1000);
-    signedUrlCache[p] = { url: u, expTs };
-  } catch {}
 }
 
 function fetchSignedUrlForPath(path) {
@@ -652,7 +681,7 @@ function fetchSignedUrlForPath(path) {
   if (!p) return Promise.resolve("");
 
   // cache
-  const cached = getCachedSignedUrlForPath(p);
+  const cached = SignedUrlCache.get(p);
   if (cached) return Promise.resolve(cached);
 
   // חייב להיות מחובר
@@ -673,7 +702,7 @@ return user.getIdToken(true)
   .then((data) => {
     const out = _extractSignedUrlFromPayload(data);
     const signed = sanitizeImageUrl(out.url || "");
-    if (signed) setCachedSignedUrlForPath(p, signed, out.expSeconds || 0);
+    if (signed) SignedUrlCache.set(p, signed, out.expiresAt || 0);
     return signed || "";
   })
   .catch(() => "");
@@ -838,6 +867,13 @@ function readFileAsDataURLWithRetry(file, tries, done) {
     // בפורום נשמרים בד"כ: imagePath + imageUrl
     const imageUrl = sanitizeImageUrl(p.imageUrl || p.image || "");
     const imagePath = safeText(p.imagePath || "");
+
+    // OPTIMIZATION: If we received a valid signed URL from forum.html,
+    // add it to the shared cache to prevent re-fetching on this page.
+    if (imageUrl && imagePath) {
+        // We don't know the exact expiry, so we assume a short one.
+        SignedUrlCache.set(imagePath, imageUrl, Date.now() + 110 * 1000);
+    }
 
     host.innerHTML = `
       <div class="post post-user-border" style="border-right-color:${escapeHTML(border)};">
@@ -1259,7 +1295,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const postTime = Number(p.time || 0);
        const imagePath = safeText(p.imagePath || "").trim();   // ✅ זה מה שנשמר עכשיו
 const legacyUrl = sanitizeImageUrl(p.image || "");      // ✅ רק תאימות לאחור
-const cached = imagePath ? getCachedSignedUrlForPath(imagePath) : "";
+const cached = imagePath ? SignedUrlCache.get(imagePath) : "";
 const initialSrc = cached || legacyUrl;
 
 // cache לניווט חזרה
@@ -1628,7 +1664,7 @@ commentsRenderedHtml = commentsBox.innerHTML;
 
 const imgPath = safeText(c.imagePath || "").trim();
 const legacyUrl = sanitizeImageUrl(c.image || "");
-const cached = imgPath ? getCachedSignedUrlForPath(imgPath) : "";
+const cached = imgPath ? SignedUrlCache.get(imgPath) : "";
 const initialSrc = cached || legacyUrl;
 
     div.innerHTML = `
@@ -1872,7 +1908,7 @@ function buildReplyHTML(commentId, d) {
   const legacyUrl = sanitizeImageUrl(d.image || "");
 
   // ✅ אם יש URL חתום בזיכרון (cache), נציג מיד; אחרת נסתיר עד hydrate
-  const cached = imgPath ? getCachedSignedUrlForPath(imgPath) : "";
+  const cached = imgPath ? SignedUrlCache.get(imgPath) : "";
   const initialSrc = cached || legacyUrl;
 
   return `
