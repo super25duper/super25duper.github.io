@@ -589,6 +589,128 @@ function bytesToHuman(n) {
     return "";
   }
 }
+/* =========================================================================================
+   SECURE IMAGES (SIGNED URL) — כמו בדף הפורום
+   ========================================================================================= */
+
+// אותו endpoint בדיוק כמו בפורום (תשאיר אותו זהה!)
+const GET_IMAGE_URL_ENDPOINT = "https://YOUR_REGION-YOUR_PROJECT.cloudfunctions.net/getSignedUrl";
+
+// Cache בזיכרון כדי לא לקרוא לפונקציה שוב ושוב
+const signedUrlCache = Object.create(null); // path => { url, expTs }
+
+/** מנסה לחלץ URL ותוקף מהתגובה */
+function _extractSignedUrlFromPayload(data) {
+  try {
+    if (!data) return { url: "", expSeconds: 0 };
+
+    if (typeof data === "string") {
+      return { url: data, expSeconds: 60 };
+    }
+
+    const url = safeText(data.url || data.signedUrl || data.downloadUrl || "");
+    const exp = Number(data.expiresIn || data.expires_in || data.exp || 0) || 0;
+
+    return { url, expSeconds: exp };
+  } catch {
+    return { url: "", expSeconds: 0 };
+  }
+}
+
+function getCachedSignedUrlForPath(path) {
+  try {
+    const p = safeText(path || "");
+    if (!p) return "";
+    const rec = signedUrlCache[p];
+    if (!rec || !rec.url) return "";
+    // אם פג תוקף - מוחקים
+    if (rec.expTs && Date.now() > rec.expTs) {
+      delete signedUrlCache[p];
+      return "";
+    }
+    return rec.url;
+  } catch {
+    return "";
+  }
+}
+
+function setCachedSignedUrlForPath(path, url, expSeconds) {
+  try {
+    const p = safeText(path || "");
+    const u = safeText(url || "");
+    if (!p || !u) return;
+    const exp = Number(expSeconds || 0) || 0;
+    // נשמור מעט פחות מהתוקף כדי להימנע מ"פג בדיוק בזמן"
+    const expTs = exp ? (Date.now() + Math.max(10, exp - 20) * 1000) : (Date.now() + 40 * 1000);
+    signedUrlCache[p] = { url: u, expTs };
+  } catch {}
+}
+
+function fetchSignedUrlForPath(path) {
+  const p = safeText(path || "").trim();
+  if (!p) return Promise.resolve("");
+
+  // cache
+  const cached = getCachedSignedUrlForPath(p);
+  if (cached) return Promise.resolve(cached);
+
+  // חייב להיות מחובר
+  const user = firebase.auth().currentUser;
+  if (!user) return Promise.resolve("");
+
+  return user.getIdToken(true)
+    .then((token) => {
+      return fetch(GET_IMAGE_URL_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ path: p })
+      });
+    })
+    .then((res) => res.json())
+    .then((data) => {
+      const out = _extractSignedUrlFromPayload(data);
+      const url = sanitizeImageUrl(out.url || "");
+      if (url) setCachedSignedUrlForPath(p, url, out.expSeconds || 0);
+      return url || "";
+    })
+    .catch(() => "");
+}
+
+/** מצמיד Signed URL לתגית IMG בצורה לא חוסמת (הדף נטען, התמונה תופיע כשמגיעה) */
+function hydrateSignedImg(imgEl) {
+  try {
+    if (!imgEl) return;
+
+    // אם כבר יש src חוקי – לא נוגעים
+    const cur = safeText(imgEl.getAttribute("src") || "");
+    if (cur && (cur.startsWith("http://") || cur.startsWith("https://"))) return;
+
+    const path = safeText(imgEl.getAttribute("data-image-path") || "").trim();
+    if (!path) return;
+
+    // wrapper להסתיר עד שיש URL (כדי לא לראות "תמונה שבורה")
+    const wrap = imgEl.closest("[data-img-wrap='1']");
+    if (wrap) wrap.style.display = "none";
+
+    fetchSignedUrlForPath(path).then((url) => {
+      if (!url) return;
+      imgEl.setAttribute("src", url);
+      // הצג אחרי שהתחלנו לטעון
+      if (wrap) wrap.style.display = "block";
+    });
+  } catch {}
+}
+
+function hydrateSignedImages(root) {
+  try {
+    const base = root || document;
+    const imgs = base.querySelectorAll("img[data-image-path]");
+    for (const img of imgs) hydrateSignedImg(img);
+  } catch {}
+}
 
 function isLikelyImageFile(file) {
   try {
