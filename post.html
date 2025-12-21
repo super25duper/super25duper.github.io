@@ -2601,17 +2601,18 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
   const commentRef = firebase.database().ref("comments/" + postId).push();
   const commentId = commentRef.key;
 
-  const finishWrite = function (imageUrl) {
-    const obj = {
-      text: text,
-      author: username,
-      time: nowTs(),
-      authorUid: uid || ""
-    };
-  if (imagePath) obj.imagePath = String(imagePath || "");
-
-    return commentRef.set(obj);
+ const finishWrite = function (imagePath) {
+  const obj = {
+    text: text,
+    author: username,
+    time: nowTs(),
+    authorUid: uid || ""
   };
+
+  if (imagePath) obj.imagePath = String(imagePath);
+
+  return commentRef.set(obj);
+};
 
   let chain = Promise.resolve("");
 
