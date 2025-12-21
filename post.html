@@ -3081,14 +3081,17 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
 
       if (commentsCache.some((x) => x.id === id)) return;
 
-      commentsCache.push({
-        id,
-        text: safeText(v.text),
-        author: safeText(v.author),
-        authorUid: safeText(v.authorUid || ""),
-        time: Number(v.time || 0),
-        image: sanitizeImageUrl(v.image || "")
-      });
+     commentsCache.push({
+  id,
+  text: safeText(v.text),
+  author: safeText(v.author),
+  authorUid: safeText(v.authorUid || ""),
+  time: Number(v.time || 0),
+
+  imagePath: safeText(v.imagePath || "").trim(),   // ✅ חדש
+  image: sanitizeImageUrl(v.image || "")           // ✅ legacy
+});
+
 
       renderCommentsFromCache();
     });
