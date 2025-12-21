@@ -1253,6 +1253,7 @@ document.addEventListener("DOMContentLoaded", function () {
         currentPostObj = p;
 
         const author = safeText(p.author || "");
+        const border = userColor(author);
         const authorUid = safeText(p.authorUid || ""); // אם קיים בעתיד
         const postTime = Number(p.time || 0);
        const imagePath = safeText(p.imagePath || "").trim();   // ✅ זה מה שנשמר עכשיו
