@@ -1812,7 +1812,9 @@ ${(imgPath || initialSrc) ? `
               text: safeText(d.text),
               time: Number(d.time || 0),
               imagePath: safeText(d.imagePath || "").trim(),
-image: sanitizeImageUrl(d.image || "")
+imagePath: safeText(d.imagePath || "").trim(),
+image: sanitizeImageUrl(d.image || "") // תאימות לאחור
+
 
             });
           });
