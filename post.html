@@ -2391,12 +2391,12 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
       if (!blobOrFile || !storagePath) { reject("missing"); return; }
 
       const ref = firebase.storage().ref(storagePath);
-      let task = null;
+      const meta = {};
+      const ct = String(contentType || "").trim();
+      if (ct) meta.contentType = ct;
 
+      let task = null;
       try {
-        const meta = {};
-        const ct = safeText(contentType || "").trim();
-        if (ct) meta.contentType = ct;
         task = ref.put(blobOrFile, meta);
       } catch {
         task = null;
@@ -2406,20 +2406,17 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
         task.on("state_changed",
           function (snap) {
             try {
-              if (!snap) return;
               const bytes = Number(snap.bytesTransferred || 0);
               const total = Number(snap.totalBytes || 0);
-              if (total > 0) {
-                const pct = Math.round((bytes / total) * 100);
-                if (typeof onProgress === "function") onProgress(pct);
+              if (total > 0 && typeof onProgress === "function") {
+                onProgress(Math.round((bytes / total) * 100));
               }
             } catch {}
           },
           function (err) { reject(err); },
           function () {
-            task.snapshot.ref.getDownloadURL()
-              .then(function (url) { resolve(url); })
-              .catch(function (e) { reject(e); });
+            // ✅ במקום getDownloadURL() מחזירים את הנתיב
+            resolve(storagePath);
           }
         );
         return;
@@ -2433,20 +2430,17 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
         task2.on("state_changed",
           function (snap) {
             try {
-              if (!snap) return;
               const bytes = Number(snap.bytesTransferred || 0);
               const total = Number(snap.totalBytes || 0);
-              if (total > 0) {
-                const pct = Math.round((bytes / total) * 100);
-                if (typeof onProgress === "function") onProgress(pct);
+              if (total > 0 && typeof onProgress === "function") {
+                onProgress(Math.round((bytes / total) * 100));
               }
             } catch {}
           },
           function (err) { reject(err); },
           function () {
-            task2.snapshot.ref.getDownloadURL()
-              .then(function (url) { resolve(url); })
-              .catch(function (e) { reject(e); });
+            // ✅ גם פה: מחזירים נתיב
+            resolve(storagePath);
           }
         );
       });
@@ -2456,6 +2450,7 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
     }
   });
 }
+
 
   /* =====================================================================================
      CRITICAL: Update lastCommentTime for forum sort (includes replies)
