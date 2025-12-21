@@ -3062,20 +3062,20 @@ function stopPresenceTracking() {
   /* =====================================================================================          
      Cleanup listeners on unload          
      ===================================================================================== */          
-  window.addEventListener("beforeunload", function () {
-  // נוכחות: מסמנים יציאה רק כשבאמת יוצאים
-  try { stopPresenceTracking(); } catch (eP) {}
-
-  // ניקוי טיימרים/ליסנרים (כמו שהיה אצלך)
-  try { if (liveMetaTickTimer) clearInterval(liveMetaTickTimer); } catch (eT) {}
-  liveMetaTickTimer = null;
-
-  try {
-    for (var k in visibleMetaListenerMap) {
-      detachMetaListenersForPost(k);
-    }
-  } catch (eOff) {}
-});   
+  window.addEventListener("beforeunload", function () {          
+    try {          
+      if (liveMetaTickTimer) clearInterval(liveMetaTickTimer);          
+    } catch (eT) { }          
+    liveMetaTickTimer = null;          
+        
+    try {          
+      for (var k in visibleMetaListenerMap) {          
+        detachMetaListenersForPost(k);          
+      }          
+    } catch (eOff) { }          
+  });          
+        stopPresenceTracking();
+});                    
         
 /* =========================================================================================          
    NEW: Upload to Storage and return PATH (secure)          
