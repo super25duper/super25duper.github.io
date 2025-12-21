@@ -1830,6 +1830,14 @@ image: sanitizeImageUrl(d.image || "")
 
         attachRepliesLive(id);
         updateReplyCount(id);
+        box.innerHTML = html;
+
+// ✅ חדש: יביא signed URL לכל img שיש לו data-image-path בתוך replies
+hydrateSignedImages(box);
+
+attachRepliesLive(id);
+updateReplyCount(id);
+
       })
       .catch(() => {
         box.innerHTML = "<p>שגיאה בטעינת תגובות-על-תגובה.</p>";
