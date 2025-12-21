@@ -1106,9 +1106,10 @@ function openMiniImagePreview(url) {
     var safe = sanitizeImageUrl(url);          
     if (!safe) return;          
 
-           
-    img.setAttribute("src", safe);          
-    overlay.style.display = "flex";          
+   bindImgLoadErrorOnce(img);
+img.setAttribute("src", safe);
+overlay.style.display = "flex";
+        
         
     if (closeBtn && !closeBtn.__bound) {          
       closeBtn.__bound = true;          
