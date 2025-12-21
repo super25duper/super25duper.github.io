@@ -1564,7 +1564,8 @@ image: sanitizeImageUrl(v.image || "") // תאימות לאחור בלבד
       list = list.filter((c) => {
         const t = (c.text || "").toLowerCase();
         const a = (c.author || "").toLowerCase();
-        const hasImg = c.image ? "תמונה" : "";
+        const hasImg = (c.imagePath || c.image) ? "תמונה" : "";
+
         return t.includes(q) || a.includes(q) || hasImg.includes(q);
       });
     }
