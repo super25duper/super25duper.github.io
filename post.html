@@ -2640,10 +2640,11 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
         setStatus("מעלה תמונה לתגובה…", "info");
 
         return uploadBlobToStorage(blob, path, ct, function () {})
-          .then(function (url) {
-            setStatus("שומר תגובה…", "info");
-            return url;
-          });
+  .then(function (returnedPath) {
+    setStatus("שומר תגובה…", "info");
+    return returnedPath; // זה הנתיב
+  });
+
       });
   }
 
