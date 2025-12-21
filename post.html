@@ -1584,11 +1584,15 @@ image: sanitizeImageUrl(v.image || "") // תאימות לאחור בלבד
     }
 
     commentsBox.innerHTML = "";
-    for (const c of list) {
-      renderComment(c.id, c);
-    }
+for (const c of list) {
+  renderComment(c.id, c);
+}
 
-    commentsRenderedHtml = commentsBox.innerHTML;
+// ✅ חובה אחרי בנייה מחדש
+hydrateSignedImages(commentsBox);
+
+commentsRenderedHtml = commentsBox.innerHTML;
+
   }
 
   /* =====================================================================================
