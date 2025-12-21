@@ -1302,12 +1302,6 @@ postContainer.innerHTML = `
 
 bindPostActions();
 hydrateSignedImages(postContainer);
-            
-            </div>
-          </div>
-        `;
-
-        bindPostActions();
 
         setStatus("פוסט נטען.", "ok");
       })
@@ -1637,17 +1631,22 @@ const legacyUrl = sanitizeImageUrl(c.image || "");
 const cached = imgPath ? getCachedSignedUrlForPath(imgPath) : "";
 const initialSrc = cached || legacyUrl;
 
-...
-${(imgPath || initialSrc) ? `
-  <div data-img-wrap="1" style="display:${initialSrc ? "block" : "none"};">
-    <img class="mini-image js-open-viewer"
-         data-hint="תמונה בתגובה"
-         ${imgPath ? `data-image-path="${escapeHTML(imgPath)}"` : ``}
-         ${initialSrc ? `src="${escapeHTML(initialSrc)}"` : ``}
-         alt="תמונה" />
-  </div>
-` : ``}
+    div.innerHTML = `
+      <div class="comment-header">
+        <b style="color:${escapeHTML(color)};">${escapeHTML(c.author)}</b>
+        <small>${escapeHTML(fmtDateTime(c.time))}</small>
+      </div>
+      <p class="comment-text">${escapeHTML(c.text)}</p>
 
+      ${(imgPath || initialSrc) ? `
+        <div data-img-wrap="1" style="display:${initialSrc ? "block" : "none"};">
+          <img class="mini-image js-open-viewer"
+               data-hint="תמונה בתגובה"
+               ${imgPath ? `data-image-path="${escapeHTML(imgPath)}"` : ``}
+               ${initialSrc ? `src="${escapeHTML(initialSrc)}"` : ``}
+               alt="תמונה" />
+        </div>
+      ` : ``}
 
       <div class="comment-actions" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
         <button type="button" class="btn-reply" data-action="openReply" data-id="${escapeHTML(id)}">השב</button>
