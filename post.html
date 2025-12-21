@@ -458,13 +458,10 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 <script>
 /* =========================================================================================
-   ⚠️ אבטחה – שיטה לא משתנה (רק שיטת AUTH עודכנה):
+   ⚠️ אבטחה – שיטה לא משתנה:
    1) חסימה מיידית בדפדפן רגיל (AppInventor + getWebViewString)
-   2) payload מקודולר: מומלץ customToken + token
-      (fallback נתמך: email/password/token)
-   3) Firebase Auth:
-      - signInWithCustomToken (מומלץ)
-      - או signInWithEmailAndPassword (fallback בלבד)
+   2) payload מקודולר (email/password/token)
+   3) Firebase Auth signInWithEmailAndPassword
    4) אימות token מול sessions/{uid}/token
    רק אחרי זה: שליפות DB + כתיבות תגובה/תגובה-על-תגובה + עריכות
    ========================================================================================= */
@@ -664,6 +661,7 @@ function openMiniViewer(url, hint) {
 
 /* =========================================================================================
    Robust FileReader fallback (לא חובה, אבל גיבוי אם ObjectURL לא זמין)
+   - זה כאן כדי להקטין "לא הצלחתי לקרוא את התמונה" בפועל.
    ========================================================================================= */
 function readFileAsDataURLWithRetry(file, tries, done) {
   try {
@@ -835,6 +833,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /* =====================================================================================
      Image state (comment + reply)
+     - Strategy: preview via ObjectURL (כמעט בלי שגיאות)
+       upload via storage.put(file) (ללא FileReader)
+       fallback: putString(data_url) רק אם צריך
      ===================================================================================== */
   const MAX_IMG = 9 * 1024 * 1024; // 9MB
 
@@ -923,10 +924,11 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         } catch {}
 
-        // fallback to FileReader quietly
+        // fallback to FileReader quietly (no noisy errors)
         if (!previewSet) {
           readFileAsDataURLWithRetry(f, 3, function (durl, ok) {
             if (!ok) {
+              // לא מציגים "לא הצלחתי לקרוא" אגרסיבי – רק סטטוס עדין
               setStatus("לא הצלחתי להציג תצוגה מקדימה, אבל אנסה להעלות כרגיל.", "warn");
               return;
             }
@@ -1013,6 +1015,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /* =====================================================================================
      1️⃣ קבלת payload מקודולר
+     - עם Hard limit כדי שלא יהיו לופים אינסופיים
      ===================================================================================== */
   function waitForPayload() {
     try {
@@ -1034,35 +1037,18 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* =====================================================================================
-     2️⃣ התחברות Firebase (שיטה עודכנה ל-Custom Token)
-     - מומלץ: payload.customToken + payload.token
-     - fallback: payload.email + payload.password + payload.token
+     2️⃣ התחברות Firebase
      ===================================================================================== */
   function login() {
-    // חייב תמיד token לסשן
-    if (!payload || !payload.token) {
+    if (!payload || !payload.email || !payload.password || !payload.token) {
       location.replace("forbidden.html");
       return;
     }
 
     setStatus("מאמת התחברות…", "info");
 
-    let signInPromise = null;
-
-    // ✅ NEW METHOD: Custom Token
-    if (payload.customToken && safeText(payload.customToken).trim()) {
-      signInPromise = firebase.auth().signInWithCustomToken(safeText(payload.customToken).trim());
-    }
-    // ♻️ FALLBACK: Email/Password (רק אם עדיין לא עדכנת את קודולר)
-    else if (payload.email && payload.password) {
-      signInPromise = firebase.auth().signInWithEmailAndPassword(payload.email, payload.password);
-    }
-    else {
-      location.replace("forbidden.html");
-      return;
-    }
-
-    signInPromise
+    firebase.auth()
+      .signInWithEmailAndPassword(payload.email, payload.password)
       .then((cred) => {
         uid = cred.user.uid;
         return validateToken(uid, payload.token);
@@ -1074,9 +1060,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
         setStatus("מחובר כ־" + username, "ok");
 
+        // תמיד נטען פוסט מה-DB כדי לחשב הרשאות עריכה + תמונה + גבול צבע
         loadPost();
+
+        // תגובות
         loadComments(true, false);
+
+        // Live comments (שדרוג)
         attachLiveComments();
+
       })
       .catch(() => {
         location.replace("forbidden.html");
@@ -1110,6 +1102,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /* =====================================================================================
      5️⃣ טעינת פוסט מ־DB (מלא)
+     - כולל תמונה אם קיימת
+     - כולל גבול צבעוני לפי userColor(author)
+     - כולל כפתור עריכה עד 24 שעות (רק המחבר)
      ===================================================================================== */
   function loadPost() {
     setStatus("טוען פוסט…", "info");
@@ -1128,18 +1123,22 @@ document.addEventListener("DOMContentLoaded", function () {
         currentPostObj = p;
 
         const author = safeText(p.author || "");
-        const authorUid = safeText(p.authorUid || "");
+        const authorUid = safeText(p.authorUid || ""); // אם קיים בעתיד
         const postTime = Number(p.time || 0);
         const imgUrl = sanitizeImageUrl(p.image || "");
 
+        // מי המחבר? (תומך גם authorUid אם קיים, אחרת לפי username)
         const isOwner = (authorUid && uid && authorUid === uid) || (!!author && author === username);
 
+        // עד 24 שעות
         const DAY_MS = 24 * 60 * 60 * 1000;
         const withinDay = postTime ? ((nowTs() - postTime) <= DAY_MS) : false;
         canEditPostNow = !!(isOwner && withinDay);
 
+        // צבע גבול
         const border = userColor(author);
 
+        // שמירה ל-cache לניווט חזרה (feature נשמר, עם תמונה)
         try {
           sessionStorage.setItem("currentPost", JSON.stringify({
             id: postId,
@@ -1150,6 +1149,7 @@ document.addEventListener("DOMContentLoaded", function () {
           }));
         } catch {}
 
+        // פעולות פוסט: copy/share/report + edit (אם מותר)
         postContainer.innerHTML = `
           <div class="post post-user-border" style="border-right-color:${escapeHTML(border)};">
             <h3>${escapeHTML(p.title || "")}</h3>
@@ -1185,6 +1185,7 @@ document.addEventListener("DOMContentLoaded", function () {
         `;
 
         bindPostActions();
+
         setStatus("פוסט נטען.", "ok");
       })
       .catch(() => {
@@ -1248,7 +1249,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* =====================================================================================
-     Report post
+     Report post (שדרוג)
+     - נשאר, כי ביקשת לבטל רק דיווח על תגובות
      ===================================================================================== */
   function reportPost() {
     if (!isAuthed || !uid) {
@@ -1339,6 +1341,7 @@ document.addEventListener("DOMContentLoaded", function () {
       setStatus("שומר עריכה…", "info");
       saveEditPostBtn.disabled = true;
 
+      // Selective update: רק title/text (לא משנים time, לא נוגעים באבטחה)
       firebase.database()
         .ref("posts/" + postId)
         .update({
@@ -1348,6 +1351,7 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(() => {
           setStatus("הפוסט עודכן.", "ok");
           closeEditPostModal();
+          // רענון פוסט ל-UI + cache
           loadPost();
         })
         .catch(() => {
@@ -1454,6 +1458,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /* =====================================================================================
      7️⃣ Render single comment
+     - בוטל דיווח על תגובות: הכפתור הוחלף ב"ערוך" (למחבר)
+     - תמונה לתגובה (תצוגה קטנה) אם קיימת
      ===================================================================================== */
   function canEditItem(author, authorUid, itemTime) {
     try {
@@ -1547,7 +1553,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* =====================================================================================
-     Delegation for comment actions
+     Delegation for comment actions (יציב ב-WebView)
      + שדרוג: פתיחת viewer על תמונות
      ===================================================================================== */
   (function bindCommentDelegation() {
@@ -1594,6 +1600,7 @@ document.addEventListener("DOMContentLoaded", function () {
         beginInlineEditComment(id);
       }
 
+      // DISABLED per request (kept for length)
       if (action === "reportComment") {
         // reportComment(id);
       }
@@ -1603,7 +1610,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /* =====================================================================================
      Replies feature – נשמר + משודרג
-   ===================================================================================== */
+     - ריפליי גם יכול לכלול תמונה (כמו תגובה) + עריכה במקום דיווח
+     - חשוב: ריפליי לא נספר ב-count של תגובות לפוסט (זה נשאר ב-forum)
+     ===================================================================================== */
 
   window.updateReplyCount = updateReplyCount;
   window.toggleReplies = toggleReplies;
@@ -1862,7 +1871,8 @@ document.addEventListener("DOMContentLoaded", function () {
     `;
   }
 
-  const replyImageState = Object.create(null);
+  // Reply image state per commentId
+  const replyImageState = Object.create(null); // commentId => {file, previewUrl, canRevoke}
 
   function initReplyImageState(commentId) {
     const id = safeText(commentId || "");
@@ -1899,6 +1909,11 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch {}
   }
 
+  /* =====================================================================================
+     Delegation בתוך replies containers (שדרוג יציבות)
+     + עריכה לריפליי
+     + תמונות לריפליי
+     ===================================================================================== */
   (function bindRepliesDelegation() {
     if (commentsBox.__repliesDelegationBound) return;
     commentsBox.__repliesDelegationBound = true;
@@ -1949,11 +1964,16 @@ document.addEventListener("DOMContentLoaded", function () {
         clearReplyImage(cid, true);
       }
 
+      // DISABLED per request (kept for length)
       if (act === "reportReply") {
-        // disabled
+        // if (!rid) return;
+        // reportReply(cid, rid);
       }
 
     }, false);
+
+    // change handler for each reply image input (event delegation is hard for change)
+    // solution: attach when replies open (selective & safe)
   })();
 
   function bindReplyImageInput(commentId) {
@@ -1983,6 +2003,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const st = replyImageState[commentId];
           st.file = f;
 
+          // cleanup preview
           try {
             if (st.previewUrl && st.canRevoke) { try { URL.revokeObjectURL(st.previewUrl); } catch {} }
           } catch {}
@@ -2096,6 +2117,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
 
+        // fallback: data_url upload (only if put(file) isn't available)
         readFileAsDataURLWithRetry(file, 3, function (durl, ok) {
           if (!ok) { reject("read_failed"); return; }
 
@@ -2127,6 +2149,11 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  /* =====================================================================================
+     CRITICAL: Update lastCommentTime for forum sort (includes replies)
+     - זה מה שגורם לפוסט לקפוץ במיון "תגובה אחרונה" בפורום
+     - לא נוגע בספירת תגובות (commentsCount נשאר רק לתגובות, לא לריפלייז)
+     ===================================================================================== */
   function bumpPostLastCommentTime(ts) {
     try {
       const t = Number(ts || 0) || nowTs();
@@ -2136,6 +2163,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function incrementPostCommentsCount() {
     try {
+      // count ONLY comments (not replies) => aligns with your request
       firebase.database().ref("posts/" + postId + "/commentsCount").transaction(function (cur) {
         const x = Number(cur || 0) || 0;
         return x + 1;
@@ -2143,6 +2171,9 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch {}
   }
 
+  /* =====================================================================================
+     Send reply (now supports optional image + bumps lastCommentTime)
+     ===================================================================================== */
   function sendReply(commentId) {
     if (!isAuthed) return;
 
@@ -2179,6 +2210,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return replyRef.set(obj);
     };
 
+    // if image: upload first
     let chain = Promise.resolve("");
 
     if (file) {
@@ -2211,8 +2243,11 @@ document.addEventListener("DOMContentLoaded", function () {
         clearReplyImage(commentId, true);
 
         updateReplyCount(commentId);
+
+        // THIS is the key for forum sorting:
         bumpPostLastCommentTime(nowTs());
 
+        // refresh open box gently
         if (repliesOpenState[commentId]) {
           toggleReplies(commentId);
           setTimeout(() => toggleReplies(commentId), 50);
@@ -2229,6 +2264,9 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
+  /* =====================================================================================
+     Main comment send (כולל תמונה) + bump lastCommentTime + increment commentsCount
+     ===================================================================================== */
   function sendMain() {
     if (!isAuthed) return;
 
@@ -2294,9 +2332,13 @@ document.addEventListener("DOMContentLoaded", function () {
       .then(() => {
         closeMain();
 
+        // key for forum sorting:
         bumpPostLastCommentTime(nowTs());
+
+        // count ONLY comments (not replies)
         incrementPostCommentsCount();
 
+        // keep existing behavior
         loadComments(false, false);
         setStatus("תגובה נשלחה.", "ok");
       })
@@ -2309,11 +2351,15 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
+  /* =====================================================================================
+     Inline edit – COMMENT (NEW)
+     ===================================================================================== */
   function beginInlineEditComment(commentId) {
     try {
       const cid = safeText(commentId || "");
       if (!cid) return;
 
+      // find comment in cache to validate permission
       const c = commentsCache.find(x => x.id === cid);
       if (!c) return;
 
@@ -2325,6 +2371,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const commentNode = commentsBox.querySelector('.comment[data-comment-id="' + cid + '"]');
       if (!commentNode) return;
 
+      // avoid duplicate editor
       if (commentNode.querySelector(".inline-edit-box")) return;
 
       const textEl = commentNode.querySelector(".comment-text");
@@ -2359,20 +2406,27 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch {}
   }
 
+  /* =====================================================================================
+     Inline edit – REPLY (NEW)
+     ===================================================================================== */
   function beginInlineEditReply(commentId, replyId) {
     try {
       const cid = safeText(commentId || "");
       const rid = safeText(replyId || "");
       if (!cid || !rid) return;
 
+      // find reply node
       const repliesBox = document.getElementById("replies-" + cid);
       if (!repliesBox) return;
 
+      // locate reply
       const replyNode = repliesBox.querySelector('.reply[data-reply-id="' + rid + '"]');
       if (!replyNode) return;
 
+      // avoid duplicate editor
       if (replyNode.querySelector(".inline-edit-box")) return;
 
+      // permission: fetch reply once (selective)
       firebase.database()
         .ref("replies/" + postId + "/" + cid + "/" + rid)
         .once("value")
@@ -2423,6 +2477,9 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch {}
   }
 
+  /* =====================================================================================
+     Inline edit delegation (comment + reply)
+     ===================================================================================== */
   (function bindInlineEditDelegation() {
     if (commentsBox.__inlineEditBound) return;
     commentsBox.__inlineEditBound = true;
@@ -2453,6 +2510,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
 
+        // permission re-check (selective)
         const c = commentsCache.find(x => x.id === id);
         if (!c || !canEditItem(c.author, c.authorUid, c.time)) {
           setStatus("אין הרשאה לערוך תגובה.", "error");
@@ -2466,6 +2524,7 @@ document.addEventListener("DOMContentLoaded", function () {
           .update({ text: clampTextLen(newText, 800) })
           .then(() => {
             setStatus("התגובה עודכנה.", "ok");
+            // local cache update
             const idx = commentsCache.findIndex(x => x.id === id);
             if (idx !== -1) commentsCache[idx].text = clampTextLen(newText, 800);
             renderCommentsFromCache();
@@ -2477,6 +2536,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (act === "cancelReplyEdit") {
+        const cid = el.getAttribute("data-comment-id");
         const rid = el.getAttribute("data-reply-id");
         const box = commentsBox.querySelector('.reply[data-reply-id="' + rid + '"] .inline-edit-box');
         if (box) box.remove();
@@ -2497,6 +2557,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         setStatus("שומר עריכת ריפליי…", "info");
 
+        // permission re-check by read (selective)
         firebase.database()
           .ref("replies/" + postId + "/" + cid + "/" + rid)
           .once("value")
@@ -2511,6 +2572,7 @@ document.addEventListener("DOMContentLoaded", function () {
           })
           .then(() => {
             setStatus("הריפליי עודכן.", "ok");
+            // refresh replies box gently
             if (repliesOpenState[cid]) {
               toggleReplies(cid);
               setTimeout(() => toggleReplies(cid), 50);
@@ -2525,6 +2587,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }, false);
   })();
 
+  /* =====================================================================================
+     Live comments (שדרוג)
+     - תומך גם בתמונה לשינויים/הוספות
+     ===================================================================================== */
   function attachLiveComments() {
     if (liveCommentsAttached) return;
     liveCommentsAttached = true;
@@ -2572,10 +2638,15 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  /* =====================================================================================
+     Live replies (רק כשהתיבה פתוחה)
+     + bind reply image input on open
+     ===================================================================================== */
   function attachRepliesLive(commentId) {
     if (repliesLiveAttached[commentId]) return;
     repliesLiveAttached[commentId] = true;
 
+    // ensure reply image input is bound for this open box
     bindReplyImageInput(commentId);
 
     const ref = firebase.database()
@@ -2614,9 +2685,29 @@ document.addEventListener("DOMContentLoaded", function () {
     repliesLiveAttached[commentId] = false;
   }
 
-  function reportComment(commentId) { /* disabled */ }
-  function reportReply(commentId, replyId) { /* disabled */ }
+  /* =====================================================================================
+     DISABLED: Report comment / reply (per request)
+     - kept as code (length) but not used
+     ===================================================================================== */
+  function reportComment(commentId) {
+    // DISABLED
+    // if (!isAuthed || !uid) { setStatus("לא מאומת. לא ניתן לדווח.", "error"); return; }
+    // firebase.database().ref("reports").push({ type:"comment", postId, commentId, reporterUid:uid, reporterName:username, time:nowTs(), reason:"report" })
+    //   .then(() => setStatus("דווח בהצלחה.", "ok"))
+    //   .catch(() => setStatus("שגיאה בדיווח.", "error"));
+  }
 
+  function reportReply(commentId, replyId) {
+    // DISABLED
+    // if (!isAuthed || !uid) { setStatus("לא מאומת. לא ניתן לדווח.", "error"); return; }
+    // firebase.database().ref("reports").push({ type:"reply", postId, commentId, replyId, reporterUid:uid, reporterName:username, time:nowTs(), reason:"report" })
+    //   .then(() => setStatus("דווח בהצלחה.", "ok"))
+    //   .catch(() => setStatus("שגיאה בדיווח.", "error"));
+  }
+
+  /* =====================================================================================
+     Cleanup on unload (שדרוג יציבות)
+     ===================================================================================== */
   window.addEventListener("beforeunload", () => {
     try {
       if (liveCommentsRef) liveCommentsRef.off();
