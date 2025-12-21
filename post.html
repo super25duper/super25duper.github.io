@@ -2077,77 +2077,385 @@ document.addEventListener("DOMContentLoaded", function () {
     el.style.display = "none";
   }
 
-  /* =====================================================================================
-     Upload helpers (storage.put preferred, fallback to putString)
-     ===================================================================================== */
-  function uploadImageToStorage(file, storagePath, onProgress) {
-    return new Promise(function (resolve, reject) {
+/* =====================================================================================
+   Image prepare/compress + upload (FROM forum file mechanism)
+   - Prepare only at send-time (no heavy work on selection)
+   - Prefer WEBP when supported, else JPEG/PNG
+   - Max dimension 1600, quality ~0.82
+   - HEIC/HEIF: upload as-is (avoid decode failures)
+   - Upload: ref.put(blob) preferred, fallback: putString(data_url)
+   ===================================================================================== */
+
+function dataURLToBlob(dataUrl) {
+  try {
+    const parts = safeText(dataUrl || "").split(",");
+    if (parts.length < 2) return null;
+    const meta = parts[0];
+    const b64 = parts[1];
+    let mime = "application/octet-stream";
+    const m = /data:([^;]+);base64/i.exec(meta);
+    if (m && m[1]) mime = m[1];
+    const bin = atob(b64);
+    const len = bin.length;
+    const arr = new Uint8Array(len);
+    for (let i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  } catch (e) {
+    return null;
+  }
+}
+
+function canvasToBlobSafe(canvas, outType, quality, cb) {
+  try {
+    if (canvas && typeof canvas.toBlob === "function") {
+      canvas.toBlob(function (blob) { cb(blob); }, outType, quality);
+      return;
+    }
+  } catch {}
+  try {
+    let dataUrl = "";
+    try { dataUrl = canvas.toDataURL(outType, quality); } catch { dataUrl = canvas.toDataURL(); }
+    const blob2 = dataURLToBlob(dataUrl);
+    cb(blob2);
+  } catch {
+    cb(null);
+  }
+}
+
+function getPreviewUrlForFile(file, done) {
+  try {
+    if (window.URL && typeof URL.createObjectURL === "function") {
       try {
-        if (!file || !storagePath) { reject("missing"); return; }
+        const u = URL.createObjectURL(file);
+        done(u, true);
+        return;
+      } catch {}
+    }
+  } catch {}
 
-        const ref = firebase.storage().ref(storagePath);
-        let task = null;
+  try {
+    const r = new FileReader();
+    r.onerror = function () { done("", false); };
+    r.onload = function () { done(safeText(r.result || ""), false); };
+    r.readAsDataURL(file);
+  } catch {
+    done("", false);
+  }
+}
 
-        try {
-          task = ref.put(file);
-        } catch (ePut) {
-          task = null;
-        }
+function supportsWebPExport() {
+  try {
+    const c = document.createElement("canvas");
+    if (!c || typeof c.toDataURL !== "function") return false;
+    const u = c.toDataURL("image/webp");
+    return (u && u.startsWith("data:image/webp"));
+  } catch (e) {
+    return false;
+  }
+}
 
-        if (task) {
-          task.on("state_changed",
-            function (snap) {
-              try {
-                if (!snap) return;
-                const bytes = Number(snap.bytesTransferred || 0);
-                const total = Number(snap.totalBytes || 0);
-                if (total > 0) {
-                  const pct = Math.round((bytes / total) * 100);
-                  if (typeof onProgress === "function") onProgress(pct);
-                }
-              } catch {}
-            },
-            function (err) { reject(err); },
-            function () {
-              task.snapshot.ref.getDownloadURL()
-                .then(function (url) { resolve(url); })
-                .catch(function (e) { reject(e); });
-            }
-          );
+function yieldToUI() {
+  return new Promise((resolve) => {
+    try { setTimeout(resolve, 0); } catch { resolve(); }
+  });
+}
+
+function readBlobAsDataURLWithRetry(blob, tries, done) {
+  try {
+    let left = Number(tries || 1);
+    if (left < 1) left = 1;
+
+    const attempt = function () {
+      try {
+        const r = new FileReader();
+        r.onerror = function () {
+          left--;
+          if (left <= 0) { done("", false); return; }
+          setTimeout(attempt, 160);
+        };
+        r.onload = function () {
+          const dataUrl = safeText(r.result || "");
+          if (!dataUrl || !dataUrl.startsWith("data:")) {
+            left--;
+            if (left <= 0) { done("", false); return; }
+            setTimeout(attempt, 160);
+            return;
+          }
+          done(dataUrl, true);
+        };
+        r.readAsDataURL(blob);
+      } catch (e1) {
+        left--;
+        if (left <= 0) { done("", false); return; }
+        setTimeout(attempt, 160);
+      }
+    };
+
+    attempt();
+  } catch (e0) {
+    done("", false);
+  }
+}
+
+function prepareImageForUpload(file) {
+  // עיבוד "חכם" רק בזמן שליחה. מבוסס מנגנון הקובץ ששלחת.
+  return new Promise(function (resolve) {
+    (function run() {
+      try {
+        if (!file) { resolve({ blob: null, contentType: "", ext: "" }); return; }
+
+        const origType = safeText(file.type || "").toLowerCase();
+        const origName = safeText(file.name || "");
+        let ext = "";
+        if (origName.includes(".")) ext = origName.split(".").pop().toLowerCase();
+
+        const size = Number(file.size || 0);
+
+        // HEIC/HEIF: לא מנסים דיקוד/כיווץ כדי לא להפיל WebView חלש
+        const isHeic = (origType.includes("heic") || origType.includes("heif") || ext === "heic" || ext === "heif");
+        if (isHeic) {
+          setStatus("תמונת HEIC/HEIF: תועלה כמו שהיא (ללא אופטימיזציה).", "warn");
+          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "heic" });
           return;
         }
 
-        // fallback: data_url upload (only if put(file) isn't available)
-        readFileAsDataURLWithRetry(file, 3, function (durl, ok) {
-          if (!ok) { reject("read_failed"); return; }
+        // אם קטן (<= ~700KB) – לא מכווצים (חוסך CPU)
+        const SHOULD_TRY = size > (700 * 1024);
+        if (!SHOULD_TRY) {
+          resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });
+          return;
+        }
 
-          const task2 = ref.putString(durl, "data_url");
-          task2.on("state_changed",
-            function (snap) {
-              try {
-                if (!snap) return;
-                const bytes = Number(snap.bytesTransferred || 0);
-                const total = Number(snap.totalBytes || 0);
-                if (total > 0) {
-                  const pct = Math.round((bytes / total) * 100);
-                  if (typeof onProgress === "function") onProgress(pct);
-                }
-              } catch {}
-            },
-            function (err) { reject(err); },
-            function () {
-              task2.snapshot.ref.getDownloadURL()
-                .then(function (url) { resolve(url); })
-                .catch(function (e) { reject(e); });
+        // פורמט יעד
+        const canWebp = supportsWebPExport();
+        let outType = "image/jpeg";
+        let outExt = "jpg";
+        if (canWebp) {
+          outType = "image/webp";
+          outExt = "webp";
+        } else if (origType === "image/png" || ext === "png") {
+          outType = "image/png";
+          outExt = "png";
+        }
+
+        const maxDim = 1600;
+        const quality = 0.82;
+
+        yieldToUI()
+          .then(function () {
+            // createImageBitmap אם קיים (מהיר בהרבה מכמה WebViews)
+            if (typeof createImageBitmap === "function") {
+              return createImageBitmap(file)
+                .then((bmp) => ({ kind: "bitmap", src: bmp }))
+                .catch(() => ({ kind: "img", src: null }));
             }
-          );
-        });
+            return { kind: "img", src: null };
+          })
+          .then(function (decoded) {
+            if (decoded && decoded.kind === "bitmap" && decoded.src) return decoded;
 
-      } catch (e0) {
-        reject(e0);
+            // fallback: Image() עם ObjectURL/DataURL
+            return new Promise(function (resolveImg) {
+              getPreviewUrlForFile(file, function (srcUrl, canRevoke) {
+                if (!srcUrl) { resolveImg({ kind: "fail" }); return; }
+                const img = new Image();
+                img.onload = function () {
+                  try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch {}
+                  resolveImg({ kind: "img", src: img });
+                };
+                img.onerror = function () {
+                  try { if (canRevoke && srcUrl) URL.revokeObjectURL(srcUrl); } catch {}
+                  resolveImg({ kind: "fail" });
+                };
+                img.src = srcUrl;
+              });
+            });
+          })
+          .then(function (decoded) {
+            try {
+              if (!decoded || decoded.kind === "fail" || !decoded.src) {
+                resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });
+                return;
+              }
+
+              let w = 0, h = 0;
+              if (decoded.kind === "bitmap") {
+                w = decoded.src.width || 0;
+                h = decoded.src.height || 0;
+              } else {
+                w = decoded.src.naturalWidth || decoded.src.width || 0;
+                h = decoded.src.naturalHeight || decoded.src.height || 0;
+              }
+
+              if (!w || !h) {
+                try { if (decoded.kind === "bitmap" && decoded.src && decoded.src.close) decoded.src.close(); } catch {}
+                resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });
+                return;
+              }
+
+              // אם כבר קטן + לא כבד מדי – לא מכווצים
+              if (Math.max(w, h) <= maxDim && size < (2.2 * 1024 * 1024)) {
+                setStatus("התמונה תועלה כפי שהיא (אין צורך בכיווץ).", "info");
+                try { if (decoded.kind === "bitmap" && decoded.src && decoded.src.close) decoded.src.close(); } catch {}
+                resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });
+                return;
+              }
+
+              let scale = 1;
+              if (w > maxDim || h > maxDim) scale = Math.min(maxDim / w, maxDim / h);
+              const nw = Math.max(1, Math.round(w * scale));
+              const nh = Math.max(1, Math.round(h * scale));
+
+              const canvas = document.createElement("canvas");
+              canvas.width = nw;
+              canvas.height = nh;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) {
+                try { if (decoded.kind === "bitmap" && decoded.src && decoded.src.close) decoded.src.close(); } catch {}
+                resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });
+                return;
+              }
+
+              ctx.imageSmoothingEnabled = true;
+              try { ctx.imageSmoothingQuality = "high"; } catch {}
+
+              // אם יחס הקטנה גדול – ציור בשני שלבים (יציב יותר)
+              const ratio = Math.max(w / nw, h / nh);
+              if (ratio > 2.2) {
+                const midW = Math.max(nw, Math.round(w / 2));
+                const midH = Math.max(nh, Math.round(h / 2));
+                const tmp = document.createElement("canvas");
+                tmp.width = midW;
+                tmp.height = midH;
+                const tctx = tmp.getContext("2d");
+                if (tctx) {
+                  tctx.imageSmoothingEnabled = true;
+                  try { tctx.imageSmoothingQuality = "high"; } catch {}
+                  tctx.drawImage(decoded.src, 0, 0, midW, midH);
+                  ctx.drawImage(tmp, 0, 0, nw, nh);
+                } else {
+                  ctx.drawImage(decoded.src, 0, 0, nw, nh);
+                }
+              } else {
+                ctx.drawImage(decoded.src, 0, 0, nw, nh);
+              }
+
+              try { if (decoded.kind === "bitmap" && decoded.src && decoded.src.close) decoded.src.close(); } catch {}
+
+              yieldToUI().then(function () {
+                canvasToBlobSafe(canvas, outType, quality, function (blob) {
+                  try {
+                    if (!blob) {
+                      resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });
+                      return;
+                    }
+
+                    // אם יצא גדול יותר מהמקור – משאירים מקור
+                    try {
+                      if (Number(blob.size || 0) >= Number(file.size || 0)) {
+                        resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });
+                        return;
+                      }
+                    } catch {}
+
+                    setStatus("בוצעה אופטימיזציה לתמונה כדי להאיץ טעינה.", "ok");
+                    resolve({ blob: blob, contentType: outType, ext: outExt });
+                  } catch {
+                    resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });
+                  }
+                });
+              });
+
+            } catch {
+              try { if (decoded.kind === "bitmap" && decoded.src && decoded.src.close) decoded.src.close(); } catch {}
+              resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });
+            }
+          })
+          .catch(function () {
+            resolve({ blob: file, contentType: file.type || "application/octet-stream", ext: ext || "jpg" });
+          });
+
+      } catch {
+        const origName = safeText(file && file.name ? file.name : "");
+        let ext = "jpg";
+        if (origName.includes(".")) ext = origName.split(".").pop().toLowerCase();
+        resolve({ blob: file, contentType: (file && file.type) ? file.type : "application/octet-stream", ext: ext || "jpg" });
       }
-    });
-  }
+    })();
+  });
+}
+
+function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
+  return new Promise(function (resolve, reject) {
+    try {
+      if (!blobOrFile || !storagePath) { reject("missing"); return; }
+
+      const ref = firebase.storage().ref(storagePath);
+      let task = null;
+
+      try {
+        const meta = {};
+        const ct = safeText(contentType || "").trim();
+        if (ct) meta.contentType = ct;
+        task = ref.put(blobOrFile, meta);
+      } catch {
+        task = null;
+      }
+
+      if (task) {
+        task.on("state_changed",
+          function (snap) {
+            try {
+              if (!snap) return;
+              const bytes = Number(snap.bytesTransferred || 0);
+              const total = Number(snap.totalBytes || 0);
+              if (total > 0) {
+                const pct = Math.round((bytes / total) * 100);
+                if (typeof onProgress === "function") onProgress(pct);
+              }
+            } catch {}
+          },
+          function (err) { reject(err); },
+          function () {
+            task.snapshot.ref.getDownloadURL()
+              .then(function (url) { resolve(url); })
+              .catch(function (e) { reject(e); });
+          }
+        );
+        return;
+      }
+
+      // fallback: data_url
+      readBlobAsDataURLWithRetry(blobOrFile, 3, function (durl, ok) {
+        if (!ok) { reject("read_failed"); return; }
+
+        const task2 = ref.putString(durl, "data_url");
+        task2.on("state_changed",
+          function (snap) {
+            try {
+              if (!snap) return;
+              const bytes = Number(snap.bytesTransferred || 0);
+              const total = Number(snap.totalBytes || 0);
+              if (total > 0) {
+                const pct = Math.round((bytes / total) * 100);
+                if (typeof onProgress === "function") onProgress(pct);
+              }
+            } catch {}
+          },
+          function (err) { reject(err); },
+          function () {
+            task2.snapshot.ref.getDownloadURL()
+              .then(function (url) { resolve(url); })
+              .catch(function (e) { reject(e); });
+          }
+        );
+      });
+
+    } catch (e0) {
+      reject(e0);
+    }
+  });
+}
 
   /* =====================================================================================
      CRITICAL: Update lastCommentTime for forum sort (includes replies)
