@@ -3101,13 +3101,16 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
       if (idx === -1) return;
 
       commentsCache[idx] = {
-        ...commentsCache[idx],
-        text: safeText(v.text),
-        author: safeText(v.author),
-        authorUid: safeText(v.authorUid || commentsCache[idx].authorUid || ""),
-        time: Number(v.time || commentsCache[idx].time || 0),
-        image: sanitizeImageUrl(v.image || commentsCache[idx].image || "")
-      };
+  ...commentsCache[idx],
+  text: safeText(v.text),
+  author: safeText(v.author),
+  authorUid: safeText(v.authorUid || commentsCache[idx].authorUid || ""),
+  time: Number(v.time || commentsCache[idx].time || 0),
+
+  imagePath: safeText(v.imagePath || commentsCache[idx].imagePath || "").trim(), // ✅
+  image: sanitizeImageUrl(v.image || commentsCache[idx].image || "")             // ✅ legacy
+};
+
 
       renderCommentsFromCache();
     });
