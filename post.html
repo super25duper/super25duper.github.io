@@ -2501,18 +2501,18 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
     const st = replyImageState[commentId] ? replyImageState[commentId] : null;
     const file = st && st.file ? st.file : null;
 
-    const finishWrite = function (imageUrl) {
-      const obj = {
-        text: text,
-        author: username,
-        time: nowTs(),
-        authorUid: uid || ""
-      };
-     if (imagePath) obj.imagePath = String(imagePath || "");
+ const finishWrite = function (imagePath) {
+  const obj = {
+    text: text,
+    author: username,
+    time: nowTs(),
+    authorUid: uid || ""
+  };
 
+  if (imagePath) obj.imagePath = String(imagePath);
 
-      return replyRef.set(obj);
-    };
+  return replyRef.set(obj);
+};
 
     // if image: upload first
     let chain = Promise.resolve("");
