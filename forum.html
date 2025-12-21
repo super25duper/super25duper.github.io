@@ -1088,6 +1088,24 @@ function openImageViewer(url) {
 /* =========================================================================================          
    NEW: mini image preview (requested: click chip -> small preview with X)          
    ========================================================================================= */          
+function bindImgLoadErrorOnce(imgEl) {
+  if (!imgEl || imgEl.__boundLoadErr) return;
+  imgEl.__boundLoadErr = true;
+
+  imgEl.addEventListener("load", function () {
+    // התמונה נטענה בהצלחה → מנקים הודעת שגיאה
+    try { setStatus("", "info"); } catch (e) {}
+  });
+
+  imgEl.addEventListener("error", function () {
+    // error אמיתי רק אם יש src
+    try {
+      var current = (imgEl.getAttribute("src") || "").trim();
+      if (!current) return;
+      setStatus("לא הצלחתי לטעון את התמונה.", "error");
+    } catch (e) {}
+  });
+}
 function openMiniImagePreview(url) {          
   try {          
     var overlay = document.getElementById("miniImageOverlay");          
