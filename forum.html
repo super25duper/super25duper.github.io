@@ -879,17 +879,21 @@ function fetchSignedUrlForPath(path, force) {
         var lastResp = null;
         var usedParam = "path";
 
-        function parseResp(resp) {
-          lastResp = resp;
-          if (!resp) throw "bad_status";
-          if (!resp.ok) throw ("bad_status_" + (resp.status || 0));
-          return resp.json().catch(function () {
-            // sometimes functions return text
-            return resp.text().then(function (t) {
-              try { return JSON.parse(t); } catch (eJ) { return { ok: false, raw: t || "" }; }
-            });
-          });
-        }
+       function parseResp(resp) {
+  lastResp = resp;
+  if (!resp) throw "bad_status";
+  return resp.text().then(function (txt) {
+    var data = null;
+    try { data = JSON.parse(txt); } catch (e) { data = { raw: txt }; }
+
+    if (!resp.ok) {
+      // החזר שגיאה עם פרטים אמיתיים
+      throw ("bad_status_" + (resp.status || 0) + ":" + (txt ? txt.slice(0, 180) : ""));
+    }
+    return data;
+  });
+}
+
 
         function attemptWith(token, paramName) {
           usedParam = paramName;
