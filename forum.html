@@ -2187,17 +2187,21 @@ startPresenceTracking();
     } catch (eVM1) { }          
   }                    
         
-  function formatCommentsCountText(n, unknown) {          
-    try {          
-      if (unknown) return "טוען תגובות…";          
-      var x = Number(n || 0);          
-      if (!x) return "אין תגובות";          
-      if (x === 1) return "תגובה אחת";          
-    return "תגובות " + x ;          
-    } catch (e) {          
-      return "אין תגובות";          
-    }          
-  }          
+ function formatCommentsCountText(n, unknown) {
+  try {
+    if (unknown) return "טוען תגובות…";
+
+    var x = Number(n || 0);
+
+    if (!x) return "אין תגובות";
+    if (x === 1) return "תגובה אחת";
+
+    return x + " תגובות";
+  } catch (e) {
+    return "אין תגובות";
+  }
+}
+
         
   function buildPostCardHTML(p) {          
     // NOTE: this function was previously modified with non-existing postsMetaMap/scheduleSaveMeta.        
