@@ -2666,9 +2666,12 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
       loadComments(false, false);
       setStatus("תגובה נשלחה.", "ok");
     })
-    .catch(() => {
-      setStatus("שגיאה בשליחת תגובה.", "error");
-    })
+.catch((err) => {
+  const code = err && err.code ? String(err.code) : "";
+  const msg  = err && err.message ? String(err.message) : String(err || "");
+  setStatus("שגיאה בשליחת תגובה: " + (code ? code + " - " : "") + msg, "error");
+})
+
     .finally(() => {
       mainSending = false;
       sendMainBtn.disabled = false;
