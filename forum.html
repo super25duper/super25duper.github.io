@@ -850,116 +850,93 @@ function _fetchSignedUrlHTTP(path, token, modeParamName) {
   }
 }
 
-function fetchSignedUrlForPath(path, force) {          
-  return new Promise(function (resolve, reject) {          
-    try {          
-      var p = safeText(path || "").trim();          
-      if (!p) { reject("missing_path"); return; }          
+function fetchSignedUrlForPath(path, force) {
+  return new Promise(function (resolve, reject) {
+    try {
+      var p = safeText(path || "").trim();
+      if (!p) { reject("missing_path"); return; }
 
-      // Cache hit (unless forced)          
-      if (!force) {          
-        var cachedUrl = getCachedSignedUrlForPath(p);          
-        if (cachedUrl) {          
-          resolve({ url: cachedUrl, expiresAt: (_signedUrlCache[p] && _signedUrlCache[p].expiresAt) ? _signedUrlCache[p].expiresAt : 0 });          
-          return;          
-        }          
-      }          
+      if (!force) {
+        var cachedUrl = getCachedSignedUrlForPath(p);
+        if (cachedUrl) {
+          resolve({ url: cachedUrl, expiresAt: (_signedUrlCache[p] && _signedUrlCache[p].expiresAt) ? _signedUrlCache[p].expiresAt : 0 });
+          return;
+        }
+      }
 
-      // Deduplicate inflight          
-      if (_signedUrlInFlight[p]) {          
-        _signedUrlInFlight[p].then(resolve).catch(reject);          
-        return;          
-      }          
-
-      // NOTE: We try a tiny sequence for compatibility:
-      // 1) param "path"
-      // 2) if bad payload -> try "filePath"
-      // 3) if still bad -> try "imagePath"
-      // Also: if 401/403 -> refresh token ONCE
-      _signedUrlInFlight[p] = (function () {
-        var lastResp = null;
-        var usedParam = "path";
+      if (_signedUrlInFlight[p]) {
+        _signedUrlInFlight[p].then(resolve).catch(reject);
+        return;
+      }
 
       function parseResp(resp) {
-  if (!resp) throw "bad_status";
-  return resp.text().then(function (txt) {
-    var data = null;
-    try { data = JSON.parse(txt); } catch (e) { data = null; }
+        if (!resp) throw "bad_status";
+        return resp.text().then(function (txt) {
+          var data = null;
+          try { data = JSON.parse(txt); } catch (e) { data = null; }
 
-    if (!resp.ok) {
-      var msg = "";
-      if (data && typeof data === "object") {
-        if (data.error) msg = String(data.error);
-        else msg = JSON.stringify(data).slice(0, 220);
-      } else {
-        msg = (txt || "").slice(0, 220);
+          if (!resp.ok) {
+            var msg = "";
+            if (data && typeof data === "object") {
+              if (data.error) msg = String(data.error);
+              else msg = JSON.stringify(data).slice(0, 220);
+            } else {
+              msg = (txt || "").slice(0, 220);
+            }
+            throw ("bad_status_" + (resp.status || 0) + ":" + msg);
+          }
+          return data || {};
+        });
       }
-      throw ("bad_status_" + (resp.status || 0) + ":" + msg);
-    }
 
-    return data || {};
-  });
-}
-
-
-        function attemptWith(token, paramName) {
-          usedParam = paramName;
-          return _fetchSignedUrlHTTP(p, token, paramName).then(parseResp).then(function (data) {
-            // accept payload with or without ok
+      function attemptWith(token, paramName) {
+        return _fetchSignedUrlHTTP(p, token, paramName)
+          .then(parseResp)
+          .then(function (data) {
             if (data && data.ok === false && !data.url && !data.signedUrl && !data.downloadUrl) {
               throw "bad_payload";
             }
             var ex = _extractSignedUrlFromPayload(data);
             if (!ex || !ex.url) throw "bad_payload";
+
             _signedUrlCache[p] = { url: ex.url, expiresAt: ex.expiresAt, fetchedAt: Date.now() };
             return { url: ex.url, expiresAt: ex.expiresAt };
           });
-        }
+      }
 
-       return getIdTokenFast(false)
-  .then(function (token) {
-    return attemptWith(token, "path").catch(function () {
-      return attemptWith(token, "filePath").catch(function () {
-        return attemptWith(token, "imagePath");
-      });
-    });
-  })
-  .catch(function (err) {
-    var s = safeText(err || "");
-    var isAuth = (s.indexOf("bad_status_401") === 0 || s.indexOf("bad_status_403") === 0 || s === "no_user");
-    if (!isAuth) throw err;
+      _signedUrlInFlight[p] =
+        getIdTokenFast(false)
+          .then(function (token) {
+            return attemptWith(token, "path")
+              .catch(function () { return attemptWith(token, "filePath"); })
+              .catch(function () { return attemptWith(token, "imagePath"); });
+          })
+          .catch(function (err) {
+            var s = safeText(err || "");
+            var isAuth = (s.indexOf("bad_status_401") === 0 || s.indexOf("bad_status_403") === 0 || s === "no_user");
+            if (!isAuth) throw err;
 
-    // רק כאן מרעננים בכוח
-    return getIdTokenFast(true).then(function (token2) {
-      return attemptWith(token2, "path").catch(function () {
-        return attemptWith(token2, "filePath").catch(function () {
-          return attemptWith(token2, "imagePath");
-        });
-      });
-    });
-  });
-
+            return getIdTokenFast(true).then(function (token2) {
+              return attemptWith(token2, "path")
+                .catch(function () { return attemptWith(token2, "filePath"); })
+                .catch(function () { return attemptWith(token2, "imagePath"); });
+            });
+          })
+          .finally(function () {
+            try { delete _signedUrlInFlight[p]; } catch (eD) {}
           });
-      })();
 
-      _signedUrlInFlight[p]          
-        .then(function (r) {          
-          try { delete _signedUrlInFlight[p]; } catch (eD) { }          
-          resolve(r);          
-        })          
-        .catch(function (err) {          
-          try { delete _signedUrlInFlight[p]; } catch (eD2) { }          
-          reject(err);          
-        });          
-    } catch (e0) {          
-      try {          
-        var p2 = safeText(path || "").trim();          
-        if (p2 && _signedUrlInFlight[p2]) delete _signedUrlInFlight[p2];          
-      } catch (eX) { }          
-      reject(e0);          
-    }          
-  });          
-}          
+      _signedUrlInFlight[p].then(resolve).catch(reject);
+
+    } catch (e0) {
+      try {
+        var p2 = safeText(path || "").trim();
+        if (p2 && _signedUrlInFlight[p2]) delete _signedUrlInFlight[p2];
+      } catch (eX) {}
+      reject(e0);
+    }
+  });
+}  
         
 /* ===============================          
    FIX: WebView compatibility helpers          
