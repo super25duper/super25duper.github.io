@@ -1297,7 +1297,13 @@ postContainer.innerHTML = `
       </div>
     ` : ``}
 
-    ${canEditPostNow ? `...כפתור ערוך...` : ``}
+    ${canEditPostNow ? `
+  <button type="button" class="post-action" data-action="editPost"
+    style="padding:8px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;font-weight:bold;">
+    ערוך פוסט
+  </button>
+` : ``}
+
   </div>
 `;
 
