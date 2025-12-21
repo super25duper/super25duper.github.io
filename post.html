@@ -1335,8 +1335,24 @@ hydrateSignedImages(postContainer);
     postContainer.__actionsBound = true;
 
     postContainer.addEventListener("click", (e) => {
-      const btn = e.target.closest(".post-action");
-      if (!btn) return;
+     // ✅ open viewer for post image too
+const img = e.target.closest(".js-open-viewer");
+if (img) {
+  const hint = img.getAttribute("data-hint") || "";
+  const path = safeText(img.getAttribute("data-image-path") || "").trim();
+  const src  = img.getAttribute("src") || "";
+
+  if (path) {
+    fetchSignedUrlForPath(path).then((url) => {
+      if (url) openMiniViewer(url, hint);
+      else openMiniViewer(src, hint);
+    });
+  } else {
+    openMiniViewer(src, hint);
+  }
+  return;
+}
+
 
       const action = btn.getAttribute("data-action");
       if (!action) return;
