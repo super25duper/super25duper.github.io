@@ -879,18 +879,24 @@ function fetchSignedUrlForPath(path, force) {
         var lastResp = null;
         var usedParam = "path";
 
-       function parseResp(resp) {
-  lastResp = resp;
+      function parseResp(resp) {
   if (!resp) throw "bad_status";
   return resp.text().then(function (txt) {
     var data = null;
-    try { data = JSON.parse(txt); } catch (e) { data = { raw: txt }; }
+    try { data = JSON.parse(txt); } catch (e) { data = null; }
 
     if (!resp.ok) {
-      // החזר שגיאה עם פרטים אמיתיים
-      throw ("bad_status_" + (resp.status || 0) + ":" + (txt ? txt.slice(0, 180) : ""));
+      var msg = "";
+      if (data && typeof data === "object") {
+        if (data.error) msg = String(data.error);
+        else msg = JSON.stringify(data).slice(0, 220);
+      } else {
+        msg = (txt || "").slice(0, 220);
+      }
+      throw ("bad_status_" + (resp.status || 0) + ":" + msg);
     }
-    return data;
+
+    return data || {};
   });
 }
 
