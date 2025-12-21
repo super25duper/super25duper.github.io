@@ -594,7 +594,8 @@ function bytesToHuman(n) {
    ========================================================================================= */
 
 // אותו endpoint בדיוק כמו בפורום (תשאיר אותו זהה!)
-const GET_IMAGE_URL_ENDPOINT = "https://YOUR_REGION-YOUR_PROJECT.cloudfunctions.net/getSignedUrl";
+const GET_IMAGE_URL_ENDPOINT = "https://us-central1-bigone-86490.cloudfunctions.net/getImageUrl";
+
 
 // Cache בזיכרון כדי לא לקרוא לפונקציה שוב ושוב
 const signedUrlCache = Object.create(null); // path => { url, expTs }
