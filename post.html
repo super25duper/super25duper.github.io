@@ -1836,68 +1836,69 @@ image: sanitizeImageUrl(d.image || "")
       });
   }
 
-  function buildReplyHTML(commentId, d) {
-    const c = userColor(d.author);
-    const canEdit = canEditItem(d.author, d.authorUid, d.time);
-    const imgUrl = sanitizeImageUrl(d.image || "");
+function buildReplyHTML(commentId, d) {
+  const c = userColor(d.author);
+  const canEdit = canEditItem(d.author, d.authorUid, d.time);
 
-    return `
-      <div class="reply" data-reply-id="${escapeHTML(d.rid || "")}" style="
-        border-right: 4px solid ${escapeHTML(c)};
-        padding:10px 10px;
-        margin:10px 0;
-        border-radius:10px;
-        background: rgba(0,0,0,0.03);
-      ">
-        <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
-          <b style="color:${escapeHTML(c)};">${escapeHTML(d.author || "")}</b>
-          <small style="opacity:.75;">${escapeHTML(fmtTime(d.time || 0))}</small>
-        </div>
+  // ✅ חדש: נתיב ב-Storage
+  const imgPath = safeText(d.imagePath || "").trim();
 
-        <p class="reply-text" id="reply-text-${escapeHTML(commentId)}-${escapeHTML(d.rid || "")}" style="margin:8px 0 0 0;">
-          ${escapeHTML(d.text || "")}
-        </p>
+  // ✅ תאימות לאחור: אם יש עדיין URL ישן בשדה image
+  const legacyUrl = sanitizeImageUrl(d.image || "");
 
-        ${imgUrl ? `
+  // ✅ אם יש URL חתום בזיכרון (cache), נציג מיד; אחרת נסתיר עד hydrate
+  const cached = imgPath ? getCachedSignedUrlForPath(imgPath) : "";
+  const initialSrc = cached || legacyUrl;
+
+  return `
+    <div class="reply" data-reply-id="${escapeHTML(d.rid || "")}" style="
+      border-right: 4px solid ${escapeHTML(c)};
+      padding:10px 10px;
+      margin:10px 0;
+      border-radius:10px;
+      background: rgba(0,0,0,0.03);
+    ">
+      <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
+        <b style="color:${escapeHTML(c)};">${escapeHTML(d.author || "")}</b>
+        <small style="opacity:.75;">${escapeHTML(fmtTime(d.time || 0))}</small>
+      </div>
+
+      <p class="reply-text" id="reply-text-${escapeHTML(commentId)}-${escapeHTML(d.rid || "")}" style="margin:8px 0 0 0;">
+        ${escapeHTML(d.text || "")}
+      </p>
+
+      ${(imgPath || initialSrc) ? `
+        <div data-img-wrap="1" style="display:${initialSrc ? "block" : "none"};">
           <img class="mini-image js-open-viewer"
                data-hint="תמונה בריפליי"
-               src="${escapeHTML(imgUrl)}"
+               ${imgPath ? `data-image-path="${escapeHTML(imgPath)}"` : ``}
+               ${initialSrc ? `src="${escapeHTML(initialSrc)}"` : ``}
                alt="תמונה" />
-        ` : ``}
-
-        <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-          <button type="button"
-                  data-reply-action="copyReply"
-                  data-comment-id="${escapeHTML(commentId)}"
-                  data-reply-id="${escapeHTML(d.rid || "")}"
-                  style="padding:6px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;">
-            העתק
-          </button>
-
-          ${canEdit ? `
-            <button type="button"
-                    data-reply-action="editReply"
-                    data-comment-id="${escapeHTML(commentId)}"
-                    data-reply-id="${escapeHTML(d.rid || "")}"
-                    style="padding:6px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;font-weight:bold;">
-              ערוך
-            </button>
-          ` : ``}
-
-          <!-- DISABLED: reporting replies per request (kept for length) -->
-          <!--
-          <button type="button"
-                  data-reply-action="reportReply"
-                  data-comment-id="${escapeHTML(commentId)}"
-                  data-reply-id="${escapeHTML(d.rid || "")}"
-                  style="padding:6px 10px;border-radius:10px;border:1px solid rgba(255,0,0,0.35);background:rgba(255,0,0,0.06);cursor:pointer;">
-            דווח
-          </button>
-          -->
         </div>
+      ` : ``}
+
+      <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button type="button"
+                data-reply-action="copyReply"
+                data-comment-id="${escapeHTML(commentId)}"
+                data-reply-id="${escapeHTML(d.rid || "")}"
+                style="padding:6px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;">
+          העתק
+        </button>
+
+        ${canEdit ? `
+          <button type="button"
+                  data-reply-action="editReply"
+                  data-comment-id="${escapeHTML(commentId)}"
+                  data-reply-id="${escapeHTML(d.rid || "")}"
+                  style="padding:6px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;font-weight:bold;">
+            ערוך
+          </button>
+        ` : ``}
       </div>
-    `;
-  }
+    </div>
+  `;
+}
 
   function buildReplyComposerHTML(commentId) {
     return `
