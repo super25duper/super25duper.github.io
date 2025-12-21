@@ -741,13 +741,72 @@ function copyToClipboard(text) {
 }          
     
 /* =========================================================================================          
+   NEW: Shared Signed URL Cache (sessionStorage)
+   - Caches signed URLs across forum.html and post.html
+   - Automatically clears expired URLs
+   ========================================================================================= */
+const SignedUrlCache = (function() {
+  const CACHE_KEY = "signedUrlCache";
+  let cache = Object.create(null);
+
+  function load() {
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const now = Date.now();
+        for (const path in parsed) {
+          if (parsed[path] && parsed[path].expTs && parsed[path].expTs > now) {
+            cache[path] = parsed[path];
+          }
+        }
+      }
+    } catch (e) {
+      cache = Object.create(null);
+    }
+  }
+
+  function save() {
+    try {
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {}
+  }
+
+  load(); // Load on init
+
+  return {
+    get: function(path) {
+      const p = safeText(path || "");
+      if (!p) return "";
+      const rec = cache[p];
+      if (!rec || !rec.url) return "";
+      if (rec.expTs && Date.now() > rec.expTs) {
+        delete cache[p];
+        save();
+        return "";
+      }
+      return rec.url;
+    },
+    set: function(path, url, expiresAt) { // expiresAt is a timestamp
+      const p = safeText(path || "");
+      const u = sanitizeImageUrl(url || "");
+      if (!p || !u) return;
+      const expTs = Number(expiresAt || 0) || (Date.now() + 110 * 1000);
+      if (expTs <= Date.now()) return;
+      
+      cache[p] = { url: u, expTs: expTs };
+      save();
+    }
+  };
+})();
+
+/* =========================================================================================          
    SECURE IMAGE FLOW (new)          
    - posts store imagePath (Storage path) instead of download URL          
    - viewer fetches short-lived signed URL via Cloud Function getImageUrl (2 minutes)          
    ========================================================================================= */          
 var GET_IMAGE_URL_ENDPOINT = "https://us-central1-bigone-86490.cloudfunctions.net/getImageUrl";          
 var _idTokenCache = { token: "", at: 0 };          
-var _signedUrlCache = {};        // path -> { url, expiresAt, fetchedAt }          
 var _signedUrlInFlight = {};     // path -> Promise          
         
 function getIdTokenFast(forceRefresh) {          
@@ -778,22 +837,6 @@ function getIdTokenFast(forceRefresh) {
   });          
 }          
         
-function getCachedSignedUrlForPath(path) {          
-  try {          
-    var p = safeText(path || "");          
-    if (!p) return "";          
-    var c = _signedUrlCache[p];          
-    if (!c || !c.url) return "";          
-    var now = Date.now();          
-    var exp = Number(c.expiresAt || 0) || 0;          
-    // refresh a bit before expiry          
-    if (exp && (now + 12000) >= exp) return "";          
-    return sanitizeImageUrl(c.url || "");          
-  } catch (e) {          
-    return "";          
-  }          
-}          
-
 /* =========================================================================================
    ✅ UPDATE (minimal + robust): signed-url fetcher that accepts multiple payload shapes
    - fixes common cause of "לא הצלחתי לטעון את התמונה" when function returns {url:...} without ok
@@ -857,9 +900,9 @@ function fetchSignedUrlForPath(path, force) {
 
       // Cache hit (unless forced)          
       if (!force) {          
-        var cachedUrl = getCachedSignedUrlForPath(p);          
+        var cachedUrl = SignedUrlCache.get(p);          
         if (cachedUrl) {          
-          resolve({ url: cachedUrl, expiresAt: (_signedUrlCache[p] && _signedUrlCache[p].expiresAt) ? _signedUrlCache[p].expiresAt : 0 });          
+          resolve({ url: cachedUrl, expiresAt: 0 }); // expiresAt is unknown, but that's ok for the caller          
           return;          
         }          
       }          
@@ -910,7 +953,7 @@ function fetchSignedUrlForPath(path, force) {
             }
             var ex = _extractSignedUrlFromPayload(data);
             if (!ex || !ex.url) throw "bad_payload";
-            _signedUrlCache[p] = { url: ex.url, expiresAt: ex.expiresAt, fetchedAt: Date.now() };
+            SignedUrlCache.set(p, ex.url, ex.expiresAt);
             return { url: ex.url, expiresAt: ex.expiresAt };
           });
         }
@@ -2241,7 +2284,7 @@ startPresenceTracking();
     var imgPath = safeText(p.imagePath || "").trim();        
     var imgUrl = sanitizeImageUrl(p.image || "");        
     var signed = "";        
-    if (imgPath) signed = getCachedSignedUrlForPath(imgPath) || "";        
+    if (imgPath) signed = SignedUrlCache.get(imgPath) || "";        
     if (!signed && imgUrl) signed = imgUrl; // legacy support        
     
     var hasImage = !!((imgPath && imgPath.length) || (imgUrl && imgUrl.length));        
