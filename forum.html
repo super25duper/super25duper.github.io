@@ -915,29 +915,31 @@ function fetchSignedUrlForPath(path, force) {
           });
         }
 
-       return getIdTokenFast(false)
-  .then(function (token) {
-    return attemptWith(token, "path").catch(function () {
-      return attemptWith(token, "filePath").catch(function () {
-        return attemptWith(token, "imagePath");
-      });
-    });
-  })
-  .catch(function (err) {
-    var s = safeText(err || "");
-    var isAuth = (s.indexOf("bad_status_401") === 0 || s.indexOf("bad_status_403") === 0 || s === "no_user");
-    if (!isAuth) throw err;
+        return getIdTokenFast(true)
 
-    // רק כאן מרעננים בכוח
-    return getIdTokenFast(true).then(function (token2) {
-      return attemptWith(token2, "path").catch(function () {
-        return attemptWith(token2, "filePath").catch(function () {
-          return attemptWith(token2, "imagePath");
-        });
-      });
-    });
-  });
-
+          .then(function (token) {
+            return attemptWith(token, "path").catch(function (e1) {
+              // Retry with alternate param if server expects it
+              return attemptWith(token, "filePath").catch(function () {
+                return attemptWith(token, "imagePath");
+              });
+            });
+          })
+          .catch(function (err) {
+            // If auth error, refresh token once and retry
+            var s = safeText(err || "");
+            var isAuth = (s.indexOf("bad_status_401") === 0 || s.indexOf("bad_status_403") === 0 || s === "no_user");
+            if (!isAuth) throw err;
+            return getIdTokenFast(true).then(function (token2) {
+              // retry with last used param first (usually correct), then fallback chain
+              return attemptWith(token2, usedParam || "path").catch(function () {
+                return attemptWith(token2, "path").catch(function () {
+                  return attemptWith(token2, "filePath").catch(function () {
+                    return attemptWith(token2, "imagePath");
+                  });
+                });
+              });
+            });
           });
       })();
 
