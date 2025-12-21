@@ -659,25 +659,25 @@ function fetchSignedUrlForPath(path) {
   const user = firebase.auth().currentUser;
   if (!user) return Promise.resolve("");
 
-  return user.getIdToken(true)
-    .then((token) => {
-      return fetch(GET_IMAGE_URL_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify({ path: p })
-      });
-    })
-    .then((res) => res.json())
-    .then((data) => {
-      const out = _extractSignedUrlFromPayload(data);
-      const url = sanitizeImageUrl(out.url || "");
-      if (url) setCachedSignedUrlForPath(p, url, out.expSeconds || 0);
-      return url || "";
-    })
-    .catch(() => "");
+return user.getIdToken(true)
+  .then((token) => {
+    const url = GET_IMAGE_URL_ENDPOINT + "?path=" + encodeURIComponent(p);
+    return fetch(url, {
+      method: "GET",
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+  })
+  .then((res) => res.json())
+  .then((data) => {
+    const out = _extractSignedUrlFromPayload(data);
+    const signed = sanitizeImageUrl(out.url || "");
+    if (signed) setCachedSignedUrlForPath(p, signed, out.expSeconds || 0);
+    return signed || "";
+  })
+  .catch(() => "");
+
 }
 
 /** מצמיד Signed URL לתגית IMG בצורה לא חוסמת (הדף נטען, התמונה תופיע כשמגיעה) */
