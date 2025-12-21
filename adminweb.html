@@ -839,8 +839,6 @@ function progReset(){
   el("progTxt").textContent = "—";
 }
 
-/* ✅ NEW: time formatting (human friendly) */
-function pad2(n){ n = Math.floor(Math.abs(num(n))); return (n<10?("0"+n):String(n)); }
 
 function formatDuration(ms){
   ms = num(ms);
