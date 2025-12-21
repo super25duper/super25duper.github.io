@@ -1704,13 +1704,23 @@ ${(imgPath || initialSrc) ? `
 
       // open viewer for any image with .js-open-viewer
       try {
-        const img = e.target.closest(".js-open-viewer");
-        if (img) {
-          const src = img.getAttribute("src") || "";
-          const hint = img.getAttribute("data-hint") || "";
-          openMiniViewer(src, hint);
-          return;
-        }
+       const img = e.target.closest(".js-open-viewer");
+if (img) {
+  const hint = img.getAttribute("data-hint") || "";
+  const path = safeText(img.getAttribute("data-image-path") || "").trim();
+  const src  = img.getAttribute("src") || "";
+
+  if (path) {
+    fetchSignedUrlForPath(path).then((url) => {
+      if (url) openMiniViewer(url, hint);
+      else openMiniViewer(src, hint);
+    });
+  } else {
+    openMiniViewer(src, hint);
+  }
+  return;
+}
+
       } catch {}
 
       const el = e.target.closest("[data-action]");
