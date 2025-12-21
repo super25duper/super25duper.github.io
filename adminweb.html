@@ -856,6 +856,24 @@ function formatDuration(ms){
   if(h === 0) return d + " ימים";
   return d + " ימים ו" + h + " שעות";
 }
+  function computeConnectionInfo(isOnline, connectedAt, lastSeen){
+  var now = Date.now();
+  connectedAt = Number(connectedAt || 0);
+  lastSeen = Number(lastSeen || 0);
+
+  if (isOnline){
+    if (connectedAt > 0){
+      return { label: "מחובר מאז", value: formatDuration(now - connectedAt) };
+    }
+    return { label: "מחובר מאז", value: "—" };
+  } else {
+    if (lastSeen > 0){
+      return { label: "התנתק לפני", value: formatDuration(now - lastSeen) };
+    }
+    return { label: "התנתק לפני", value: "—" };
+  }
+}
+
 
 function isSameDay(a,b){
   return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
