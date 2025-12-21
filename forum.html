@@ -692,7 +692,8 @@ function sanitizeImageUrl(url) {
   var u = safeText(url).trim();          
   if (!u) return "";          
   // allow only http(s)          
-  if (u.indexOf("https://") === 0 || u.indexOf("http://") === 0) return u;          
+  if (u.indexOf("https://") === 0) return u;
+         
   return "";          
 }          
         
