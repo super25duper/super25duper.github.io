@@ -2575,89 +2575,96 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
   /* =====================================================================================
      Main comment send (כולל תמונה) + bump lastCommentTime + increment commentsCount
      ===================================================================================== */
-  function sendMain() {
-    if (!isAuthed) return;
+ function sendMain() {
+  if (!isAuthed) return;
 
-    const raw = safeText(mainText.value).trim();
+  const raw = safeText(mainText.value).trim();
 
-    if (!raw && !mainCommentImageFile) {
-      setStatus("כתוב תגובה או צרף תמונה.", "warn");
+  if (!raw && !mainCommentImageFile) {
+    setStatus("כתוב תגובה או צרף תמונה.", "warn");
+    return;
+  }
+
+  if (mainSending) return;
+  mainSending = true;
+
+  sendMainBtn.disabled = true;
+
+  const text = clampTextLen(raw, MAIN_MAX);
+
+  const commentRef = firebase.database().ref("comments/" + postId).push();
+  const commentId = commentRef.key;
+
+  const finishWrite = function (imageUrl) {
+    const obj = {
+      text: text,
+      author: username,
+      time: nowTs(),
+      authorUid: uid || ""
+    };
+    if (imageUrl) obj.image = sanitizeImageUrl(imageUrl);
+    return commentRef.set(obj);
+  };
+
+  let chain = Promise.resolve("");
+
+  if (mainCommentImageFile) {
+    const f = mainCommentImageFile;
+
+    if (!isLikelyImageFile(f) || Number(f.size || 0) > MAX_IMG) {
+      setStatus("התמונה לא תקינה או גדולה מדי. בחר מחדש.", "error");
+      clearMainCommentImage(true);
+      sendMainBtn.disabled = false;
+      mainSending = false;
       return;
     }
 
-    if (mainSending) return;
-    mainSending = true;
+    setStatus("מכין תמונה להעלאה…", "info");
 
-    sendMainBtn.disabled = true;
+    chain = prepareImageForUpload(f)
+      .then(function (prep) {
+        const blob = prep && prep.blob ? prep.blob : f;
+        const ct = prep && prep.contentType ? prep.contentType : (f.type || "application/octet-stream");
+        const ext = prep && prep.ext ? prep.ext : (safeText(f.name || "").includes(".") ? safeText(f.name).split(".").pop().toLowerCase() : "jpg");
 
-    const text = clampTextLen(raw, MAIN_MAX);
+        const name = nowTs() + "_" + (uid || "u") + "." + (ext || "jpg");
+        const path = "comment-images/" + postId + "/" + commentId + "/" + name;
 
-    const commentRef = firebase.database().ref("comments/" + postId).push();
-    const commentId = commentRef.key;
+        setStatus("מעלה תמונה לתגובה…", "info");
 
-    const finishWrite = function (imageUrl) {
-      const obj = {
-        text: text,
-        author: username,
-        time: nowTs(),
-        authorUid: uid || ""
-      };
-      if (imageUrl) obj.image = sanitizeImageUrl(imageUrl);
-
-      return commentRef.set(obj);
-    };
-
-    let chain = Promise.resolve("");
-
-    if (mainCommentImageFile) {
-      const f = mainCommentImageFile;
-
-      if (!isLikelyImageFile(f) || Number(f.size || 0) > MAX_IMG) {
-        setStatus("התמונה לא תקינה או גדולה מדי. בחר מחדש.", "error");
-        clearMainCommentImage(true);
-        sendMainBtn.disabled = false;
-        mainSending = false;
-        return;
-      }
-
-      const ext = safeText(f.name || "").includes(".") ? safeText(f.name).split(".").pop().toLowerCase() : "jpg";
-      const name = nowTs() + "_" + (uid || "u") + "." + (ext || "jpg");
-      const path = "comment-images/" + postId + "/" + commentId + "/" + name;
-
-      setStatus("מעלה תמונה לתגובה…", "info");
-
-      chain = uploadImageToStorage(f, path, function () {})
-        .then(function (url) {
-          setStatus("שומר תגובה…", "info");
-          return url;
-        });
-    }
-
-    chain
-      .then(function (url) {
-        return finishWrite(url || "");
-      })
-      .then(() => {
-        closeMain();
-
-        // key for forum sorting:
-        bumpPostLastCommentTime(nowTs());
-
-        // count ONLY comments (not replies)
-        incrementPostCommentsCount();
-
-        // keep existing behavior
-        loadComments(false, false);
-        setStatus("תגובה נשלחה.", "ok");
-      })
-      .catch(() => {
-        setStatus("שגיאה בשליחת תגובה.", "error");
-      })
-      .finally(() => {
-        mainSending = false;
-        sendMainBtn.disabled = false;
+        return uploadBlobToStorage(blob, path, ct, function () {})
+          .then(function (url) {
+            setStatus("שומר תגובה…", "info");
+            return url;
+          });
       });
   }
+
+  chain
+    .then(function (url) {
+      return finishWrite(url || "");
+    })
+    .then(() => {
+      closeMain();
+
+      // key for forum sorting:
+      bumpPostLastCommentTime(nowTs());
+
+      // count ONLY comments (not replies)
+      incrementPostCommentsCount();
+
+      // keep existing behavior
+      loadComments(false, false);
+      setStatus("תגובה נשלחה.", "ok");
+    })
+    .catch(() => {
+      setStatus("שגיאה בשליחת תגובה.", "error");
+    })
+    .finally(() => {
+      mainSending = false;
+      sendMainBtn.disabled = false;
+    });
+}
 
   /* =====================================================================================
      Inline edit – COMMENT (NEW)
