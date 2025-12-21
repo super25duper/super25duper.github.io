@@ -1255,52 +1255,55 @@ document.addEventListener("DOMContentLoaded", function () {
         const author = safeText(p.author || "");
         const authorUid = safeText(p.authorUid || ""); // אם קיים בעתיד
         const postTime = Number(p.time || 0);
-        const imgUrl = sanitizeImageUrl(p.image || "");
+       const imagePath = safeText(p.imagePath || "").trim();   // ✅ זה מה שנשמר עכשיו
+const legacyUrl = sanitizeImageUrl(p.image || "");      // ✅ רק תאימות לאחור
+const cached = imagePath ? getCachedSignedUrlForPath(imagePath) : "";
+const initialSrc = cached || legacyUrl;
 
-        // מי המחבר? (תומך גם authorUid אם קיים, אחרת לפי username)
-        const isOwner = (authorUid && uid && authorUid === uid) || (!!author && author === username);
+// cache לניווט חזרה
+try {
+  sessionStorage.setItem("currentPost", JSON.stringify({
+    id: postId,
+    title: safeText(p.title || ""),
+    text: safeText(p.text || ""),
+    author: author || "",
+    imagePath: imagePath || "",
+    imageUrl: initialSrc || ""   // כדי שיראה מייד אם כבר יש
+  }));
+} catch {}
 
-        // עד 24 שעות
-        const DAY_MS = 24 * 60 * 60 * 1000;
-        const withinDay = postTime ? ((nowTs() - postTime) <= DAY_MS) : false;
-        canEditPostNow = !!(isOwner && withinDay);
+postContainer.innerHTML = `
+  <div class="post post-user-border" style="border-right-color:${escapeHTML(border)};">
+    <h3>${escapeHTML(p.title || "")}</h3>
+    <p>${escapeHTML(p.text || "")}</p>
 
-        // צבע גבול
-        const border = userColor(author);
+    <small style="display:block; margin-top:6px; color:${escapeHTML(border)};">
+      מאת: ${escapeHTML(author)}
+    </small>
 
-        // שמירה ל-cache לניווט חזרה (feature נשמר, עם תמונה)
-        try {
-          sessionStorage.setItem("currentPost", JSON.stringify({
-            id: postId,
-            title: safeText(p.title || ""),
-            text: safeText(p.text || ""),
-            author: author || "",
-            image: imgUrl || ""
-          }));
-        } catch {}
+    <small style="opacity:.75; margin-top:6px; display:block;">
+      ${escapeHTML(fmtDateTime(postTime || 0))}
+    </small>
 
-        // פעולות פוסט: copy/share/report + edit (אם מותר)
-        postContainer.innerHTML = `
-          <div class="post post-user-border" style="border-right-color:${escapeHTML(border)};">
-            <h3>${escapeHTML(p.title || "")}</h3>
-            <p>${escapeHTML(p.text || "")}</p>
+    ${(imagePath || initialSrc) ? `
+      <div class="post-image-wrap" data-img-wrap="1" style="display:${initialSrc ? "block" : "none"};">
+        <img class="post-image js-open-viewer"
+             data-hint="תמונת הפוסט"
+             ${imagePath ? `data-image-path="${escapeHTML(imagePath)}"` : ``}
+             ${initialSrc ? `src="${escapeHTML(initialSrc)}"` : ``}
+             alt="תמונה" />
+      </div>
+    ` : ``}
 
-            <small style="display:block; margin-top:6px; color:${escapeHTML(border)};">
-              מאת: ${escapeHTML(author)}
-            </small>
+    ${canEditPostNow ? `...כפתור ערוך...` : ``}
+  </div>
+`;
 
-            <small style="opacity:.75; margin-top:6px; display:block;">
-              ${escapeHTML(fmtDateTime(postTime || 0))}
-            </small>
+bindPostActions();
 
-            ${imgUrl ? `
-              <div class="post-image-wrap">
-                <img class="post-image js-open-viewer"
-                     data-hint="תמונת הפוסט"
-                     src="${escapeHTML(imgUrl)}"
-                     alt="תמונה" />
-              </div>
-            ` : ``}
+// ✅ הכי חשוב: להביא Signed URL ברקע אם יש imagePath
+hydrateSignedImages(postContainer);
+
 
             
 
