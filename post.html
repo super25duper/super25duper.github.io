@@ -822,10 +822,6 @@ function readFileAsDataURLWithRetry(file, tries, done) {
   }
 }
 
-/* =========================================================================================
-   הצגת פוסט מה־sessionStorage (אם קיים) – טעינה מיידית (פיצ'ר נשמר)
-   + שדרוג: מציג גם תמונה אם קיימת בקאש
-   ========================================================================================= */
 (function showCachedPostIfExists() {
   const cachedPost = sessionStorage.getItem("currentPost");
   if (!cachedPost) return;
@@ -837,20 +833,32 @@ function readFileAsDataURLWithRetry(file, tries, done) {
 
     const author = safeText(p.author || "");
     const border = userColor(author);
-    const imgUrl = sanitizeImageUrl(p.image || "");
+
+    // בפורום נשמרים בד"כ: imagePath + imageUrl
+    const imageUrl = sanitizeImageUrl(p.imageUrl || p.image || "");
+    const imagePath = safeText(p.imagePath || "");
 
     host.innerHTML = `
       <div class="post post-user-border" style="border-right-color:${escapeHTML(border)};">
         <h3>${escapeHTML(p.title || "")}</h3>
         <p>${escapeHTML(p.text || "")}</p>
         <small style="display:block; margin-top:6px;">מאת: ${escapeHTML(author)}</small>
-        ${imgUrl ? `
-          <div class="post-image-wrap">
-            <img class="post-image js-open-viewer" data-hint="תמונת הפוסט" src="${escapeHTML(imgUrl)}" alt="תמונה" />
+
+        ${(imageUrl || imagePath) ? `
+          <div class="post-image-wrap" data-img-wrap="1" style="display:${(imageUrl ? "block" : "none")};">
+            <img class="post-image js-open-viewer"
+                 data-hint="תמונת הפוסט"
+                 ${imagePath ? `data-image-path="${escapeHTML(imagePath)}"` : ``}
+                 ${imageUrl ? `src="${escapeHTML(imageUrl)}"` : ``}
+                 alt="תמונה" />
           </div>
         ` : ``}
       </div>
     `;
+
+    // לא חוסם: אם יש imagePath, יביא signed URL ויציג כשמוכן
+    hydrateSignedImages(host);
+
   } catch (e) {
     sessionStorage.removeItem("currentPost");
   }
