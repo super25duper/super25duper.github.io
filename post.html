@@ -2521,26 +2521,35 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
     // if image: upload first
     let chain = Promise.resolve("");
 
-    if (file) {
-      if (!isLikelyImageFile(file) || Number(file.size || 0) > MAX_IMG) {
-        replyErrorShow(commentId, "התמונה לא תקינה או גדולה מדי. בחר מחדש.");
-        clearReplyImage(commentId, true);
-        replySendingMap[commentId] = false;
-        return;
-      }
+  if (file) {
+  if (!isLikelyImageFile(file) || Number(file.size || 0) > MAX_IMG) {
+    replyErrorShow(commentId, "התמונה לא תקינה או גדולה מדי. בחר מחדש.");
+    clearReplyImage(commentId, true);
+    replySendingMap[commentId] = false;
+    return;
+  }
 
-      const ext = safeText(file.name || "").includes(".") ? safeText(file.name).split(".").pop().toLowerCase() : "jpg";
+  setStatus("מכין תמונה לריפליי…", "info");
+
+  chain = prepareImageForUpload(file)
+    .then(function (prep) {
+      const blob = prep && prep.blob ? prep.blob : file;
+      const ct = prep && prep.contentType ? prep.contentType : (file.type || "application/octet-stream");
+      const ext = prep && prep.ext ? prep.ext : (safeText(file.name || "").includes(".") ? safeText(file.name).split(".").pop().toLowerCase() : "jpg");
+
       const name = nowTs() + "_" + (uid || "u") + "." + (ext || "jpg");
       const path = "reply-images/" + postId + "/" + commentId + "/" + replyId + "/" + name;
 
       setStatus("מעלה תמונה לריפליי…", "info");
 
-      chain = uploadImageToStorage(file, path, function () {})
+      return uploadBlobToStorage(blob, path, ct, function () {})
         .then(function (url) {
           setStatus("שומר ריפליי…", "info");
           return url;
         });
-    }
+    });
+}
+
 
     chain
       .then(function (url) {
