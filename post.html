@@ -2538,11 +2538,12 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
 
       setStatus("מעלה תמונה לריפליי…", "info");
 
-      return uploadBlobToStorage(blob, path, ct, function () {})
-        .then(function (url) {
-          setStatus("שומר ריפליי…", "info");
-          return url;
-        });
+    return uploadBlobToStorage(blob, path, ct, function () {})
+  .then(function (returnedPath) {
+    setStatus("שומר תגובה…", "info");
+    return returnedPath; // זה הנתיב
+  });
+
     });
 }
 
