@@ -1106,18 +1106,7 @@ function openMiniImagePreview(url) {
     var safe = sanitizeImageUrl(url);          
     if (!safe) return;          
 
-    // ✅ UPDATE: show error if img fails (covers signed-url or permission issues)
-    if (!img.__boundError) {
-      img.__boundError = true;
-      img.addEventListener("error", function () {
-        try {
-          overlay.style.display = "none";
-          img.setAttribute("src", "");
-        } catch (eC) { }
-        try { setStatus("לא הצלחתי לטעון את התמונה.", "error"); } catch (eS) { }
-      });
-    }
-        
+           
     img.setAttribute("src", safe);          
     overlay.style.display = "flex";          
         
