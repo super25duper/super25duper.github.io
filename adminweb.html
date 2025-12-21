@@ -840,7 +840,7 @@ function progReset(){
 }
 
 /* ✅ NEW: time formatting (human friendly) */
-function pad2(n){ n = Math.floor(Math.abs(num(n))); return (n<10?("0"+n):String(n)); }
+
 
 function formatDuration(ms){
   ms = num(ms);
@@ -863,48 +863,67 @@ function isSameDay(a,b){
   return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
 }
 
+function pad2(n){ return (n<10 ? "0" : "") + n; }
+
 function formatLastSeenHuman(ts){
-  ts = num(ts);
+  ts = Number(ts || 0);
   if(!ts) return "—";
-  var now = new Date();
-  var d = new Date(ts);
-  var diff = now.getTime() - ts;
 
-  if(diff < 0) diff = 0;
+  var now = Date.now();
+  var diffMs = now - ts;
+  if(diffMs < 0) diffMs = 0;
 
-  var sec = Math.floor(diff/1000);
-  if(sec < 90) return "לפני דקה";
-  var min = Math.floor(sec/60);
-  if(min < 60) return "לפני " + min + " דקות";
+  var mins = Math.floor(diffMs / 60000);
 
-  var hr = Math.floor(min/60);
-  var remMin = min%60;
+  // ממש עכשיו
+  if(mins <= 1) return "לפני דקה";
 
-  // today
-  if(isSameDay(now, d)){
-    if(hr <= 6 && remMin > 0){
-      return "לפני " + hr + " שעות ו" + remMin + " דקות";
-    }
-    if(hr < 24){
-      return "לפני " + hr + " שעות" + (remMin ? (" ו" + remMin + " דקות") : "");
-    }
+  // עד שעה
+  if(mins < 60){
+    if(mins === 15) return "לפני רבע שעה";
+    if(mins === 30) return "לפני חצי שעה";
+    return "לפני " + mins + " דקות";
   }
 
-  // yesterday
-  var y = new Date(now);
-  y.setDate(now.getDate()-1);
-  if(isSameDay(y, d)){
-    return "אתמול בשעה " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  var hours = Math.floor(mins / 60);
+  var remM = mins % 60;
+
+  // קביעת היום/אתמול לפי זמן מקומי
+  var dNow = new Date(now);
+  var dTs  = new Date(ts);
+
+  function sameDate(a,b){
+    return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
   }
 
-  var days = Math.floor(hr/24);
-  if(days < 7){
-    return "לפני " + days + " ימים";
+  // אתמול
+  var dY = new Date(dNow);
+  dY.setDate(dNow.getDate() - 1);
+
+  // היום: שעות
+  if(sameDate(dNow, dTs)){
+    if(hours === 1) return remM ? ("לפני שעה ו" + remM + " דקות") : "לפני שעה";
+    if(hours === 2) return remM ? ("לפני שעתיים ו" + remM + " דקות") : "לפני שעתיים";
+    return remM ? ("לפני " + hours + " שעות ו" + remM + " דקות") : ("לפני " + hours + " שעות");
   }
 
-  // fallback: date
-  return d.toLocaleDateString("he-IL") + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  // אתמול בשעה
+  if(sameDate(dY, dTs)){
+    return "אתמול בשעה " + pad2(dTs.getHours()) + ":" + pad2(dTs.getMinutes());
+  }
+
+  // ימים (עד 7 ימים)
+  var startOfToday = new Date(dNow.getFullYear(), dNow.getMonth(), dNow.getDate()).getTime();
+  var startOfThat  = new Date(dTs.getFullYear(), dTs.getMonth(), dTs.getDate()).getTime();
+  var days = Math.floor((startOfToday - startOfThat) / 86400000);
+
+  if(days === 1) return "לפני יום";
+  if(days > 1 && days < 7) return "לפני " + days + " ימים";
+
+  // מעבר לשבוע — תאריך רגיל
+  return dTs.toLocaleString("he-IL");
 }
+
 
 /* ✅ users: connected duration */
 function computeConnectionInfo(isOnline, connectedAt, lastSeen){
