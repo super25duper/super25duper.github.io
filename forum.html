@@ -905,7 +905,8 @@ function fetchSignedUrlForPath(path, force) {
           });
         }
 
-        return getIdTokenFast(false)
+        return getIdTokenFast(true)
+
           .then(function (token) {
             return attemptWith(token, "path").catch(function (e1) {
               // Retry with alternate param if server expects it
