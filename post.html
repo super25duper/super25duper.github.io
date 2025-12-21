@@ -1524,7 +1524,9 @@ hydrateSignedImages(postContainer);
             author: safeText(v.author),
             authorUid: safeText(v.authorUid || ""),
             time: Number(v.time || 0),
-            image: sanitizeImageUrl(v.image || "")
+            imagePath: safeText(v.imagePath || "").trim(),
+image: sanitizeImageUrl(v.image || "") // תאימות לאחור בלבד
+
           });
         });
 
