@@ -2607,7 +2607,8 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
       time: nowTs(),
       authorUid: uid || ""
     };
-    if (imageUrl) obj.image = sanitizeImageUrl(imageUrl);
+  if (imagePath) obj.imagePath = String(imagePath || "");
+
     return commentRef.set(obj);
   };
 
