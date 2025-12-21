@@ -1632,7 +1632,7 @@ const cached = imgPath ? getCachedSignedUrlForPath(imgPath) : "";
 const initialSrc = cached || legacyUrl;
 
     div.innerHTML = `
-      <div class="comment-header">
+      <div class="comment-header" style="display:flex; justify-content:space-between; align-items:center;">
         <b style="color:${escapeHTML(color)};">${escapeHTML(c.author)}</b>
         <small>${escapeHTML(fmtDateTime(c.time))}</small>
       </div>
