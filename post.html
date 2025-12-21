@@ -1823,55 +1823,50 @@ if (img) {
       .orderByChild("time")
       .limitToLast(200)
       .once("value")
-      .then((s) => {
-        let html = "";
+.then((s) => {
+  let html = "";
 
-        if (!s.exists()) {
-          html = `
-            <div style="padding:10px 0; opacity:.75;">
-              אין תגובות עדיין. תהיה הראשון.
-            </div>
-          `;
-        } else {
-          const arr = [];
-          s.forEach((r) => {
-            const d = r.val() || {};
-            arr.push({
-              rid: r.key,
-              author: safeText(d.author),
-              authorUid: safeText(d.authorUid || ""),
-              text: safeText(d.text),
-              time: Number(d.time || 0),
-              imagePath: safeText(d.imagePath || "").trim(),
-imagePath: safeText(d.imagePath || "").trim(),
-image: sanitizeImageUrl(d.image || "") // תאימות לאחור
+  if (!s.exists()) {
+    html = `
+      <div style="padding:10px 0; opacity:.75;">
+        אין תגובות עדיין. תהיה הראשון.
+      </div>
+    `;
+  } else {
+    const arr = [];
+    s.forEach((r) => {
+      const d = r.val() || {};
+      arr.push({
+        rid: r.key,
+        author: safeText(d.author),
+        authorUid: safeText(d.authorUid || ""),
+        text: safeText(d.text),
+        time: Number(d.time || 0),
 
+        imagePath: safeText(d.imagePath || "").trim(), // ✅
+        image: sanitizeImageUrl(d.image || "")         // ✅ legacy
+      });
+    });
 
-            });
-          });
+    arr.sort((a, b) => (a.time || 0) - (b.time || 0));
 
-          arr.sort((a, b) => (a.time || 0) - (b.time || 0));
+    for (const d of arr) {
+      html += buildReplyHTML(id, d);
+    }
+  }
 
-          for (const d of arr) {
-            html += buildReplyHTML(id, d);
-          }
-        }
+  html += buildReplyComposerHTML(id);
 
-        html += buildReplyComposerHTML(id);
+  box.innerHTML = html;
 
-        box.innerHTML = html;
+  // ✅ קודם hydrate כדי שהתמונות יקבלו src
+  hydrateSignedImages(box);
 
-        attachRepliesLive(id);
-        updateReplyCount(id);
-        box.innerHTML = html;
+  // ✅ ואז לייב + ספירה + bind input לתמונה (נעשה בתוך attachRepliesLive)
+  attachRepliesLive(id);
+  updateReplyCount(id);
+})
 
-// ✅ חדש: יביא signed URL לכל img שיש לו data-image-path בתוך replies
-hydrateSignedImages(box);
-
-attachRepliesLive(id);
-updateReplyCount(id);
-
-      })
       .catch(() => {
         box.innerHTML = "<p>שגיאה בטעינת תגובות-על-תגובה.</p>";
       });
