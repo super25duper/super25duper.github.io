@@ -1273,43 +1273,33 @@ try {
     imageUrl: initialSrc || ""   // כדי שיראה מייד אם כבר יש
   }));
 } catch {}
-
+        
 postContainer.innerHTML = `
   <div class="post post-user-border" style="border-right-color:${escapeHTML(border)};">
     <h3>${escapeHTML(p.title || "")}</h3>
     <p>${escapeHTML(p.text || "")}</p>
 
-    <small style="display:block; margin-top:6px; color:${escapeHTML(border)};">
-      מאת: ${escapeHTML(author)}
-    </small>
-
-    <small style="opacity:.75; margin-top:6px; display:block;">
-      ${escapeHTML(fmtDateTime(postTime || 0))}
-    </small>
+    <small>מאת: ${escapeHTML(author)}</small>
 
     ${(imagePath || initialSrc) ? `
-      <div class="post-image-wrap" data-img-wrap="1" style="display:${initialSrc ? "block" : "none"};">
+      <div class="post-image-wrap" data-img-wrap="1">
         <img class="post-image js-open-viewer"
-             data-hint="תמונת הפוסט"
              ${imagePath ? `data-image-path="${escapeHTML(imagePath)}"` : ``}
-             ${initialSrc ? `src="${escapeHTML(initialSrc)}"` : ``}
-             alt="תמונה" />
+             ${initialSrc ? `src="${escapeHTML(initialSrc)}"` : ``} />
       </div>
     ` : ``}
 
     ${canEditPostNow ? `
-  <button type="button" class="post-action" data-action="editPost"
-    style="padding:8px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;font-weight:bold;">
-    ערוך פוסט
-  </button>
-` : ``}
-
+      <button type="button"
+              class="post-action"
+              data-action="editPost">
+        ערוך פוסט
+      </button>
+    ` : ``}
   </div>
 `;
 
 bindPostActions();
-
-// ✅ הכי חשוב: להביא Signed URL ברקע אם יש imagePath
 hydrateSignedImages(postContainer);
 
 
