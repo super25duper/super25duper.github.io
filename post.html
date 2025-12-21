@@ -1621,22 +1621,22 @@ image: sanitizeImageUrl(v.image || "") // תאימות לאחור בלבד
     div.style.borderRightColor = color;
     div.setAttribute("data-comment-id", id);
 
-    const imgUrl = sanitizeImageUrl(c.image || "");
+const imgPath = safeText(c.imagePath || "").trim();
+const legacyUrl = sanitizeImageUrl(c.image || "");
+const cached = imgPath ? getCachedSignedUrlForPath(imgPath) : "";
+const initialSrc = cached || legacyUrl;
 
-    div.innerHTML = `
-      <div class="comment-meta">
-        <span class="comment-author">${escapeHTML(c.author || "")}</span>
-        <span class="comment-time">${escapeHTML(fmtTime(c.time || 0))}</span>
-      </div>
+...
+${(imgPath || initialSrc) ? `
+  <div data-img-wrap="1" style="display:${initialSrc ? "block" : "none"};">
+    <img class="mini-image js-open-viewer"
+         data-hint="תמונה בתגובה"
+         ${imgPath ? `data-image-path="${escapeHTML(imgPath)}"` : ``}
+         ${initialSrc ? `src="${escapeHTML(initialSrc)}"` : ``}
+         alt="תמונה" />
+  </div>
+` : ``}
 
-      <p class="comment-text" id="comment-text-${escapeHTML(id)}">${escapeHTML(c.text || "")}</p>
-
-      ${imgUrl ? `
-        <img class="mini-image js-open-viewer"
-             data-hint="תמונה בתגובה"
-             src="${escapeHTML(imgUrl)}"
-             alt="תמונה" />
-      ` : ``}
 
       <div class="comment-actions" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
         <button type="button" class="btn-reply" data-action="openReply" data-id="${escapeHTML(id)}">השב</button>
