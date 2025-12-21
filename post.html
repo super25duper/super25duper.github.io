@@ -1811,7 +1811,9 @@ ${(imgPath || initialSrc) ? `
               authorUid: safeText(d.authorUid || ""),
               text: safeText(d.text),
               time: Number(d.time || 0),
-              image: sanitizeImageUrl(d.image || "")
+              imagePath: safeText(d.imagePath || "").trim(),
+image: sanitizeImageUrl(d.image || "")
+
             });
           });
 
