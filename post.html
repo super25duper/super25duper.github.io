@@ -2732,9 +2732,12 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
 
         setStatus("נשלח ריפליי.", "ok");
       })
-      .catch(() => {
-        replyErrorShow(commentId, "שגיאה בשליחה. נסה שוב.");
-        setStatus("שגיאה בשליחה.", "error");
+      .catch((err) => {
+        const code = err && err.code ? String(err.code) : "";
+        const msg = err && err.message ? String(err.message) : String(err || "");
+        const finalMsg = "שגיאה בשליחת ריפליי: " + (msg || "לא ידוע");
+        replyErrorShow(commentId, finalMsg);
+        setStatus("אירעה שגיאה בשליחת הריפליי.", "error");
       })
       .finally(() => {
         replySendingMap[commentId] = false;
