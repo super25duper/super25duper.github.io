@@ -60,8 +60,9 @@
     if (user) {
       document.getElementById("loginBox").style.display = "none";
       document.getElementById("appBox").style.display = "block";
+      const name = user.email.split("@")[0];
       document.getElementById("userInfo").innerText =
-        "מחובר כ־" + user.email;
+        "מחובר כ־" + name;
     } else {
       document.getElementById("loginBox").style.display = "block";
       document.getElementById("appBox").style.display = "none";
