@@ -1480,12 +1480,10 @@ const action = btn.getAttribute("data-action");
     var sessionTime = Math.floor((Date.now() - presenceStartAt) / 1000);
 
     presenceRef.update({
-      isOnline: false,
       lastSeen: Date.now(),
       sessionTime: sessionTime,
       totalTime: firebase.database.ServerValue.increment(sessionTime)
     });
-
     if (presenceHeartbeatTimer) {
       clearInterval(presenceHeartbeatTimer);
       presenceHeartbeatTimer = null;
