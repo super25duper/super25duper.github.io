@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>התראות פורום</title>
+</head>
+<body>
+
+<h1>התראות פורום</h1>
+<button id="enable">הפעל התראות</button>
+
+<script type="module">
+  import { app } from "./firebaseconfig.js";
+  import { getMessaging, getToken } from
+    "https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging.js";
+
+  const messaging = getMessaging(app);
+
+  const vapidKey = "VAPID_PUBLIC_KEY_מ_FIREBASE";
+
+  document.getElementById("enable").onclick = async () => {
+
+    // 1. בקשת הרשאה
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      alert("לא ניתנה הרשאה להתראות");
+      return;
+    }
+
+    // 2. רישום Service Worker
+    const registration = await navigator.serviceWorker.register(
+      "/firebase-messaging-sw.js"
+    );
+
+    // 3. קבלת FCM Token
+    const token = await getToken(messaging, {
+      vapidKey,
+      serviceWorkerRegistration: registration
+    });
+
+    if (!token) {
+      alert("לא התקבל token");
+      return;
+    }
+
+    console.log("FCM TOKEN:", token);
+    alert("התראות הופעלו בהצלחה");
+
+    // 4. שליחת token לשרת (Firebase Function)
+    await fetch("https://YOUR_FUNCTION_URL/saveToken", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        uid: "USER_UID_כאן",
+        token
+      })
+    });
+  };
+</script>
+
+</body>
+</html>
