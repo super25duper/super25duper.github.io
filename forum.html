@@ -3120,9 +3120,9 @@ function stopPresenceTracking() {
       for (var k in visibleMetaListenerMap) {          
         detachMetaListenersForPost(k);          
       }          
-    } catch (eOff) { }          
-  });          
-        stopPresenceTracking();
+      } catch (eOff) { }
+      stopPresenceTracking();
+    });
 });                    
         
 /* =========================================================================================          
