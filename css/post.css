@@ -328,6 +328,25 @@ select:focus {
 .btn-reply:active {
   transform: scale(0.96);
 }
+.post-action {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: none;
+  background: rgb(17,17,87);
+  color: #fff;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.post-action:hover {
+  opacity: 0.92;
+}
+
+.post-action:active {
+  transform: scale(0.97);
+}
 
 /* ===============================
    Future hooks – reserved styles
