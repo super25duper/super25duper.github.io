@@ -3,61 +3,132 @@
 <head>
   <meta charset="UTF-8">
   <title>התראות פורום</title>
+  <style>
+    body {
+      font-family: Arial;
+      direction: rtl;
+      text-align: center;
+      margin-top: 40px;
+    }
+    input, button {
+      padding: 8px;
+      margin: 6px;
+      width: 220px;
+    }
+    #appBox {
+      display: none;
+    }
+  </style>
 </head>
 <body>
 
-<h2>אתר התראות</h2>
-<button id="enable">הפעל התראות</button>
+<h2>מערכת התראות</h2>
 
-<!-- Firebase core -->
+<!-- התחברות -->
+<div id="loginBox">
+  <h3>התחברות</h3>
+  <input id="username" placeholder="שם משתמש">
+  <input id="password" type="password" placeholder="סיסמה">
+  <br>
+  <button id="login">התחבר</button>
+</div>
+
+<!-- אפליקציה -->
+<div id="appBox">
+  <p id="userInfo"></p>
+  <button id="enable">הפעל התראות</button>
+  <br><br>
+  <button id="logout">התנתק</button>
+</div>
+
+<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
 
-<!-- config שלך -->
-<script src="firebaseConfig.js"></script>
+<!-- firebaseconfig.js שלך -->
+<script src="./firebaseconfig.js"></script>
+
 <script>
+  // Firebase services
+  const auth = firebase.auth();
+  const db = firebase.database();
   const messaging = firebase.messaging();
 
-  document.getElementById("enable").onclick = async () => {
+  // שינוי מצב לפי התחברות
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("appBox").style.display = "block";
+      document.getElementById("userInfo").innerText =
+        "מחובר כ־" + user.email;
+    } else {
+      document.getElementById("loginBox").style.display = "block";
+      document.getElementById("appBox").style.display = "none";
+    }
+  });
 
-    // בדיקות בסיס
+  // התחברות
+  document.getElementById("login").onclick = async () => {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value;
+
+    if (!username || !password) {
+      alert("נא למלא שם משתמש וסיסמה");
+      return;
+    }
+
+    const email = username + "@forum.local";
+
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+    } catch (err) {
+      alert("שגיאת התחברות");
+      console.error(err);
+    }
+  };
+
+  // התנתקות
+  document.getElementById("logout").onclick = () => {
+    auth.signOut();
+  };
+
+  // הפעלת התראות
+  document.getElementById("enable").onclick = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("לא מחובר");
+      return;
+    }
+
     if (!("Notification" in window)) {
       alert("הדפדפן לא תומך בהתראות");
       return;
     }
 
-    if (!window.isSecureContext) {
-      alert("התראות עובדות רק ב-HTTPS");
-      return;
-    }
-
-    console.log("Current permission:", Notification.permission);
-
-    // בקשת הרשאה
     const permission = await Notification.requestPermission();
-
-    console.log("Permission result:", permission);
-
     if (permission !== "granted") {
-      alert("ההרשאה לא אושרה");
+      alert("אין הרשאה להתראות");
       return;
     }
 
-    // רישום Service Worker
     const registration = await navigator.serviceWorker.register(
       "/firebase-messaging-sw.js"
     );
 
-    // קבלת FCM token
     const token = await messaging.getToken({
-      vapidKey: "BCvNtDBoUzNPVXFpjPxygDLpcStZvsEgsrKUR_wD61c6YayXSP8YAp3ZZxTgmCyB6dluCFmBxvNVm3KUkAHBHII",
+      vapidKey: "BCVNtDBoUzNPVXFpPxgyDplpcSTzvsEgSrKUR_wD61c6YaYxSP8YAp3ZZkTgmCyB6dluCFmBXvNvm3KuKAHBHI",
       serviceWorkerRegistration: registration
     });
 
     console.log("FCM TOKEN:", token);
 
-    alert("התראות הופעלו בהצלחה");
+    await db.ref(`userTokens/${user.uid}/tokens/${token}`).set({
+      createdAt: Date.now()
+    });
+
+    alert("התראות הופעלו בהצלחה 🎉");
   };
 </script>
 
