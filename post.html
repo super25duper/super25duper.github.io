@@ -968,6 +968,9 @@ document.addEventListener("DOMContentLoaded", function () {
   let uid = null;
   let username = "משתמש";
   let isAuthed = false;
+  let presenceStartAt = 0;
+  let presenceHeartbeatTimer = null;
+  let presenceRef = null;
 
   // current post snapshot (needed for edit rules)
   let currentPostObj = null; // {title,text,author,authorUid,time,image,lastCommentTime,...}
@@ -1225,6 +1228,8 @@ document.addEventListener("DOMContentLoaded", function () {
         username = name || "משתמש";
         isAuthed = true;
 
+        startPresenceTracking();
+
         setStatus("מחובר כ־" + username, "ok");
 
         // תמיד נטען פוסט מה-DB כדי לחשב הרשאות עריכה + תמונה + גבול צבע
@@ -1444,6 +1449,48 @@ const action = btn.getAttribute("data-action");
     }
   }
 
+  function startPresenceTracking() {
+    if (!uid || !isAuthed) return;
+
+    presenceStartAt = Date.now();
+    presenceRef = firebase.database().ref("presence/" + uid);
+
+    presenceRef.update({
+      username: username || "משתמש",
+      isOnline: true,
+      connectedAt: presenceStartAt,
+      lastSeen: presenceStartAt
+    });
+
+    presenceHeartbeatTimer = setInterval(function () {
+      presenceRef.update({
+        lastSeen: Date.now()
+      });
+    }, 10000);
+
+    presenceRef.onDisconnect().update({
+      isOnline: false,
+      lastSeen: firebase.database.ServerValue.TIMESTAMP
+    });
+  }
+
+  function stopPresenceTracking() {
+    if (!presenceRef || !presenceStartAt) return;
+
+    var sessionTime = Math.floor((Date.now() - presenceStartAt) / 1000);
+
+    presenceRef.update({
+      isOnline: false,
+      lastSeen: Date.now(),
+      sessionTime: sessionTime,
+      totalTime: firebase.database.ServerValue.increment(sessionTime)
+    });
+
+    if (presenceHeartbeatTimer) {
+      clearInterval(presenceHeartbeatTimer);
+      presenceHeartbeatTimer = null;
+    }
+  }
   
   /* =====================================================================================
      EDIT POST (NEW) – עד 24 שעות, רק המחבר
@@ -3254,6 +3301,8 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
         if (repliesLiveRefs[k]) repliesLiveRefs[k].off();
       } catch {}
     }
+
+    stopPresenceTracking();
   });
 
 });
