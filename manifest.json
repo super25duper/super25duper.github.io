@@ -1,7 +1,7 @@
 {
   "name": "פורום ",
   "short_name": "Forum",
-  "start_url": "./B.html",
+  "start_url": "B.html",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
