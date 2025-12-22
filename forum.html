@@ -1463,7 +1463,6 @@ var realUsername = "משתמש";
 var presenceStartAt = 0;
 var presenceHeartbeatTimer = null;
 var presenceRef = null;                  
-var isNavigatingInternally = false;
         
 /* =========================================================================================          
    Image state (שדרוג)          
@@ -2386,8 +2385,6 @@ startPresenceTracking();
       lastNavAt = now;                    
       lastOpenId = id;                    
         
-      isNavigatingInternally = true;
-
       openPost(id, postEl);                    
     }, false);                    
   }                    
@@ -2541,12 +2538,10 @@ function stopPresenceTracking() {
   var sessionTime = Math.floor((Date.now() - presenceStartAt) / 1000);
 
   presenceRef.update({
-    isOnline: false,
     lastSeen: Date.now(),
     sessionTime: sessionTime,
     totalTime: firebase.database.ServerValue.increment(sessionTime)
   });
-
   if (presenceHeartbeatTimer) {
     clearInterval(presenceHeartbeatTimer);
     presenceHeartbeatTimer = null;
@@ -3123,10 +3118,8 @@ function stopPresenceTracking() {
       for (var k in visibleMetaListenerMap) {          
         detachMetaListenersForPost(k);          
       }          
-      } catch (eOff) { }          
-      if (!isNavigatingInternally) {
-        stopPresenceTracking();
-      }
+      } catch (eOff) { }
+      stopPresenceTracking();
     });
 });                    
         
