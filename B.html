@@ -54,20 +54,6 @@
 <script src="firebaseConfig.js"></script>
 
 <script>
-  /* ===============================
-   חסימה מיידית – לא WebView
-   =============================== */
-(function () {
-  try {
-    if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {
-      location.replace("forbidden.html");
-      return;
-    }
-  } catch (e) {
-    location.replace("forbidden.html");
-    return;
-  }
-})();
   // Firebase services
   const auth = firebase.auth();
   const messaging = firebase.messaging();
