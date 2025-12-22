@@ -1463,6 +1463,7 @@ var realUsername = "משתמש";
 var presenceStartAt = 0;
 var presenceHeartbeatTimer = null;
 var presenceRef = null;                  
+var isNavigatingInternally = false;
         
 /* =========================================================================================          
    Image state (שדרוג)          
@@ -2385,6 +2386,8 @@ startPresenceTracking();
       lastNavAt = now;                    
       lastOpenId = id;                    
         
+      isNavigatingInternally = true;
+
       openPost(id, postEl);                    
     }, false);                    
   }                    
@@ -3120,8 +3123,10 @@ function stopPresenceTracking() {
       for (var k in visibleMetaListenerMap) {          
         detachMetaListenersForPost(k);          
       }          
-      } catch (eOff) { }
-      stopPresenceTracking();
+      } catch (eOff) { }          
+      if (!isNavigatingInternally) {
+        stopPresenceTracking();
+      }
     });
 });                    
         
