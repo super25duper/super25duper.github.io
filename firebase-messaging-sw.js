@@ -12,10 +12,16 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.setBackgroundMessageHandler(function(payload) {
-  return self.registration.showNotification(
-    payload.notification.title,
-    {
-      body: payload.notification.body
-    }
-  );
+  return self.registration.showNotification(payload.notification.title, {
+    body: payload.notification.body,
+
+    // ✅ הלוגו שלך
+    icon: "/icons/forum-192.png",
+
+    // ✅ badge (אופציונלי)
+    badge: "/icons/badge-72.png",
+
+    // חשוב: להעביר data אם נרצה בעתיד לפתוח אפליקציה/עמוד
+    data: payload.data || {}
+  });
 });
