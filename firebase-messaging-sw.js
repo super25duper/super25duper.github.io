@@ -17,10 +17,10 @@ messaging.setBackgroundMessageHandler(function(payload) {
     body: payload.notification.body,
 
     // ✅ אייקון פורום
-    icon: "./icons/forum-192.png",
+    icon: "icons/forum-192.png",
 
     // ✅ badge
-    badge: "./icons/badge-72.png",
+    badge: "icons/badge-72.png",
 
     data: payload.data || {}
   });
