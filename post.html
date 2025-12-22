@@ -1288,6 +1288,30 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const p = snap.val() || {};
         currentPostObj = p;
+// ===============================
+// 🔐 חישוב הרשאת עריכת פוסט
+// רק המחבר + עד 24 שעות
+// ===============================
+(function computeEditPermission() {
+  try {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    const authorUid = String(p.authorUid || "");
+    const authorName = String(p.author || "");
+    const postTime = Number(p.time || 0);
+
+    const isOwner =
+      (authorUid && uid && authorUid === uid) ||
+      (!!authorName && authorName === username);
+
+    const within24h =
+      postTime && (Date.now() - postTime <= DAY_MS);
+
+    canEditPostNow = Boolean(isOwner && within24h);
+  } catch (e) {
+    canEditPostNow = false;
+  }
+})();
 
         const author = safeText(p.author || "");
         const border = userColor(author);
@@ -1417,32 +1441,7 @@ if (img) {
     }
   }
 
-  /* =====================================================================================
-     Report post (שדרוג)
-     - נשאר, כי ביקשת לבטל רק דיווח על תגובות
-     ===================================================================================== */
-  function reportPost() {
-    if (!isAuthed || !uid) {
-      setStatus("לא מאומת. לא ניתן לדווח.", "error");
-      return;
-    }
-
-    const reportObj = {
-      type: "post",
-      postId: postId,
-      reporterUid: uid,
-      reporterName: username,
-      time: nowTs(),
-      reason: "report"
-    };
-
-    firebase.database()
-      .ref("reports")
-      .push(reportObj)
-      .then(() => setStatus("דווח בהצלחה. תודה.", "ok"))
-      .catch(() => setStatus("שגיאה בדיווח.", "error"));
-  }
-
+  
   /* =====================================================================================
      EDIT POST (NEW) – עד 24 שעות, רק המחבר
      ===================================================================================== */
