@@ -877,8 +877,8 @@ function readFileAsDataURLWithRetry(file, tries, done) {
 
     host.innerHTML = `
       <div class="post post-user-border" style="border-right-color:${escapeHTML(border)};">
-        <h3>${escapeHTML(p.title || "")}</h3>
-        <p>${escapeHTML(p.text || "")}</p>
+        <h3 class="post-title-content">${escapeHTML(p.title || "")}</h3>
+<div class="post-content">${escapeHTML(p.text || "")}</div>
         <small style="display:block; margin-top:6px;">מאת: ${escapeHTML(author)}</small>
 
         ${(imageUrl || imagePath) ? `
