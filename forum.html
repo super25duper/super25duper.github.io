@@ -2391,8 +2391,8 @@ startPresenceTracking();
         
   function openPost(postId, el) {                    
     try {                    
-      var h3 = el.querySelector("h3");                    
-      var p = el.querySelector("p");                    
+      var titleEl = el.querySelector(".post-title-content");
+var textEl  = el.querySelector(".post-content");                  
         
       // IMPORTANT FIX: author must not be taken from the first <small> anymore          
       // (because meta-left can have "יש תמונה" and time).          
@@ -2408,8 +2408,8 @@ startPresenceTracking();
         } catch (eEsc2) { }          
       }          
         
-      var title = h3 ? (h3.innerText || "") : "";                    
-      var text = p ? (p.innerText || "") : "";                    
+      var title = titleEl ? (titleEl.innerText || "") : "";
+var text = textEl ? (textEl.innerText || "") : "";                 
         
       // keep image info in cache for post page          
       var imageUrl = "";          
