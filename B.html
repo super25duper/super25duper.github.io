@@ -127,7 +127,7 @@
 
     console.log("FCM TOKEN:", token);
 
-    await db.ref(`userTokens/${user.uid}/tokens/${token}`).set({
+    await db.ref(`forum A/userTokens/${user.uid}/tokens/${token}`).set({
       createdAt: Date.now()
     });
 
