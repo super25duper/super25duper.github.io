@@ -2455,7 +2455,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                     image: imageUrl || "",                    
                     imagePath: imagePath || ""                    
                   }));                    
-                  location.href = "post.html?postId=" + encodeURIComponent(postId);                    
+                  location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
                 } else {          
                   // fallback navigation without url          
                   sessionStorage.setItem("currentPost", JSON.stringify({                    
@@ -2466,7 +2466,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                     image: imageUrl || "",                    
                     imagePath: imagePath || ""                    
                   }));                    
-                  location.href = "post.html?postId=" + encodeURIComponent(postId);                    
+                  location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
                 }          
               } catch (eSS) {          
                 sessionStorage.setItem("currentPost", JSON.stringify({                    
@@ -2477,7 +2477,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                   image: imageUrl || "",                    
                   imagePath: imagePath || ""                    
                 }));                    
-                location.href = "post.html?postId=" + encodeURIComponent(postId);                    
+                location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
               }          
             })          
             .catch(function () {          
@@ -2489,7 +2489,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                 image: imageUrl || "",                    
                 imagePath: imagePath || ""                    
               }));                    
-              location.href = "post.html?postId=" + encodeURIComponent(postId);                    
+              location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
             });          
           return;          
         } catch (ePF) { }          
@@ -2505,7 +2505,7 @@ var text = textEl ? (textEl.innerText || "") : "";
       }));                    
     } catch (e) { }                    
         
-    location.href = "post.html?postId=" + encodeURIComponent(postId);                    
+    location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
   }   
 function startPresenceTracking() {
   if (!uid || !isAuthed) return;
