@@ -11,17 +11,7 @@
        2) חייב getWebViewString פונקציה
        אם לא => forbidden.html
        ===================================================================================== -->
-  <script>
-    (function () {
-      try {
-        if (!window.AppInventor || typeof window.AppInventor.getWebViewString !== "function") {
-          location.replace("forbidden.html");
-        }
-      } catch (e) {
-        location.replace("forbidden.html");
-      }
-    })();
-  </script>
+ 
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
