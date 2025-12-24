@@ -139,4 +139,10 @@ button {
   background: rgba(255,91,110,0.18);
   color: #ff5b6e;
 }
+.no-posts {
+  color: var(--muted);
+  text-align: center;
+  margin-top: 48px;
+  font-size: 16px;
+}
 
