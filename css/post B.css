@@ -598,3 +598,79 @@ button:active{ transform: scale(.985); opacity: .96; }
   #post h3{ font-size: 18px; }
   .add-comment-btn{ width: 100%; }
 }
+/* =========================================================
+   USER COLOR BORDER — unified & fixed
+   Applies to:
+   - Forum post cards
+   - Single post page (post B)
+   ========================================================= */
+
+/* בסיס לכל פוסט עם צבע משתמש */
+.post,
+#post .post {
+  position: relative;
+  box-sizing: border-box;
+  padding-right: 14px;                 /* מקום לפס */
+  border-right-style: solid;
+  border-right-width: 4px;             /* ברירת מחדל */
+  overflow: visible;                   /* חשוב! לא לחתוך */
+  border-radius: var(--radius);
+}
+
+/* אם מגיע צבע inline (style="border-right: ...") – לכפות עובי */
+.post[style*="border-right"],
+#post .post[style*="border-right"] {
+  border-right-width: 4px !important;
+  border-right-style: solid !important;
+}
+
+/* חיזוק ויזואלי עדין לפס (Glass depth) */
+.post::before,
+#post .post::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -4px;                         /* יושב בדיוק על הפס */
+  width: 4px;
+  height: 100%;
+  background: inherit;
+  box-shadow: inset -2px 0 6px rgba(0,0,0,0.25);
+  pointer-events: none;
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+}
+
+/* RTL safety (אם תשנה כיוון בעתיד) */
+html[dir="ltr"] .post::before,
+html[dir="ltr"] #post .post::before {
+  right: auto;
+  left: -4px;
+}
+
+/* מניעת דריסה ע"י תגובות */
+.comment {
+  border-right-width: 4px;
+  padding-right: 12px;
+  overflow: visible;
+}
+
+/* מקרה קצה: אם יש class ייעודי לפס משתמש */
+.post-user-border {
+  border-right-width: 4px !important;
+  padding-right: 14px;
+  box-sizing: border-box;
+}
+
+/* מובייל – לשמור על פרופורציה */
+@media (max-width: 600px) {
+  .post,
+  #post .post {
+    padding-right: 12px;
+  }
+
+  .post::before,
+  #post .post::before {
+    width: 3px;
+    right: -3px;
+  }
+}
