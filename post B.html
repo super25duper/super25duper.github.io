@@ -1252,7 +1252,7 @@ document.addEventListener("DOMContentLoaded", function () {
      ===================================================================================== */
   function validateToken(uid, token) {
     return firebase.database()
-      .ref("forum A/sessions/" + uid + "/token")
+      .ref("forum B/sessions/" + uid + "/token")
       .once("value")
       .then((snap) => {
         if (!snap.exists() || snap.val() !== token) {
@@ -1267,7 +1267,7 @@ document.addEventListener("DOMContentLoaded", function () {
      ===================================================================================== */
   function fetchUsername(uid) {
     return firebase.database()
-      .ref("forum A/users/" + uid + "/username")
+      .ref("forum B/users/" + uid + "/username")
       .once("value")
       .then((snap) => snap.val());
   }
@@ -1282,7 +1282,7 @@ document.addEventListener("DOMContentLoaded", function () {
     setStatus("טוען פוסט…", "info");
 
     firebase.database()
-      .ref("forum A/posts/" + postId)
+      .ref("forum B/posts/" + postId)
       .once("value")
       .then((snap) => {
         if (!snap.exists()) {
@@ -1453,7 +1453,7 @@ const action = btn.getAttribute("data-action");
     if (!uid || !isAuthed) return;
 
     presenceStartAt = Date.now();
-    presenceRef = firebase.database().ref("forum A/presence/" + uid);
+    presenceRef = firebase.database().ref("forum B/presence/" + uid);
 
     presenceRef.update({
       username: username || "משתמש",
@@ -1559,7 +1559,7 @@ const action = btn.getAttribute("data-action");
 
       // Selective update: רק title/text (לא משנים time, לא נוגעים באבטחה)
       firebase.database()
-        .ref("forum A/posts/" + postId)
+        .ref("forum B/posts/" + postId)
         .update({
           title: title,
           text: text
@@ -1593,7 +1593,7 @@ const action = btn.getAttribute("data-action");
     const limit = Math.max(1, Number(commentsLimit || 200));
 
     firebase.database()
-      .ref("forum A/comments/" + postId)
+      .ref("forum B/comments/" + postId)
       .orderByChild("time")
       .limitToLast(limit)
       .once("value")
@@ -1861,7 +1861,7 @@ if (img) {
     if (!isAuthed) return;
 
     firebase.database()
-      .ref("forum A/replies/" + postId + "/" + id)
+      .ref("forum B/replies/" + postId + "/" + id)
       .once("value")
       .then((s) => {
         const el = document.getElementById("reply-count-" + id);
@@ -1891,7 +1891,7 @@ if (img) {
     box.innerHTML = "<div class='loader'></div>";
 
     firebase.database()
-      .ref("forum A/replies/" + postId + "/" + id)
+      .ref("forum B/replies/" + postId + "/" + id)
       .orderByChild("time")
       .limitToLast(200)
       .once("value")
@@ -2704,14 +2704,14 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
   function bumpPostLastCommentTime(ts) {
     try {
       const t = Number(ts || 0) || nowTs();
-      firebase.database().ref("forum A/posts/" + postId + "/lastCommentTime").set(t);
+      firebase.database().ref("forum B/posts/" + postId + "/lastCommentTime").set(t);
     } catch {}
   }
 
   function incrementPostCommentsCount() {
     try {
       // count ONLY comments (not replies) => aligns with your request
-      firebase.database().ref("forum A/posts/" + postId + "/commentsCount").transaction(function (cur) {
+      firebase.database().ref("forum B/posts/" + postId + "/commentsCount").transaction(function (cur) {
         const x = Number(cur || 0) || 0;
         return x + 1;
       });
@@ -2739,7 +2739,7 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
     replySendingMap[commentId] = true;
 
     const text = clampTextLen(raw, 600);
-    const replyRef = firebase.database().ref("forum A/replies/" + postId + "/" + commentId).push();
+    const replyRef = firebase.database().ref("forum B/replies/" + postId + "/" + commentId).push();
     const replyId = replyRef.key;
 
     const st = replyImageState[commentId] ? replyImageState[commentId] : null;
@@ -2845,7 +2845,7 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
 
   const text = clampTextLen(raw, MAIN_MAX);
 
-  const commentRef = firebase.database().ref("forum A/comments/" + postId).push();
+  const commentRef = firebase.database().ref("forum B/comments/" + postId).push();
   const commentId = commentRef.key;
 
  const finishWrite = function (imagePath) {
@@ -3002,7 +3002,7 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
 
       // permission: fetch reply once (selective)
       firebase.database()
-        .ref("replies/" + postId + "/" + cid + "/" + rid)
+        .ref("forum B/replies/" + postId + "/" + cid + "/" + rid)
         .once("value")
         .then((snap) => {
           if (!snap.exists()) return;
@@ -3133,7 +3133,7 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
 
         // permission re-check by read (selective)
         firebase.database()
-          .ref("forum A/replies/" + postId + "/" + cid + "/" + rid)
+          .ref("forum B/replies/" + postId + "/" + cid + "/" + rid)
           .once("value")
           .then((snap) => {
             if (!snap.exists()) throw new Error("missing");
@@ -3141,7 +3141,7 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
             if (!canEditItem(d.author, d.authorUid, d.time)) throw new Error("no_perm");
 
             return firebase.database()
-              .ref("forum A/replies/" + postId + "/" + cid + "/" + rid)
+              .ref("forum B/replies/" + postId + "/" + cid + "/" + rid)
               .update({ text: clampTextLen(newText, 600) });
           })
           .then(() => {
@@ -3170,7 +3170,7 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
     liveCommentsAttached = true;
 
     liveCommentsRef = firebase.database()
-      .ref("forum A/comments/" + postId)
+      .ref("forum B/comments/" + postId)
       .orderByChild("time")
       .limitToLast(50);
 
@@ -3230,7 +3230,7 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
     bindReplyImageInput(commentId);
 
     const ref = firebase.database()
-      .ref("forum A/replies/" + postId + "/" + commentId)
+      .ref("forum B/replies/" + postId + "/" + commentId)
       .orderByChild("time")
       .limitToLast(25);
 
