@@ -523,3 +523,208 @@ button {
   #createPostModal .btn-primary,
   #createPostModal .btn-secondary { flex: 1; }
 }
+/* ==========================================================================
+   IMAGE VIEWERS (Fullscreen + Mini preview)
+   - Fullscreen: #imageViewerOverlay / #imageViewerInner / #closeImageViewer / #imageViewerImg / #imageViewerHint
+   - Mini:       #miniImageOverlay / #miniImageInner / #miniCloseBtn / #miniPreviewImg / #miniHint
+   ========================================================================== */
+
+/* Overlay backdrop */
+#imageViewerOverlay,
+#miniImageOverlay{
+  position: fixed;
+  inset: 0;
+  display: none;              /* JS sets to flex */
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  background: rgba(4, 8, 18, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 10000;
+}
+
+/* mini overlay slightly above fullscreen, if both ever overlap */
+#miniImageOverlay{
+  z-index: 11000;
+  background: rgba(4, 8, 18, 0.70);
+}
+
+/* When JS sets display:flex, run fade-in (works because inline style becomes display:flex) */
+#imageViewerOverlay[style*="display: flex"],
+#miniImageOverlay[style*="display: flex"]{
+  animation: overlayFade 0.15s ease-out;
+}
+
+/* Dialog card */
+#imageViewerInner,
+#miniImageInner{
+  width: min(920px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 12px;
+  box-sizing: border-box;
+
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+
+  animation: modalPop 0.18s ease-out;
+}
+
+#miniImageInner{
+  width: min(560px, 100%);
+}
+
+/* Top bar */
+#imageViewerTop,
+#miniImageTop{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+
+  background: rgba(17, 17, 87, 0.06);
+  border: 1px solid rgba(17, 17, 87, 0.10);
+}
+
+/* Title inside the top bar (you currently have inline font-weight:bold, this complements it) */
+#imageViewerTop > div,
+#miniImageTop > div{
+  font-size: 15px;
+  font-weight: 800;
+  color: #0b1020;
+  letter-spacing: 0.2px;
+}
+
+/* Close buttons */
+#closeImageViewer,
+#miniCloseBtn{
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.90);
+
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+#closeImageViewer:hover,
+#miniCloseBtn:hover{
+  background: #fff;
+  transform: scale(1.03);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.18);
+}
+
+#closeImageViewer:active,
+#miniCloseBtn:active{
+  transform: scale(0.98);
+}
+
+#closeImageViewer:focus-visible,
+#miniCloseBtn:focus-visible{
+  outline: 2px solid rgba(46, 229, 157, 0.60);
+  outline-offset: 2px;
+}
+
+/* Images */
+#imageViewerImg,
+#miniPreviewImg{
+  width: 100%;
+  height: auto;
+  display: block;
+
+  border-radius: 14px;
+  background: rgba(0,0,0,0.04);
+
+  /* containment feels “premium” in viewers */
+  object-fit: contain;
+}
+
+/* Different max-heights so the UI breathes */
+#imageViewerImg{
+  max-height: calc(100vh - 170px);
+}
+
+#miniPreviewImg{
+  max-height: 55vh;
+}
+
+/* Hints */
+#imageViewerHint,
+#miniHint{
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(11,16,32,0.72);
+}
+
+/* Animations */
+@keyframes overlayFade{
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modalPop{
+  from { transform: translateY(8px) scale(0.985); opacity: 0; }
+  to   { transform: translateY(0) scale(1);      opacity: 1; }
+}
+
+
+/* ==========================================================================
+   "תמונה" chip inside post card: .has-image-flag
+   ========================================================================== */
+
+.has-image-flag{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 5px 10px;
+  border-radius: 999px;
+
+  background: rgba(46, 229, 157, 0.12);
+  border: 1px solid rgba(46, 229, 157, 0.28);
+  color: #2ee59d;
+
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.has-image-flag::before{
+  content: "🖼️";
+  font-size: 13px;
+  line-height: 1;
+}
+
+.has-image-flag:hover{
+  background: rgba(46, 229, 157, 0.18);
+  border-color: rgba(46, 229, 157, 0.40);
+}
+
+.has-image-flag:active{
+  transform: translateY(1px);
+}
+
+.has-image-flag:focus-visible{
+  outline: 2px solid rgba(46, 229, 157, 0.55);
+  outline-offset: 2px;
+}
