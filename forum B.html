@@ -492,26 +492,6 @@
    חסימה מיידית – לא WebView                    
    =============================== */                    
               
-        (function () {
-  try {
-    const ua = navigator.userAgent;
-
-    const isKodular =
-      window.AppInventor &&
-      typeof window.AppInventor.getWebViewString === "function";
-
-    const isIphoneSafari =
-      /iPhone/.test(ua) &&
-      /Safari/.test(ua) &&
-      !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
-
-    if (!(isKodular || isIphoneSafari)) {
-      location.replace("forbidden.html");
-    }
-  } catch (e) {
-    location.replace("forbidden.html");
-  }
-})();
 /* =========================================================================================                    
    Cache (A) – תצוגה מיידית                    
    ========================================================================================= */                    
@@ -1987,56 +1967,13 @@ document.addEventListener("DOMContentLoaded", function () {
   /* =====================================================================================                    
      5) Start Auth Flow                    
      ===================================================================================== */                    
-  waitForPayload();                    
-        
-  function waitForPayload() {                    
-    var raw = "";                    
-    try {                    
-      raw = window.AppInventor.getWebViewString();                    
-      if (!raw) {                    
-        setTimeout(waitForPayload, 200);                    
-        return;                    
-      }                    
-      payload = JSON.parse(raw);                    
-    } catch (e) {                    
-      setTimeout(waitForPayload, 200);                    
-      return;                    
-    }                    
-        
-    loginToFirebase(payload);                    
-  }                    
-        
-  function loginToFirebase(data) {                    
-    if (!data || !data.email || !data.password || !data.token) {                    
-      location.replace("forbidden.html");                    
-      return;                    
-    }                    
-        
-    firebase.auth()                    
-      .signInWithEmailAndPassword(data.email, data.password)                    
-      .then(function (c) {                    
-        validateToken(c.user.uid, data.token);                    
-      })                    
-      .catch(function () {                    
-        location.replace("forbidden.html");                    
-      });                    
-  }                    
-        
-  function validateToken(userId, token) {                    
-    firebase.database()                    
-      .ref("forum A/sessions/" + userId + "/token")                    
-      .once("value")                    
-      .then(function (snap) {                    
-        if (!snap.exists() || snap.val() !== token) {                    
-          location.replace("forbidden.html");                    
-          return;                    
-        }                    
-        
-        uid = userId;                    
+  firebase.auth().onAuthStateChanged(function(user) {
+    if (user) {
+        uid = user.uid;                    
         isAuthed = true;                    
         
         firebase.database()                    
-          .ref("forum A/users/" + uid + "/username")                    
+          .ref("forum B/users/" + uid + "/username")                    
           .once("value")                    
           .then(function (uSnap) {                    
             realUsername = uSnap.val() || "משתמש";   
@@ -2052,18 +1989,17 @@ startPresenceTracking();
             loadPosts(false);                    
             attachLivePostListeners();                    
           });                    
-      })                    
-      .catch(function () {                    
-        location.replace("forbidden.html");                    
-      });                    
-  }                    
+    } else {
+        location.replace("login.html");
+    }
+  });
         
   function loadPosts(fromRefresh) {                    
     if (fromRefresh === undefined || fromRefresh === null) fromRefresh = false;                    
     setStatus(fromRefresh ? "מרענן פוסטים…" : "טוען פוסטים…", "info");                    
         
     firebase.database()                    
-      .ref("forum A/posts")                    
+      .ref("forum B/posts")                    
       .orderByChild("time")                    
       .limitToLast(300)                    
       .once("value")                    
@@ -2455,7 +2391,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                     image: imageUrl || "",                    
                     imagePath: imagePath || ""                    
                   }));                    
-                  location.href = "post.html?postId=" + encodeURIComponent(postId);                    
+                  location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
                 } else {          
                   // fallback navigation without url          
                   sessionStorage.setItem("currentPost", JSON.stringify({                    
@@ -2466,7 +2402,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                     image: imageUrl || "",                    
                     imagePath: imagePath || ""                    
                   }));                    
-                  location.href = "post.html?postId=" + encodeURIComponent(postId);                    
+                  location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
                 }          
               } catch (eSS) {          
                 sessionStorage.setItem("currentPost", JSON.stringify({                    
@@ -2477,7 +2413,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                   image: imageUrl || "",                    
                   imagePath: imagePath || ""                    
                 }));                    
-                location.href = "post.html?postId=" + encodeURIComponent(postId);                    
+                location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
               }          
             })          
             .catch(function () {          
@@ -2489,7 +2425,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                 image: imageUrl || "",                    
                 imagePath: imagePath || ""                    
               }));                    
-              location.href = "post.html?postId=" + encodeURIComponent(postId);                    
+              location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
             });          
           return;          
         } catch (ePF) { }          
@@ -2505,13 +2441,13 @@ var text = textEl ? (textEl.innerText || "") : "";
       }));                    
     } catch (e) { }                    
         
-    location.href = "post.html?postId=" + encodeURIComponent(postId);                    
+    location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
   }   
 function startPresenceTracking() {
   if (!uid || !isAuthed) return;
 
   presenceStartAt = Date.now();
-  presenceRef = firebase.database().ref("forum A/presence/" + uid);
+  presenceRef = firebase.database().ref("forum B/presence/" + uid);
 
   presenceRef.update({
     username: realUsername || "משתמש",
@@ -2620,7 +2556,7 @@ function stopPresenceTracking() {
       */          
     };                    
         
-    var postsRef = firebase.database().ref("forum A/posts");          
+    var postsRef = firebase.database().ref("forum B/posts");          
     var newRef = postsRef.push();          
     var postId = newRef.key;          
         
@@ -2691,7 +2627,7 @@ function stopPresenceTracking() {
       })          
       .catch(function (err) {          
         try {          
-          if (postId) firebase.database().ref("forum A/posts/" + postId).remove();          
+          if (postId) firebase.database().ref("forum B/posts/" + postId).remove();          
         } catch (eRm) { }          
         
         var msg = "שגיאה בהעלאת תמונה/פרסום. נסה שוב.";          
@@ -2712,7 +2648,7 @@ function stopPresenceTracking() {
     if (window.__postsLiveAttached) return;                    
     window.__postsLiveAttached = true;                    
         
-    var ref = firebase.database().ref("forum A/posts").orderByChild("time").limitToLast(50);                    
+    var ref = firebase.database().ref("forum B/posts").orderByChild("time").limitToLast(50);                    
         
     ref.on("child_added", function (snap) {                    
       var id = snap.key;                    
@@ -2848,7 +2784,7 @@ function stopPresenceTracking() {
         
         // Load comments snapshot once => count + lastTime (including replies)          
         firebase.database()          
-          .ref("forum A/comments/" + id)          
+          .ref("forum B/comments/" + id)          
           .once("value")          
           .then(function (snap) {          
             var meta = computeMetaFromCommentsSnapshot(snap);          
@@ -3021,7 +2957,7 @@ function stopPresenceTracking() {
       visibleMetaListenerMap[id] = true;          
         
       // Listener 1: value on comments/{postId} (includes nested replies changes too)          
-      var refCount = firebase.database().ref("forum A/comments/" + id);          
+      var refCount = firebase.database().ref("forum B/comments/" + id);          
       visibleMetaValueRefMap[id] = refCount;          
         
       refCount.on("value", function (snap) {          
@@ -3065,7 +3001,7 @@ function stopPresenceTracking() {
       });          
         
       // Listener 2: last top-level comment (kept for quick signal; value listener handles replies)          
-      var refLast = firebase.database().ref("forum A/comments/" + id).orderByChild("time").limitToLast(1);          
+      var refLast = firebase.database().ref("forum B/comments/" + id).orderByChild("time").limitToLast(1);          
       visibleMetaLastRefMap[id] = refLast;          
         
       refLast.on("child_added", function (snap) {          
