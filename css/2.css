@@ -44,7 +44,7 @@ body {
 }
 
 .post {
-  background: #ffffff;
+  background: rgba(255,255,255,.06);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
