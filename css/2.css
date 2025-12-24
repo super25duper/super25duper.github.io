@@ -710,7 +710,6 @@ button {
 }
 
 .has-image-flag::before{
-  content: "🖼️";
   font-size: 13px;
   line-height: 1;
 }
