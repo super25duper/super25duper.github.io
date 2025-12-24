@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>התחברות לפורום</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.10);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.68);
+      --danger:#ff5b6e;
+      --ok:#2ee59d;
+      --accent:#7aa7ff;
+      --shadow: 0 24px 60px rgba(0,0,0,.45);
+      --radius: 18px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0; min-height:100vh; display:grid; place-items:center;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color: var(--text);
+      background:
+        radial-gradient(1000px 500px at 20% 0%, rgba(122,167,255,.25), transparent 60%),
+        radial-gradient(900px 500px at 90% 10%, rgba(46,229,157,.18), transparent 55%),
+        radial-gradient(700px 420px at 50% 100%, rgba(255,91,110,.10), transparent 60%),
+        var(--bg);
+      padding:24px;
+    }
+    .wrap{ width:min(440px,100%); }
+    .brand{ display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+    .logo{
+      width:44px; height:44px; border-radius:14px;
+      background: linear-gradient(135deg, rgba(122,167,255,.9), rgba(46,229,157,.8));
+      box-shadow: 0 16px 40px rgba(0,0,0,.35);
+    }
+    .brand h1{ margin:0; font-size:20px; }
+    .brand p{ margin:2px 0 0; color:var(--muted); font-size:13px; }
+    .card{
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      backdrop-filter: blur(10px);
+    }
+    header{ padding:18px 18px 0; }
+    header h2{ margin:0; font-size:18px; }
+    header .sub{ margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.5; }
+    form{ padding:18px; display:grid; gap:12px; }
+    label{ display:block; margin-bottom:6px; font-size:13px; color:var(--muted); }
+    .field{
+      background: var(--card2);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius:14px;
+      padding:10px 12px;
+    }
+    input{
+      width:100%;
+      border:0; outline:none;
+      background:transparent;
+      color:var(--text);
+      font-size:15px;
+    }
+    input::placeholder{ color: rgba(255,255,255,.45); }
+    .hint{ font-size:12px; color:var(--muted); margin-top:2px; }
+    .btn{
+      width:100%;
+      padding:12px 14px;
+      border-radius:14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(135deg, rgba(122,167,255,.9), rgba(46,229,157,.85));
+      color:#061022;
+      font-weight:700;
+      font-size:15px;
+      cursor:pointer;
+    }
+    .btn:disabled{ opacity:.85; cursor:not-allowed; }
+    .msg{
+      display:none;
+      border-radius:14px;
+      padding:10px 12px;
+      font-size:13px;
+      line-height:1.45;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .msg.err{
+      display:block;
+      background: rgba(255,91,110,.12);
+      border-color: rgba(255,91,110,.25);
+    }
+    .msg.ok{
+      display:block;
+      background: rgba(46,229,157,.12);
+      border-color: rgba(46,229,157,.25);
+    }
+    .kbd{
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.85);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:11px;
+      direction:ltr;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <h1>פורום — התחברות</h1>
+        <p>שם משתמש וסיסמה (Firebase Auth)</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <header>
+        <h2>כניסה</h2>
+        <div class="sub">
+          שם משתמש יומר ל־Email: <span class="kbd">username@forum.local</span>
+        </div>
+      </header>
+
+      <form id="loginForm" novalidate>
+        <div>
+          <label for="username">שם משתמש</label>
+          <div class="field">
+            <input id="username" type="text" placeholder="לדוגמה: david" autocomplete="username" required>
+          </div>
+          <div class="hint">אין צורך להקליד @forum.local — זה נוסף אוטומטית.</div>
+        </div>
+
+        <div>
+          <label for="password">סיסמה</label>
+          <div class="field">
+            <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required>
+          </div>
+        </div>
+
+        <div id="status" class="msg" role="status" aria-live="polite"></div>
+
+        <button id="submitBtn" class="btn" type="submit">התחבר</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Firebase v8 (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <!-- הקובץ שלך, שמאתחל את Firebase ומגדיר db -->
+  <script src="./firebaseConfig.js"></script>
+
+  <script>
+    // יעד לאחר התחברות
+    // אם באמת הקובץ נקרא "forum B.html" עם רווח: השתמש ב-"forum%20B.html"
+    const TARGET_PAGE = "forumB.html";
+
+    const form = document.getElementById("loginForm");
+    const statusEl = document.getElementById("status");
+    const submitBtn = document.getElementById("submitBtn");
+
+    function setStatus(type, text) {
+      statusEl.className = "msg " + (type || "");
+      statusEl.textContent = text || "";
+      statusEl.style.display = text ? "block" : "none";
+    }
+
+    function normalizeUsername(u) {
+      return (u || "").trim().toLowerCase();
+    }
+
+    function toEmail(username) {
+      const clean = username.replace(/@/g, "");
+      return clean + "@forum.local";
+    }
+
+    // אופציונלי: אם כבר מחובר, ישר מעביר לפורום
+    firebase.auth().onAuthStateChanged(function(user) {
+      if (user) window.location.replace(TARGET_PAGE);
+    });
+
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      setStatus("", "");
+
+      const username = normalizeUsername(document.getElementById("username").value);
+      const password = document.getElementById("password").value;
+
+      if (!username) return setStatus("err", "נא להזין שם משתמש.");
+      if (!password) return setStatus("err", "נא להזין סיסמה.");
+
+      const email = toEmail(username);
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "מתחבר...";
+
+      try {
+        await firebase.auth().signInWithEmailAndPassword(email, password);
+        setStatus("ok", "התחברות הצליחה. מעביר לפורום...");
+
+        window.location.href = TARGET_PAGE;
+      } catch (err) {
+        const code = err && err.code ? err.code : "";
+        let msg = "שגיאת התחברות. בדוק שם משתמש וסיסמה.";
+
+        if (code === "auth/wrong-password" || code === "auth/invalid-email") msg = "שם משתמש או סיסמה שגויים.";
+        if (code === "auth/user-not-found") msg = "המשתמש לא קיים.";
+        if (code === "auth/too-many-requests") msg = "יותר מדי ניסיונות. נסה שוב מאוחר יותר.";
+        if (code === "auth/network-request-failed") msg = "בעיית רשת. בדוק חיבור לאינטרנט.";
+
+        setStatus("err", msg);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "התחבר";
+      }
+    });
+  </script>
+</body>
+</html>
