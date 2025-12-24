@@ -1247,20 +1247,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  /* =====================================================================================
-     3️⃣ אימות token
-     ===================================================================================== */
-  function validateToken(uid, token) {
-    return firebase.database()
-      .ref("forum B/sessions/" + uid + "/token")
-      .once("value")
-      .then((snap) => {
-        if (!snap.exists() || snap.val() !== token) {
-          location.replace("forbidden.html");
-          throw new Error("invalid token");
-        }
-      });
-  }
+  
 
   /* =====================================================================================
      4️⃣ שליפת שם משתמש
