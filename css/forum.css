@@ -6,7 +6,7 @@ body {
 }
 
 .top-bar {
-  background: linear-gradient(135deg, rgba(122,167,255,.9), rgba(46,229,157,.85));
+  background: linear-gradient(135deg, rgb(17,17,87), rgb(32,32,140));
   color: #fff;
   padding: 42px 7px 13px 7px;
   text-align: center;
