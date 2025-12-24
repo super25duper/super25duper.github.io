@@ -1168,40 +1168,42 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  /* =====================================================================================
-     Auth Flow Start
-     ===================================================================================== */
- 
-
-  /* =====================================================================================
-     1️⃣ קבלת payload מקודולר
-     - עם Hard limit כדי שלא יהיו לופים אינסופיים
-     ===================================================================================== */
-
-  /* =====================================================================================
-     2️⃣ התחברות Firebase
-     ===================================================================================== */
-  function login() {
-    
-        username = name || "משתמש";
-        isAuthed = true;
-
-        startPresenceTracking();
-
-        setStatus("מחובר כ־" + username, "ok");
-
-        // תמיד נטען פוסט מה-DB כדי לחשב הרשאות עריכה + תמונה + גבול צבע
-        loadPost();
-
-        // תגובות
-        loadComments(true, false);
-
-        // Live comments (שדרוג)
-        attachLiveComments();
-
-      
-     
+ // ✅ Auth gate כמו ב-forum
+firebase.auth().onAuthStateChanged(function(user) {
+  if (!user) {
+    location.replace("login.html"); // כמו בפורום
+    return;
   }
+
+  uid = user.uid;
+
+  // טען שם משתמש ואז תרים את המערכת
+  fetchUsername(uid)
+    .then(function(n) {
+      username = (n && String(n).trim()) ? String(n).trim() : "משתמש";
+      isAuthed = true;
+
+      startPresenceTracking();
+      setStatus("מחובר כ־" + username, "ok");
+
+      loadPost();
+      loadComments(true, false);
+      attachLiveComments();
+    })
+    .catch(function() {
+      // גם אם נכשל, עדיין לא להפיל את האפליקציה
+      username = "משתמש";
+      isAuthed = true;
+
+      startPresenceTracking();
+      setStatus("מחובר כ־" + username, "ok");
+
+      loadPost();
+      loadComments(true, false);
+      attachLiveComments();
+    });
+});
+
 
   
 
