@@ -2140,7 +2140,7 @@ startPresenceTracking();
     var html = "";                    
         
     if (!list.length) {                    
-      html = q ? "<p>לא נמצאו תוצאות לחיפוש.</p>" : "<p>אין עדיין פוסטים.</p>";                    
+      html = q ? "<p>לא נמצאו תוצאות לחיפוש.</p>" : "<p style="color:#fff;">אין עדיין פוסטים.</p>";                    
     } else {                    
       for (var i = 0; i < list.length; i++) {                    
         html += buildPostCardHTML(list[i]);                    
