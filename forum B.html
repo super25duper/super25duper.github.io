@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>                    <html lang="he">                    
 <head>                    
   <meta charset="UTF-8">                    
@@ -489,7 +488,30 @@
    רק אחרי זה: גישה לפוסטים/יצירה/רענון                    
    ========================================================================================= */                    
         
+/* ===============================                    
+   חסימה מיידית – לא WebView                    
+   =============================== */                    
+              
+        (function () {
+  try {
+    const ua = navigator.userAgent;
 
+    const isKodular =
+      window.AppInventor &&
+      typeof window.AppInventor.getWebViewString === "function";
+
+    const isIphoneSafari =
+      /iPhone/.test(ua) &&
+      /Safari/.test(ua) &&
+      !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+
+    if (!(isKodular || isIphoneSafari)) {
+      location.replace("forbidden.html");
+    }
+  } catch (e) {
+    location.replace("forbidden.html");
+  }
+})();
 /* =========================================================================================                    
    Cache (A) – תצוגה מיידית                    
    ========================================================================================= */                    
@@ -1965,8 +1987,26 @@ document.addEventListener("DOMContentLoaded", function () {
   /* =====================================================================================                    
      5) Start Auth Flow                    
      ===================================================================================== */                    
-                 
-      function loginToFirebase(data) {                    
+  waitForPayload();                    
+        
+  function waitForPayload() {                    
+    var raw = "";                    
+    try {                    
+      raw = window.AppInventor.getWebViewString();                    
+      if (!raw) {                    
+        setTimeout(waitForPayload, 200);                    
+        return;                    
+      }                    
+      payload = JSON.parse(raw);                    
+    } catch (e) {                    
+      setTimeout(waitForPayload, 200);                    
+      return;                    
+    }                    
+        
+    loginToFirebase(payload);                    
+  }                    
+        
+  function loginToFirebase(data) {                    
     if (!data || !data.email || !data.password || !data.token) {                    
       location.replace("forbidden.html");                    
       return;                    
@@ -2415,7 +2455,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                     image: imageUrl || "",                    
                     imagePath: imagePath || ""                    
                   }));                    
-                  location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
+                  location.href = "post.html?postId=" + encodeURIComponent(postId);                    
                 } else {          
                   // fallback navigation without url          
                   sessionStorage.setItem("currentPost", JSON.stringify({                    
@@ -2426,7 +2466,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                     image: imageUrl || "",                    
                     imagePath: imagePath || ""                    
                   }));                    
-                  location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
+                  location.href = "post.html?postId=" + encodeURIComponent(postId);                    
                 }          
               } catch (eSS) {          
                 sessionStorage.setItem("currentPost", JSON.stringify({                    
@@ -2437,7 +2477,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                   image: imageUrl || "",                    
                   imagePath: imagePath || ""                    
                 }));                    
-                location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
+                location.href = "post.html?postId=" + encodeURIComponent(postId);                    
               }          
             })          
             .catch(function () {          
@@ -2449,7 +2489,7 @@ var text = textEl ? (textEl.innerText || "") : "";
                 image: imageUrl || "",                    
                 imagePath: imagePath || ""                    
               }));                    
-              location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
+              location.href = "post.html?postId=" + encodeURIComponent(postId);                    
             });          
           return;          
         } catch (ePF) { }          
@@ -2465,7 +2505,7 @@ var text = textEl ? (textEl.innerText || "") : "";
       }));                    
     } catch (e) { }                    
         
-    location.href = "post B.html?postId=" + encodeURIComponent(postId);                    
+    location.href = "post.html?postId=" + encodeURIComponent(postId);                    
   }   
 function startPresenceTracking() {
   if (!uid || !isAuthed) return;
