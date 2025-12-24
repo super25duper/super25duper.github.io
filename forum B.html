@@ -488,30 +488,7 @@
    רק אחרי זה: גישה לפוסטים/יצירה/רענון                    
    ========================================================================================= */                    
         
-/* ===============================                    
-   חסימה מיידית – לא WebView                    
-   =============================== */                    
-              
-        (function () {
-  try {
-    const ua = navigator.userAgent;
 
-    const isKodular =
-      window.AppInventor &&
-      typeof window.AppInventor.getWebViewString === "function";
-
-    const isIphoneSafari =
-      /iPhone/.test(ua) &&
-      /Safari/.test(ua) &&
-      !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
-
-    if (!(isKodular || isIphoneSafari)) {
-      location.replace("forbidden.html");
-    }
-  } catch (e) {
-    location.replace("forbidden.html");
-  }
-})();
 /* =========================================================================================                    
    Cache (A) – תצוגה מיידית                    
    ========================================================================================= */                    
@@ -1987,26 +1964,8 @@ document.addEventListener("DOMContentLoaded", function () {
   /* =====================================================================================                    
      5) Start Auth Flow                    
      ===================================================================================== */                    
-  waitForPayload();                    
-        
-  function waitForPayload() {                    
-    var raw = "";                    
-    try {                    
-      raw = window.AppInventor.getWebViewString();                    
-      if (!raw) {                    
-        setTimeout(waitForPayload, 200);                    
-        return;                    
-      }                    
-      payload = JSON.parse(raw);                    
-    } catch (e) {                    
-      setTimeout(waitForPayload, 200);                    
-      return;                    
-    }                    
-        
-    loginToFirebase(payload);                    
-  }                    
-        
-  function loginToFirebase(data) {                    
+                 
+      function loginToFirebase(data) {                    
     if (!data || !data.email || !data.password || !data.token) {                    
       location.replace("forbidden.html");                    
       return;                    
