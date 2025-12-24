@@ -1387,34 +1387,23 @@ function nowTs() {
   return Date.now();                    
 }                    
         
-function setStatus(msg, type) {                    
-  if (type === undefined || type === null) type = "info";                    
-  var bar = document.getElementById("statusBar");                    
-  if (!bar) return;                    
-        
-  if (!msg) {                    
-    bar.style.display = "none";                    
-    bar.textContent = "";                    
-    return;                    
-  }                    
-        
-  bar.style.display = "block";                    
-  bar.textContent = msg;                    
-        
-  if (type === "error") {                    
-    bar.style.background = "rgba(255,0,0,0.08)";                    
-    bar.style.color = "#8a0000";                    
-  } else if (type === "ok") {                    
-    bar.style.background = "rgba(0,128,0,0.08)";                    
-    bar.style.color = "#0b5a0b";                    
-  } else if (type === "warn") {          
-    bar.style.background = "rgba(255,165,0,0.10)";          
-    bar.style.color = "#7a4b00";          
-  } else {                    
-    bar.style.background = "rgba(0,0,0,0.04)";                    
-    bar.style.color = "#111";                    
-  }                    
-}                    
+function setStatus(msg, type) {
+  var bar = document.getElementById("statusBar");
+  if (!bar) return;
+
+  if (!msg) {
+    bar.style.display = "none";
+    bar.textContent = "";
+    bar.className = "";
+    return;
+  }
+
+  bar.textContent = msg;
+  bar.style.display = "block";
+
+  bar.className = type || "info";
+}
+
         
 function debounce(fn, ms) {                    
   var t = null;                    
