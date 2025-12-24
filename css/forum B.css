@@ -7,13 +7,14 @@ body {
 
 .top-bar {
   background: linear-gradient(135deg, rgba(122,167,255,.9), rgba(46,229,157,.85));
-  color: #fff;
+  color: rgb(6 16 34);
   padding: 42px 7px 13px 7px;
   text-align: center;
 }
 
 .coteret{
   font-size:21px;
+  color: rgb(6 16 34);
   margin:2px;
 }
 
