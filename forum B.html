@@ -2121,7 +2121,7 @@ startPresenceTracking();
     var html = "";                    
         
     if (!list.length) {                    
-      html = q ? "<div class='no-posts'>לא נמצאו תוצאות לחיפוש.</div>" : "<div class='no-posts'>אין עדיין פוסטים.</div>";                    
+      html = q ? "<div class='no-posts'>לא נמצאו תוצאות לחיפוש.</div>" : "<div class='no-posts'>אין עדיין פוסטים...</div>";                    
     } else {                    
       for (var i = 0; i < list.length; i++) {                    
         html += buildPostCardHTML(list[i]);                    
