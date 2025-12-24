@@ -19,6 +19,7 @@ body {
         #0b1020;
   direction: rtl;
  min-height: 100vh;
+ background-attachment: fixed;
 }
 
 .top-bar {
