@@ -1187,24 +1187,6 @@ document.addEventListener("DOMContentLoaded", function () {
      1️⃣ קבלת payload מקודולר
      - עם Hard limit כדי שלא יהיו לופים אינסופיים
      ===================================================================================== */
-  function waitForPayload() {
-    try {
-      const elapsed = nowTs() - payloadStartAt;
-      if (elapsed > PAYLOAD_MAX_MS) {
-        location.replace("forbidden.html");
-        return;
-      }
-
-      const raw = window.AppInventor.getWebViewString();
-      if (!raw) return setTimeout(waitForPayload, PAYLOAD_POLL_MS);
-
-      payload = JSON.parse(raw);
-    } catch (e) {
-      return setTimeout(waitForPayload, PAYLOAD_POLL_MS);
-    }
-
-    login();
-  }
 
   /* =====================================================================================
      2️⃣ התחברות Firebase
