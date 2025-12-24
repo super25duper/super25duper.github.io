@@ -146,3 +146,380 @@ button {
   font-size: 16px;
 }
 
+/* =====================================================================================
+   CREATE POST MODAL (no inline)
+   - fits existing glass/dark theme vars
+   - works with existing JS that toggles overlay.style.display = "flex"/"none"
+   ===================================================================================== */
+
+/* ---------- Overlay ---------- */
+#createPostOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+
+  display: none;                 /* JS sets to flex */
+  align-items: center;
+  justify-content: center;
+
+  padding: 16px;
+  box-sizing: border-box;
+  z-index: 9999;
+
+  /* open animation (plays when display toggles from none -> flex) */
+  animation: createOverlayIn .22s ease both;
+}
+
+@keyframes createOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ---------- Modal card ---------- */
+#createPostModal {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+
+  background: var(--card);
+  color: var(--text);
+
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+
+  padding: 16px;
+  box-sizing: border-box;
+
+  animation: createModalIn .22s ease both;
+}
+
+@keyframes createModalIn {
+  from { transform: translateY(18px) scale(.985); opacity: 0; }
+  to   { transform: translateY(0)   scale(1);     opacity: 1; }
+}
+
+/* ---------- Header ---------- */
+.create-post-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.create-post-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+
+.create-post-close {
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+
+  cursor: pointer;
+  user-select: none;
+}
+
+.create-post-close:active { opacity: .92; }
+
+/* ---------- Body layout ---------- */
+.create-post-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Inputs */
+#createPostModal input[type="text"],
+#createPostModal textarea {
+  width: 100%;
+  box-sizing: border-box;
+
+  background: var(--card2);
+  color: var(--text);
+
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 14px;
+  padding: 12px 12px;
+
+  outline: none;
+}
+
+#createPostModal textarea {
+  min-height: 130px;
+  resize: vertical;
+}
+
+#createPostModal input::placeholder,
+#createPostModal textarea::placeholder {
+  color: var(--muted);
+}
+
+#createPostModal input:focus,
+#createPostModal textarea:focus {
+  border-color: rgba(122,167,255,.55);
+  box-shadow: 0 0 0 3px rgba(122,167,255,.12);
+}
+
+/* Hint + footer */
+.create-post-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.create-post-hint {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.create-post-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Buttons inside modal (scoped) */
+#createPostModal .btn-primary,
+#createPostModal .btn-secondary {
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 800;
+  user-select: none;
+}
+
+#createPostModal .btn-primary {
+  border: none;
+  background: linear-gradient(135deg, rgba(122,167,255,.92), rgba(46,229,157,.86));
+  color: rgb(6 16 34);
+}
+
+#createPostModal .btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,.20);
+}
+
+#createPostModal .btn-primary:active,
+#createPostModal .btn-secondary:active { opacity: .93; }
+
+/* ---------- Error box ---------- */
+.create-post-error {
+  display: none; /* JS shows/hides */
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+
+  border: 1px solid rgba(255,91,110,.25);
+  background: rgba(255,91,110,.14);
+  color: var(--danger);
+
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* =====================================================================================
+   IMAGE UPLOAD BLOCK (scoped to modal; overrides the inline "image support" styles)
+   ===================================================================================== */
+
+#newPostImageBlock {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 16px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+/* row: info + buttons */
+#newPostImageBlock .image-actions-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#newPostImageBlock .image-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#newPostImageBlock .image-info-title {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text);
+}
+
+#newPostImageMeta,
+#newPostImageBlock .image-info-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* buttons group */
+#newPostImageBlock .image-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Hide actual file input (choose button triggers click in JS) */
+#newPostImage {
+  display: none;
+}
+
+/* Override .img-btn styles INSIDE modal */
+#createPostModal .img-btn {
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 800;
+  user-select: none;
+
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+}
+
+#createPostModal .img-btn-primary {
+  border: none;
+  background: rgba(122,167,255,.22);
+  color: var(--text);
+}
+
+#createPostModal .img-btn-danger {
+  border: 1px solid rgba(255,91,110,.30);
+  background: rgba(255,91,110,.14);
+  color: var(--danger);
+}
+
+/* Default states (match your JS expectations) */
+#removeImageBtn { display: none; }
+#imagePreviewWrap { display: none; }
+#uploadProgressArea { display: none; }
+#imageWarn { display: none; }
+#imageChip { display: none; }
+
+/* preview block */
+#imagePreviewWrap {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#createPostModal .img-preview {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  overflow: hidden;
+  background: rgba(0,0,0,.15);
+}
+
+#createPostModal .img-preview img,
+#imagePreview {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 320px;
+  object-fit: cover;
+  background: rgba(0,0,0,.18);
+}
+
+/* chips / warnings row */
+.image-preview-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+#createPostModal .image-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 6px 10px;
+  border-radius: 999px;
+
+  border: 1px solid rgba(46,229,157,.25);
+  background: rgba(46,229,157,.14);
+  color: var(--ok);
+
+  font-size: 12px;
+  font-weight: 800;
+  user-select: none;
+}
+
+#createPostModal .image-warn {
+  color: rgba(255,255,255,.85);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,165,0,.25);
+  background: rgba(255,165,0,.12);
+}
+
+/* progress */
+.upload-progress {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 14px;
+  padding: 10px 10px;
+}
+
+.upload-progress-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.upload-progress-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.upload-progress-text {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 800;
+}
+
+#createPostModal .progress-wrap {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  overflow: hidden;
+  background: rgba(0,0,0,.22);
+}
+
+#createPostModal .progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(135deg, rgba(122,167,255,.92), rgba(46,229,157,.86));
+}
+
+/* ---------- Mobile refinement ---------- */
+@media (max-width: 520px) {
+  #createPostModal { padding: 14px; }
+  .create-post-actions { justify-content: stretch; }
+  #createPostModal .btn-primary,
+  #createPostModal .btn-secondary { flex: 1; }
+}
