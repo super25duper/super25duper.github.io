@@ -1182,21 +1182,7 @@ document.addEventListener("DOMContentLoaded", function () {
      2️⃣ התחברות Firebase
      ===================================================================================== */
   function login() {
-    if (!payload || !payload.email || !payload.password || !payload.token) {
-      location.replace("forbidden.html");
-      return;
-    }
-
-    setStatus("מאמת התחברות…", "info");
-
-    firebase.auth()
-      .signInWithEmailAndPassword(payload.email, payload.password)
-      .then((cred) => {
-        uid = cred.user.uid;
-        return validateToken(uid, payload.token);
-      })
-      .then(() => fetchUsername(uid))
-      .then((name) => {
+    
         username = name || "משתמש";
         isAuthed = true;
 
@@ -1214,9 +1200,7 @@ document.addEventListener("DOMContentLoaded", function () {
         attachLiveComments();
 
       })
-      .catch(() => {
-        location.replace("forbidden.html");
-      });
+     
   }
 
   
