@@ -307,14 +307,23 @@ function safeText(str = "") {
 
 function userColor(key) {
   const colors = [
-    "#60a5fa",
-    "#34d399",
-    "#f472b6",
-    "#fbbf24",
-    "#a78bfa",
-    "#fb7185",
-    "#22d3ee"
+    "#60a5fa", // blue
+    "#38bdf8", // sky
+    "#22d3ee", // cyan
+    "#2dd4bf", // teal
+    "#34d399", // emerald
+    "#4ade80", // green
+    "#a3e635", // lime
+    "#fbbf24", // yellow/amber
+    "#f59e0b", // amber
+    "#f97316", // orange
+    "#fb7185", // rose
+    "#f472b6", // pink
+    "#e879f9", // fuchsia
+    "#a78bfa", // violet
+    "#818cf8"  // indigo
   ];
+
   let hash = 0;
   const s = String(key || "");
   for (let i = 0; i < s.length; i++) {
@@ -322,6 +331,7 @@ function userColor(key) {
   }
   return colors[Math.abs(hash) % colors.length];
 }
+
 
 function fmtTime(ts) {
   try {
