@@ -18,8 +18,7 @@ body {
         radial-gradient(700px 420px at 50% 100%, rgba(255,91,110,.10), transparent 60%),
         #0b1020;
   direction: rtl;
- height:100vh;
- position:fixed;
+ min-height: 100vh;
 }
 
 .top-bar {
