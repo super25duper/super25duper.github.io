@@ -97,7 +97,8 @@ body {
   position: fixed;
   inset: 0;
   z-index: 15000;
-  background: rgba(0,0,0,0); /* שקוף – רק “תופס” לחיצה */
+  background: rgba(0,0,0,3);
+  opacity:0; /* שקוף – רק “תופס” לחיצה */
 }
 
 
