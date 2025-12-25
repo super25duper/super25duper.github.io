@@ -19,17 +19,13 @@ body {
 .hamburger-btn {
   position: absolute;
   right: 12px;
-  top: 50%;
+  top: 65%;
   transform: translateY(-50%);
 
   width: 44px;
   height: 44px;
   border-radius: 12px;
-
-  border: 1px solid rgba(255,255,255,0.22);
-  background: rgba(255,255,255,0.12);
   color: #fff;
-
   display: flex;
   align-items: center;
   justify-content: center;
@@ -50,7 +46,7 @@ body {
 .hamburger-lines span {
   display: block;
   width: 20px;
-  height: 2px;
+  height: 4px;
   background: rgba(255,255,255,0.95);
   border-radius: 999px;
 }
