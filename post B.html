@@ -3083,14 +3083,8 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
   });
 
 });
-  document.getElementById("backBtn")?.addEventListener("click", function () {
-  // אם יש היסטוריה – חזור אחורה
-  if (window.history.length > 1) {
-    history.back();
-  } else {
-    // fallback – חזרה לפורום
-    window.location.href = "forum B.html";
-  }
+ document.getElementById("backBtn")?.addEventListener("click", function () {
+  window.location.href = "forum B.html";
 });
 
 </script>
