@@ -249,9 +249,29 @@
       opacity: .75;          
       text-align: center;          
     }          
-  </style>                    </head>                    <body>                    <header class="top-bar">                    
-  <h1 class="coteret">פורום הבניידים</h1>                    
-</header>                    <!-- Pull To Refresh indicator -->                    <div id="pull-indicator" style="                    
+  </style>                   <header class="top-bar">
+  <!-- Hamburger (ימין) -->
+  <button id="hamburgerBtn" class="hamburger-btn" type="button"
+          aria-label="פתח תפריט" aria-expanded="false">
+    <span class="hamburger-lines" aria-hidden="true">
+      <span></span><span></span><span></span>
+    </span>
+  </button>
+
+  <!-- Title (נשאר ממורכז) -->
+  <h1 class="coteret">פורום הבניידים</h1>
+
+  <!-- Menu -->
+  <nav id="headerMenu" class="header-menu" aria-label="תפריט עליון">
+    <a href="forum-expanded.html">פורום הבניידים המורחב</a>
+    <a href="cousins-neighborhood.html">פורום בני דודים שכונה</a>
+    <a href="about.html">אודות הפורום</a>
+  </nav>
+</header>
+
+<!-- Backdrop לסגירה בלחיצה מחוץ לתפריט -->
+<div id="menuBackdrop" class="menu-backdrop" style="display:none;"></div>
+                  <!-- Pull To Refresh indicator -->                    <div id="pull-indicator" style="                    
   display:none;                    
   text-align:center;                    
   padding:6px;                    
