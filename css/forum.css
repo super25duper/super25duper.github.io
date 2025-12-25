@@ -11,6 +11,96 @@ body {
   padding: 42px 7px 13px 7px;
   text-align: center;
 }
+/* ===== Header hamburger menu (right) ===== */
+.top-bar {
+  position: relative; /* כדי לאפשר absolute על הכפתור והתפריט בלי להזיז את הכותרת */
+}
+
+.hamburger-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+}
+
+.hamburger-btn:active {
+  opacity: 0.92;
+}
+
+.hamburger-lines {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.hamburger-lines span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: rgba(255,255,255,0.95);
+  border-radius: 999px;
+}
+
+/* התפריט עצמו */
+.header-menu {
+  position: absolute;
+  right: 12px;
+  top: calc(100% + 8px);
+
+  width: min(320px, calc(100vw - 24px));
+  display: none;
+
+  background: rgba(255,255,255,0.98);
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 14px;
+  overflow: hidden;
+
+  box-shadow: 0 14px 34px rgba(0,0,0,0.18);
+  z-index: 15001;
+
+  direction: rtl;
+  text-align: right;
+}
+
+.header-menu a {
+  display: block;
+  padding: 12px 14px;
+
+  text-decoration: none;
+  font-weight: bold;
+  color: rgb(17,17,87);
+}
+
+.header-menu a:hover {
+  background: rgba(17,17,87,0.06);
+}
+
+.header-menu a:active {
+  background: rgba(17,17,87,0.10);
+}
+
+/* שכבת רקע ללחיצה מחוץ לתפריט (לסגירה נוחה במובייל) */
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 15000;
+  background: rgba(0,0,0,0); /* שקוף – רק “תופס” לחיצה */
+}
+
 
 .coteret{
   font-size:21px;
