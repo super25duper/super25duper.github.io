@@ -1598,6 +1598,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!headerMenu || !menuBackdrop || !hamburgerBtn) return;
     headerMenu.style.right = "0";
     menuBackdrop.style.display = "block";
+    menuBackdrop.style.opacity = "100";
     hamburgerBtn.setAttribute("aria-expanded", "true");
   }
 
@@ -1605,6 +1606,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!headerMenu || !menuBackdrop || !hamburgerBtn) return;
     headerMenu.style.right = "-200px";
     menuBackdrop.style.display = "none";
+    menuBackdrop.style.opacity = "0";
+    
     hamburgerBtn.setAttribute("aria-expanded", "false");
   }
 
