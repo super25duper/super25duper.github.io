@@ -1596,14 +1596,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function openHeaderMenu() {
     if (!headerMenu || !menuBackdrop || !hamburgerBtn) return;
-    headerMenu.style.display = "block";
+    headerMenu.style.right = "0";
     menuBackdrop.style.display = "block";
     hamburgerBtn.setAttribute("aria-expanded", "true");
   }
 
   function closeHeaderMenu() {
     if (!headerMenu || !menuBackdrop || !hamburgerBtn) return;
-    headerMenu.style.display = "none";
+    headerMenu.style.right = "-200";
     menuBackdrop.style.display = "none";
     hamburgerBtn.setAttribute("aria-expanded", "false");
   }
