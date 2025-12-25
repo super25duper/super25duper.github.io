@@ -60,7 +60,7 @@ body {
   position: absolute;
   right: -200px;
   top: calc(100% + 8px);
-  trasition:1s;
+  transition: 0.6s;
 
   width:40vw;
   display: block;
