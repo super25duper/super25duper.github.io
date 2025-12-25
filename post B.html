@@ -36,6 +36,9 @@
 
 <header class="top-bar">
   <h1 class="coteret">צפייה בפוסט</h1>
+  <button id="backBtn" class="header-back-btn" type="button" aria-label="חזרה">
+  ← 
+</button>
 </header>
 
 <main class="forum-container">
@@ -3080,6 +3083,16 @@ function uploadBlobToStorage(blobOrFile, storagePath, contentType, onProgress) {
   });
 
 });
+  document.getElementById("backBtn")?.addEventListener("click", function () {
+  // אם יש היסטוריה – חזור אחורה
+  if (window.history.length > 1) {
+    history.back();
+  } else {
+    // fallback – חזרה לפורום
+    window.location.href = "forum B.html";
+  }
+});
+
 </script>
 
 </body>
