@@ -1747,7 +1747,7 @@ function buildReplyHTML(commentId, d) {
     ">
       <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
         <b style="color:${escapeHTML(c)};">${escapeHTML(d.author || "")}</b>
-        <small style="opacity:.75; color:var(--muted);">${escapeHTML(fmtTime(c.time || 0))}</small>
+        <small style="opacity:.75; color:var(--muted);">${escapeHTML(fmtTime(d.time || 0))}</small>
       </div>
 
       <p class="reply-text" id="reply-text-${escapeHTML(commentId)}-${escapeHTML(d.rid || "")}" style="margin:6px 0 0 0;">${escapeHTML(d.text || "")}</p>
