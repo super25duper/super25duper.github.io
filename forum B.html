@@ -1518,7 +1518,72 @@ function computeMetaFromCommentsSnapshot(snap) {
    DOM Ready                    
    ========================================================================================= */                    
 document.addEventListener("DOMContentLoaded", function () {                    
-        
+      /* ===============================
+     Header Hamburger Menu
+     =============================== */
+  var hamburgerBtn = document.getElementById("hamburgerBtn");
+  var headerMenu = document.getElementById("headerMenu");
+  var menuBackdrop = document.getElementById("menuBackdrop");
+
+  function openHeaderMenu() {
+    if (!headerMenu || !menuBackdrop || !hamburgerBtn) return;
+    headerMenu.style.display = "block";
+    menuBackdrop.style.display = "block";
+    hamburgerBtn.setAttribute("aria-expanded", "true");
+  }
+
+  function closeHeaderMenu() {
+    if (!headerMenu || !menuBackdrop || !hamburgerBtn) return;
+    headerMenu.style.display = "none";
+    menuBackdrop.style.display = "none";
+    hamburgerBtn.setAttribute("aria-expanded", "false");
+  }
+
+  function toggleHeaderMenu() {
+    if (!headerMenu) return;
+    if (headerMenu.style.display === "block") closeHeaderMenu();
+    else openHeaderMenu();
+  }
+
+  if (hamburgerBtn) {
+    hamburgerBtn.addEventListener("click", function (e) {
+      try { e.preventDefault(); e.stopPropagation(); } catch (x) {}
+      toggleHeaderMenu();
+    });
+  }
+
+  if (menuBackdrop) {
+    menuBackdrop.addEventListener("click", function () {
+      closeHeaderMenu();
+    });
+  }
+
+  if (headerMenu) {
+    headerMenu.addEventListener("click", function (e) {
+      // לחיצה על לינק -> סגירה
+      try {
+        var a = e.target.closest("a");
+        if (a) closeHeaderMenu();
+      } catch (x) {}
+    });
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (e && e.key === "Escape") closeHeaderMenu();
+  });
+
+  document.addEventListener("click", function (e) {
+    // סגירה בלחיצה מחוץ לתפריט/כפתור
+    try {
+      if (!headerMenu || !hamburgerBtn) return;
+      if (headerMenu.style.display !== "block") return;
+
+      var inMenu = headerMenu.contains(e.target);
+      var inBtn = hamburgerBtn.contains(e.target);
+      if (!inMenu && !inBtn) closeHeaderMenu();
+    } catch (x) {}
+  });
+    
   loadPostMetaCache();          
         
   /* ===============================                    
