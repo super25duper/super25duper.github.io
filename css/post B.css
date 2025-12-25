@@ -676,7 +676,6 @@ html[dir="ltr"] #post .post::before {
 }
 /* ===== Header back button ===== */
 .header-back-btn {
-  display: inline-flex;
   align-items: center;
   gap: 6px;
 
@@ -711,10 +710,22 @@ html[dir="ltr"] #post .post::before {
   outline-offset: 2px;
 }
 
-/* התאמה ל-header RTL */
+
 .top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  position: relative;
+  text-align: center;
+}
+
+/* הכותרת נשארת באמצע */
+.top-bar h1,
+.top-bar .coteret {
+  margin: 0 auto;
+}
+
+/* כפתור חזור – צמוד לימין ב־RTL */
+.header-back-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
 }
