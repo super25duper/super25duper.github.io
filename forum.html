@@ -1597,7 +1597,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function openHeaderMenu() {
     if (!headerMenu || !menuBackdrop || !hamburgerBtn) return;
     headerMenu.style.right = "0";
-    menuBackdrop.style.pointer-events = "auto";
+    menuBackdrop.style.pointerevents = "auto";
     menuBackdrop.style.opacity = "1";
     hamburgerBtn.setAttribute("aria-expanded", "true");
   }
@@ -1605,7 +1605,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function closeHeaderMenu() {
     if (!headerMenu || !menuBackdrop || !hamburgerBtn) return;
     headerMenu.style.right = "-200px";
-    menuBackdrop.style.pointer-events = "none";
+    menuBackdrop.style.pointerevents = "none";
     menuBackdrop.style.opacity = "0";
     
     hamburgerBtn.setAttribute("aria-expanded", "false");
