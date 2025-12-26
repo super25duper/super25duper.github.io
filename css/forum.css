@@ -99,7 +99,8 @@ body {
   z-index: 15000;
   background: rgba(0,0,0,0.45);
   opacity:0;
-  transition: 0.6s;/* שקוף – רק “תופס” לחיצה */
+  transition: 0.6s;
+  pointer-events: none;/* שקוף – רק “תופס” לחיצה */
 }
 
 
