@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>התחברות לפורום</title>
-  <style> 
+  <style>
     :root{
       --bg:#0b1020;
       --card: rgba(255,255,255,.06);
@@ -180,10 +180,11 @@
       return clean + "@forum.local";
     }
 
-    // אופציונלי: אם כבר מחובר, ישר מעביר לפורום
-    firebase.auth().onAuthStateChanged(function(user) {
-      if (user) window.location.replace(TARGET_PAGE);
-    });
+    // בוטל: ההפניה האוטומטית גורמת לכך שהדף עובר לפני שהטוקן נכתב ל-DB.
+    // יש לאפשר למשתמש ללחוץ על "התחבר" כדי שהלוגיקה של יצירת הטוקן תרוץ עד הסוף.
+    // firebase.auth().onAuthStateChanged(function(user) {
+    //   if (user) window.location.replace(TARGET_PAGE);
+    // });
 
     form.addEventListener("submit", async function (e) {
       e.preventDefault();
