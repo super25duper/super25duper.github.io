@@ -11,12 +11,12 @@ body {
 .top-bar {
   background: linear-gradient(135deg, rgba(122,167,255,.9), rgba(46,229,157,.85));
   color: rgb(6 16 34);
-  padding: 42px 7px 13px 7px;
+  padding: 47px 7px 8px 7px;
   text-align: center;
 }
 
 .coteret{
-  font-size:21px;
+  font-size:17px;
   color: rgb(6 16 74);
   margin:2px;
 }
