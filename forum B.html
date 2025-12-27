@@ -1027,39 +1027,188 @@ function getPreviewUrlForFile(file, done) {
   }          
 }          
         
-function openImageViewer(url) {          
+
+/* =========================================================================================
+   NEW: Signed URL expiry refresh on image load error (requested)
+   - Refresh ONLY when we can conclude the URL is expired (query-based expiry OR 401/403/400 probe).
+   - Guards:
+       * at most 1 refresh attempt per <img> instance per open
+       * throttle refresh per imagePath (5s)
+       * de-duplicate in-flight refresh per imagePath
+   ========================================================================================= */
+var _imgUrlRefreshLastAt = {};      // imagePath -> timestamp
+var _imgUrlRefreshInFlight = {};    // imagePath -> Promise
+
+function _getQueryParamFromUrl(u, key) {
+  try {
+    if (!u) return "";
+    var q = u.split("?")[1] || "";
+    if (!q) return "";
+    var parts = q.split("&");
+    for (var i = 0; i < parts.length; i++) {
+      var kv = parts[i].split("=");
+      if (!kv || kv.length < 2) continue;
+      var k = decodeURIComponent(kv[0] || "");
+      if (k === key) return decodeURIComponent(kv.slice(1).join("=") || "");
+    }
+    return "";
+  } catch (e) {
+    return "";
+  }
+}
+
+function _inferSignedUrlExpiryTs(url) {
+  try {
+    var u = safeText(url || "").trim();
+    if (!u) return 0;
+
+    // Google Cloud Storage: X-Goog-Date + X-Goog-Expires
+    var gDate = _getQueryParamFromUrl(u, "X-Goog-Date");
+    var gExp = _getQueryParamFromUrl(u, "X-Goog-Expires");
+    if (gDate && gExp) {
+      var m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(gDate);
+      var sec = Number(gExp || 0) || 0;
+      if (m && sec > 0) {
+        var t0 = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
+        if (t0) return t0 + (sec * 1000);
+      }
+    }
+
+    // AWS S3: X-Amz-Date + X-Amz-Expires
+    var aDate = _getQueryParamFromUrl(u, "X-Amz-Date");
+    var aExp = _getQueryParamFromUrl(u, "X-Amz-Expires");
+    if (aDate && aExp) {
+      var m2 = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(aDate);
+      var sec2 = Number(aExp || 0) || 0;
+      if (m2 && sec2 > 0) {
+        var t1 = Date.UTC(Number(m2[1]), Number(m2[2]) - 1, Number(m2[3]), Number(m2[4]), Number(m2[5]), Number(m2[6]));
+        if (t1) return t1 + (sec2 * 1000);
+      }
+    }
+
+    // Generic Expires
+    var ex = _getQueryParamFromUrl(u, "Expires") || _getQueryParamFromUrl(u, "expires") || _getQueryParamFromUrl(u, "exp");
+    if (ex) {
+      var exNum = Number(ex || 0) || 0;
+      if (exNum > 1000000000 && exNum < 10000000000) return exNum * 1000;
+      if (exNum > 1000000000000) return exNum;
+    }
+
+    return 0;
+  } catch (e0) {
+    return 0;
+  }
+}
+
+function _isSignedUrlExpired(url) {
+  try {
+    var ts = _inferSignedUrlExpiryTs(url);
+    if (!ts) return false;
+    return Date.now() >= (ts - 2000);
+  } catch (e) {
+    return false;
+  }
+}
+
+function _probeImageHttpStatus(url) {
+  try {
+    return fetch(url, { method: "HEAD", cache: "no-store" })
+      .then(function (r) { return Number(r.status || 0) || 0; })
+      .catch(function () {
+        return fetch(url, { method: "GET", headers: { "Range": "bytes=0-0" }, cache: "no-store" })
+          .then(function (r2) { return Number(r2.status || 0) || 0; })
+          .catch(function () { return 0; });
+      });
+  } catch (e) {
+    return Promise.resolve(0);
+  }
+}
+
+function _statusSuggestsExpired(status) {
+  return (status === 401 || status === 403 || status === 400);
+}
+
+function _maybeRefreshExpiredSignedUrl(imagePath, postEl, currentUrl) {
+  try {
+    var p = safeText(imagePath || "").trim();
+    if (!p) return Promise.resolve({ refreshed: false, url: "" });
+
+    var now = Date.now();
+    var last = Number(_imgUrlRefreshLastAt[p] || 0) || 0;
+    if (now - last < 5000) {
+      return Promise.resolve({ refreshed: false, url: "" });
+    }
+
+    if (_imgUrlRefreshInFlight[p]) return _imgUrlRefreshInFlight[p];
+
+    var safeUrl = sanitizeImageUrl(currentUrl || "");
+    var provenExpired = false;
+
+    if (safeUrl && _isSignedUrlExpired(safeUrl)) {
+      provenExpired = true;
+    }
+
+    if (!provenExpired) {
+      _imgUrlRefreshInFlight[p] = _probeImageHttpStatus(safeUrl).then(function (st) {
+        return _statusSuggestsExpired(st);
+      });
+
+      return _imgUrlRefreshInFlight[p].then(function (okExpired) {
+        try { delete _imgUrlRefreshInFlight[p]; } catch (eD0) {}
+        if (!okExpired) return { refreshed: false, url: "" };
+
+        _imgUrlRefreshLastAt[p] = Date.now();
+        return fetchSignedUrlForPath(p, true).then(function (r) {
+          var u = sanitizeImageUrl(r && r.url ? r.url : "");
+          if (u) {
+            try { if (postEl) postEl.setAttribute("data-image", u); } catch (eSet) {}
+            return { refreshed: true, url: u };
+          }
+          return { refreshed: false, url: "" };
+        }).catch(function () {
+          return { refreshed: false, url: "" };
+        });
+      });
+    }
+
+    _imgUrlRefreshLastAt[p] = Date.now();
+    _imgUrlRefreshInFlight[p] = fetchSignedUrlForPath(p, true)
+      .then(function (r) {
+        var u2 = sanitizeImageUrl(r && r.url ? r.url : "");
+        if (u2) {
+          try { if (postEl) postEl.setAttribute("data-image", u2); } catch (eSet2) {}
+          return { refreshed: true, url: u2 };
+        }
+        return { refreshed: false, url: "" };
+      })
+      .catch(function () { return { refreshed: false, url: "" }; })
+      .finally(function () {
+        try { delete _imgUrlRefreshInFlight[p]; } catch (eD1) {}
+      });
+
+    return _imgUrlRefreshInFlight[p];
+  } catch (e0) {
+    return Promise.resolve({ refreshed: false, url: "" });
+  }
+}
+
+
+function openImageViewer(url, imagePath, postEl) {          
   var overlay = document.getElementById("imageViewerOverlay");          
   var img = document.getElementById("imageViewerImg");          
-  /*          
-    [REMOVED REQUESTED FEATURE - keep length, no functional leftovers]          
-    In older versions, there was a "copy link" button inside the image overlay.          
-    The button was removed, and we keep this note to avoid dangling references.          
-    var copyBtn = document.getElementById("copyImageLinkBtn");          
-  */          
   var closeBtn = document.getElementById("closeImageViewer");          
-        
+
   if (!overlay || !img) return;          
-        
+
   var safe = sanitizeImageUrl(url);          
   if (!safe) return;          
-        
- 
-  bindImgLoadErrorOnce(img);
-img.setAttribute("src", safe);
-overlay.style.display = "flex";
-         
-        
-  /*          
-    [REMOVED - no binding to non-existing button]          
-    if (copyBtn && !copyBtn.__bound) {          
-      copyBtn.__bound = true;          
-      copyBtn.addEventListener("click", function () {          
-        var src = img.getAttribute("src") || "";          
-        if (src) copyToClipboard(src);          
-      });          
-    }          
-  */          
-        
+
+  bindImgLoadErrorOnce(img, imagePath, postEl);
+  try { img.__refreshTried = false; } catch (eR0) {}
+
+  img.setAttribute("src", safe);
+  overlay.style.display = "flex";
+
   if (closeBtn && !closeBtn.__bound) {          
     closeBtn.__bound = true;          
     closeBtn.addEventListener("click", function () {          
@@ -1067,11 +1216,10 @@ overlay.style.display = "flex";
       img.setAttribute("src", "");          
     });          
   }          
-        
+
   if (!overlay.__bound) {          
     overlay.__bound = true;          
     overlay.addEventListener("click", function (e) {          
-      // click outside inner          
       if (e.target === overlay) {          
         overlay.style.display = "none";          
         img.setAttribute("src", "");          
@@ -1079,43 +1227,75 @@ overlay.style.display = "flex";
     });          
   }          
 }          
-        
 /* =========================================================================================          
    NEW: mini image preview (requested: click chip -> small preview with X)          
    ========================================================================================= */          
-function bindImgLoadErrorOnce(imgEl) {
+
+function bindImgLoadErrorOnce(imgEl, imagePath, postEl) {
   if (!imgEl || imgEl.__boundLoadErr) return;
   imgEl.__boundLoadErr = true;
 
   imgEl.addEventListener("load", function () {
-    // התמונה נטענה בהצלחה → מנקים הודעת שגיאה
     try { setStatus("", "info"); } catch (e) {}
   });
 
   imgEl.addEventListener("error", function () {
-    // error אמיתי רק אם יש src
     try {
       var current = (imgEl.getAttribute("src") || "").trim();
       if (!current) return;
-      setStatus("לא הצלחתי לטעון את התמונה.", "error");
-    } catch (e) {}
+
+      if (imgEl.__refreshTried) {
+        setStatus("לא הצלחתי לטעון את התמונה.", "error");
+        return;
+      }
+
+      var pth = safeText(imagePath || "").trim();
+      if (!pth && postEl) {
+        try { pth = safeText(postEl.getAttribute("data-image-path") || "").trim(); } catch (eP0) { pth = ""; }
+      }
+      if (!pth) {
+        setStatus("לא הצלחתי לטעון את התמונה.", "error");
+        return;
+      }
+
+      setStatus("הקישור לתמונה פג תוקף — מביא קישור חדש…", "info");
+      imgEl.__refreshTried = true;
+
+      _maybeRefreshExpiredSignedUrl(pth, postEl, current)
+        .then(function (res) {
+          if (res && res.refreshed && res.url) {
+            try { imgEl.setAttribute("src", res.url); } catch (eS) {}
+            try { setStatus("", "info"); } catch (eC) {}
+            return;
+          }
+          setStatus("לא הצלחתי לטעון את התמונה.", "error");
+        })
+        .catch(function () {
+          setStatus("לא הצלחתי לטעון את התמונה.", "error");
+        });
+
+    } catch (e2) {
+      try { setStatus("לא הצלחתי לטעון את התמונה.", "error"); } catch (e3) {}
+    }
   });
 }
-function openMiniImagePreview(url) {          
+
+function openMiniImagePreview(url, imagePath, postEl) {          
   try {          
     var overlay = document.getElementById("miniImageOverlay");          
     var img = document.getElementById("miniPreviewImg");          
     var closeBtn = document.getElementById("miniCloseBtn");          
     if (!overlay || !img) return;          
-        
+
     var safe = sanitizeImageUrl(url);          
     if (!safe) return;          
 
-   bindImgLoadErrorOnce(img);
-img.setAttribute("src", safe);
-overlay.style.display = "flex";
-        
-        
+    bindImgLoadErrorOnce(img, imagePath, postEl);
+    try { img.__refreshTried = false; } catch (eR1) {}
+
+    img.setAttribute("src", safe);
+    overlay.style.display = "flex";
+
     if (closeBtn && !closeBtn.__bound) {          
       closeBtn.__bound = true;          
       closeBtn.addEventListener("click", function () {          
@@ -1123,7 +1303,7 @@ overlay.style.display = "flex";
         img.setAttribute("src", "");          
       });          
     }          
-        
+
     if (!overlay.__bound) {          
       overlay.__bound = true;          
       overlay.addEventListener("click", function (e) {          
@@ -1135,7 +1315,6 @@ overlay.style.display = "flex";
     }          
   } catch (e) { }          
 }          
-    
 function supportsWebPExport() {          
   try {          
     var c = document.createElement("canvas");          
@@ -1597,7 +1776,7 @@ document.addEventListener("DOMContentLoaded", function () {
                       var su = sanitizeImageUrl(r && r.url ? r.url : "");          
                       if (su) {          
                         postEl.setAttribute("data-image", su);          
-                        openMiniImagePreview(su);          
+                        openMiniImagePreview(su, pth, postEl);          
                         setStatus("", "info");          
                         return;          
                       }          
@@ -1618,7 +1797,13 @@ document.addEventListener("DOMContentLoaded", function () {
               }          
             }          
         
-            if (u) openMiniImagePreview(u);          
+            var pth0 = "";
+            try { pth0 = safeText(postEl.getAttribute("data-image-path") || "").trim(); } catch (ePth0) { pth0 = ""; }
+            if (u && pth0 && _isSignedUrlExpired(u)) {
+              try { postEl.setAttribute("data-image", ""); } catch (eClr0) {}
+              u = "";
+            }
+            if (u) openMiniImagePreview(u, pth0, postEl);          
           }          
         } catch (eOpenMini) { }          
         return;          
@@ -1628,12 +1813,25 @@ document.addEventListener("DOMContentLoaded", function () {
       try { img = e.target.closest(".post-image"); } catch (errX) { img = null; }          
       if (!img) return;          
         
-      var src = img.getAttribute("data-full") || img.getAttribute("src") || "";          
-      src = sanitizeImageUrl(src);          
-      if (!src) return;          
-        
-      openImageViewer(src);          
-    }, false);          
+      var src = img.getAttribute("data-full") || img.getAttribute("src") || "";
+      src = sanitizeImageUrl(src);
+      if (!src) return;
+
+      var postEl2 = null;
+      try { postEl2 = img.closest(".post"); } catch (eP2) { postEl2 = null; }
+      var pth2 = "";
+      if (postEl2) {
+        try { pth2 = safeText(postEl2.getAttribute("data-image-path") || "").trim(); } catch (eP3) { pth2 = ""; }
+      }
+
+      // If we can clearly infer expiry from the URL, clear cached signed URL on the post element.
+      // We still let the <img> load fail first, and refresh only on proven-expired error.
+      if (src && pth2 && _isSignedUrlExpired(src)) {
+        try { postEl2.setAttribute("data-image", ""); } catch (eClr1) {}
+      }
+
+      openImageViewer(src, pth2, postEl2);
+}, false);          
   }          
         
   bindPostNavigation(postsEl);                    
