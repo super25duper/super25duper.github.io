@@ -498,8 +498,8 @@
         <div class="brand">
           <div class="logo">A</div>
           <div class="brandTxt">
-            <div class="t">Admin Mobile v2</div>
-            <div class="s">מובייל נקי · עריכה/מחיקה/עשה-סדר · עובד</div>
+            <div class="t">Admin Mobile v3</div>
+            <div class="s">מולטי-פורום · A/B · ניטור משולב</div>
           </div>
         </div>
         <div id="authPill" class="pill warn">
@@ -537,6 +537,10 @@
       <div class="card">
         <div class="hd">
           <div class="h">פוסטים</div>
+          <select id="forumSelPosts" class="in" style="width:auto; padding:4px 8px; height:auto; font-size:12px; margin-right:10px; background:rgba(0,0,0,0.3);">
+            <option value="A" selected>פורום A</option>
+            <option value="B">פורום B</option>
+          </select>
           <div class="mini" id="badgePosts">—</div>
         </div>
         <div class="bd">
@@ -572,6 +576,11 @@
       <div class="card">
         <div class="hd">
           <div class="h">בקרת משתמשים</div>
+          <select id="forumSelUsers" class="in" style="width:auto; padding:4px 8px; height:auto; font-size:12px; margin-right:10px; background:rgba(0,0,0,0.3);">
+            <option value="A">פורום A</option>
+            <option value="B">פורום B</option>
+            <option value="ALL" selected>הכל (משולב)</option>
+          </select>
           <div class="mini" id="usersBadge">—</div>
         </div>
         <div class="bd">
@@ -594,6 +603,10 @@
       <div class="card">
         <div class="hd">
           <div class="h">כלים</div>
+          <select id="forumSelTools" class="in" style="width:auto; padding:4px 8px; height:auto; font-size:12px; margin-right:10px; background:rgba(0,0,0,0.3);">
+            <option value="A" selected>פורום A</option>
+            <option value="B">פורום B</option>
+          </select>
           <div class="mini">מערכת</div>
         </div>
         <div class="bd">
@@ -621,10 +634,14 @@
       <div class="card">
         <div class="hd">
           <div class="h">שינוי שם משתמש</div>
-          <div class="mini">שם נוכחי → חדש</div>
+          <div class="mini">זהירות</div>
         </div>
         <div class="bd">
           <div class="row">
+            <select id="forumSelRename" class="in" style="flex:0 0 90px;">
+              <option value="A">פורום A</option>
+              <option value="B">פורום B</option>
+            </select>
             <input id="oldName" class="in" placeholder="שם נוכחי (לדוגמה: yossi)" />
             <input id="newName" class="in" placeholder="שם חדש (לדוגמה: yossi_pro)" />
           </div>
@@ -754,18 +771,21 @@
 /* =========================
    CONFIG (paths)
 ========================= */
-var ADMIN_PATH = "forum A/admins";
-var POSTS_PATH = "forum A/posts";
-var COMMENTS_PATH = "forum A/comments";
-var USERS_PATH = "forum A/users";
-var REPLIES_PATH = "forum A/replies";
-var STORAGE_POST_FOLDER = "post-images";
+var ADMIN_PATH_A = "forum A/admins";
+var ADMIN_PATH_B = "forum B/admins";
 var MAX_REPLIES_DEPTH = 10;
 
-/* ✅ forum presence monitoring (READ-ONLY) */
-var PRESENCE_PATH = "forum A/presence";
-var PRESENCE_LIST_LIMIT = 0; // 0 = all. If you ever need: set to e.g. 3000
-/* ✅ /presence */
+function getPaths(forum){
+  var f = (forum === "B") ? "forum B" : "forum A";
+  return {
+    posts: f + "/posts",
+    comments: f + "/comments",
+    users: f + "/users",
+    replies: f + "/replies",
+    presence: f + "/presence",
+    storage: "post-images" // shared bucket folder
+  };
+}
 
 /* =========================
    STATE
@@ -778,7 +798,7 @@ var S = {
   postsMap:{},
   want:120,
   busy:false,
-  current:{ type:"", path:"", postId:"", obj:null },
+  current:{ type:"", path:"", postId:"", obj:null, forum:"" },
 
   /* ✅ users monitor */
   presenceArr:[],
@@ -926,21 +946,22 @@ function formatLastSeenHuman(ts){
 
 
 /* ✅ users: connected duration */
-function computeConnectionInfo(isOnline, connectedAt, lastSeen){
+function computeConnectionInfo(isOnline, connectedAt, lastSeen, labelPrefix){
   connectedAt = num(connectedAt);
   lastSeen = num(lastSeen);
+  var lbl = labelPrefix || (isOnline ? "מחובר כבר" : "היה מחובר");
 
   if(isOnline){
     if(connectedAt){
       var now = Date.now();
-      return { label: "מחובר כבר", value: formatDuration(now - connectedAt) };
+      return { label: lbl, value: formatDuration(now - connectedAt) };
     }
-    return { label: "מחובר כבר", value: "—" };
+    return { label: lbl, value: "—" };
   }else{
     if(connectedAt && lastSeen && lastSeen >= connectedAt){
-      return { label: "היה מחובר", value: formatDuration(lastSeen - connectedAt) };
+      return { label: lbl, value: formatDuration(lastSeen - connectedAt) };
     }
-    return { label: "היה מחובר", value: "—" };
+    return { label: lbl, value: "—" };
   }
 }
 /* ✅ /time formatting */
@@ -965,10 +986,16 @@ el("navRename").onclick = function(){ setActive("navRename"); };
 /* =========================
    AUTH + ADMIN CHECK
 ========================= */
-function checkAdmin(uid){
-  return firebase.database().ref(ADMIN_PATH + "/" + uid).once("value").then(function(s){
-    var v = s.exists() ? s.val() : null;
-    return (v===true || v===1 || v==="true");
+function checkAdmin(uid) {
+  // Check A first, then B
+  return firebase.database().ref(ADMIN_PATH_A + "/" + uid).once("value").then(function(s1) {
+    var v1 = s1.exists() ? s1.val() : null;
+    if (v1 === true || v1 === 1 || v1 === "true") return true;
+    
+    return firebase.database().ref(ADMIN_PATH_B + "/" + uid).once("value").then(function(s2) {
+      var v2 = s2.exists() ? s2.val() : null;
+      return (v2 === true || v2 === 1 || v2 === "true");
+    });
   });
 }
 
@@ -1018,10 +1045,12 @@ function loadPosts(want){
   if(!S.isAdmin) return;
   setBusy(true);
 
+  var forum = el("forumSelPosts").value || "A";
+  var paths = getPaths(forum);
   var sort = safe(el("sortSel").value || "newest");
   var q = safe(el("qSearch").value).trim().toLowerCase();
 
-  return firebase.database().ref(POSTS_PATH).orderByChild("time").limitToLast(want).once("value")
+  return firebase.database().ref(paths.posts).orderByChild("time").limitToLast(want).once("value")
     .then(function(snap){
       var arr = [];
       snap.forEach(function(ch){ arr.push(normalizePost(ch.key, ch.val())); });
@@ -1051,7 +1080,7 @@ function loadPosts(want){
       S.postsMap = {};
       arr.forEach(function(p){ S.postsMap[p.id]=p; });
 
-      el("badgePosts").textContent = "כמות: " + arr.length;
+      el("badgePosts").textContent = "פורום " + forum + " | כמות: " + arr.length;
       renderPosts();
     })
     .catch(function(err){
@@ -1102,10 +1131,10 @@ function renderPosts(){
       var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
       if(!b) return;
       var act = b.getAttribute("data-act");
-      if(act==="edit") openPostEditor(p.id, false);
-      if(act==="comments") openPostEditor(p.id, true);
-      if(act==="recalc") recalcPostMeta(p.id, true);
-      if(act==="delete") deepDeletePost(p.id, true);
+      if(act==="edit") openPostEditor(p.id, false, el("forumSelPosts").value);
+      if(act==="comments") openPostEditor(p.id, true, el("forumSelPosts").value);
+      if(act==="recalc") recalcPostMeta(p.id, true, el("forumSelPosts").value);
+      if(act==="delete") deepDeletePost(p.id, true, el("forumSelPosts").value);
     });
 
     host.appendChild(card);
@@ -1113,6 +1142,7 @@ function renderPosts(){
 }
 
 el("btnRefresh").onclick = function(){ resetAndLoadPosts(); };
+el("forumSelPosts").onchange = function(){ resetAndLoadPosts(); };
 el("sortSel").onchange = function(){ resetAndLoadPosts(); };
 el("limitSel").onchange = function(){ resetAndLoadPosts(); };
 el("qSearch").oninput = function(){ renderPosts(); };
@@ -1141,8 +1171,8 @@ function fieldArea(label, id, value){
   return wrap;
 }
 
-function openSheet(title, path, type, postId, obj){
-  S.current = { type:type, path:path, postId:postId||"", obj:obj||{} };
+function openSheet(title, path, type, postId, obj, forum){
+  S.current = { type:type, path:path, postId:postId||"", obj:obj||{}, forum:forum||"A" };
   el("sheetTitle").textContent = title;
   el("sheetPath").textContent = "Path: " + path;
   el("rawJson").value = pretty(obj||{});
@@ -1161,7 +1191,7 @@ function openSheet(title, path, type, postId, obj){
     host.appendChild(fieldInput("imagePath", "f_imagePath", safe(obj.imagePath||""), true));
 
     el("commentsBox").classList.remove("hidden");
-    el("btnDeleteNode").textContent = "🗑 מחק פוסט (עמוק)";
+    el("btnDeleteNode").textContent = "🗑 מחק פוסט (עמוק - פורום " + forum + ")";
   }else{
     host.appendChild(fieldInput("מחבר", "f_author", safe(obj.author||obj.username||obj.user||obj.name)));
     host.appendChild(fieldArea("טקסט", "f_text", safe(obj.text||obj.body||obj.message)));
@@ -1188,19 +1218,20 @@ el("overlay").addEventListener("click", function(e){
 /* =========================
    POST EDIT
 ========================= */
-function openPostEditor(postId, autoLoadComments){
+function openPostEditor(postId, autoLoadComments, forum){
+  forum = forum || "A";
   var p = S.postsMap[postId];
   if(!p){ toast("לא מצאתי פוסט בתצוגה","warn"); return; }
-  var path = POSTS_PATH + "/" + postId;
-  openSheet("✏️ עריכת פוסט", path, "post", postId, p.raw || {});
+  var path = getPaths(forum).posts + "/" + postId;
+  openSheet("✏️ עריכת פוסט ("+forum+")", path, "post", postId, p.raw || {}, forum);
   if(autoLoadComments){
     el("commentsBox").open = true;
-    loadCommentsForPost(postId);
+    loadCommentsForPost(postId, forum);
   }
 }
 
-function openCommentEditor(path, postId, obj){
-  openSheet("✏️ עריכת תגובה", path, "comment", postId, obj||{});
+function openCommentEditor(path, postId, obj, forum){
+  openSheet("✏️ עריכת תגובה", path, "comment", postId, obj||{}, forum);
 }
 
 /* SAVE FIELDS */
@@ -1261,8 +1292,8 @@ el("btnSaveFields").onclick = function(){
       .then(function(){
         toast("תגובה נשמרה ✅","ok");
         if(c.postId){
-          return recalcPostMeta(c.postId, false).then(function(){
-            return loadCommentsForPost(c.postId);
+          return recalcPostMeta(c.postId, false, c.forum).then(function(){
+            return loadCommentsForPost(c.postId, c.forum);
           }).then(resetAndLoadPosts);
         }
         return resetAndLoadPosts();
@@ -1287,8 +1318,8 @@ el("btnSaveJson").onclick = function(){
     .then(function(){
       toast("JSON נשמר ✅","ok");
       if(c.type==="comment" && c.postId){
-        return recalcPostMeta(c.postId, false).then(function(){
-          return loadCommentsForPost(c.postId);
+        return recalcPostMeta(c.postId, false, c.forum).then(function(){
+          return loadCommentsForPost(c.postId, c.forum);
         }).then(resetAndLoadPosts);
       }
       return resetAndLoadPosts();
@@ -1306,7 +1337,7 @@ el("btnDeleteNode").onclick = function(){
   if(!c.path) return;
 
   if(c.type==="post"){
-    deepDeletePost(c.postId, false);
+    deepDeletePost(c.postId, false, c.forum);
     return;
   }
 
@@ -1317,8 +1348,8 @@ el("btnDeleteNode").onclick = function(){
     .then(function(){
       toast("תגובה נמחקה ✅","ok");
       if(c.postId){
-        return recalcPostMeta(c.postId, false).then(function(){
-          return loadCommentsForPost(c.postId);
+        return recalcPostMeta(c.postId, false, c.forum).then(function(){
+          return loadCommentsForPost(c.postId, c.forum);
         }).then(resetAndLoadPosts);
       }
       return resetAndLoadPosts();
@@ -1344,12 +1375,13 @@ function pickRepliesContainers(v){
   return arr;
 }
 
-function loadCommentsForPost(postId){
+function loadCommentsForPost(postId, forum){
+  var paths = getPaths(forum);
   el("commentsWrap").innerHTML = '<div class="mini muted">טוען תגובות…</div>';
 
   return Promise.all([
-    firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value"),
-    firebase.database().ref(REPLIES_PATH + "/" + postId).once("value")
+    firebase.database().ref(paths.comments + "/" + postId).once("value"),
+    firebase.database().ref(paths.replies + "/" + postId).once("value")
   ])
   .then(function(res){
     var snapC = res[0];
@@ -1369,10 +1401,10 @@ function loadCommentsForPost(postId){
     keys.sort(function(a,b){ return num((commentsObj[a]||{}).time) - num((commentsObj[b]||{}).time); });
 
     keys.forEach(function(cid){
-      var path = COMMENTS_PATH + "/" + postId + "/" + cid;
+      var path = paths.comments + "/" + postId + "/" + cid;
 
       // תגובה ראשית
-      var node = buildCommentNode(postId, cid, path, commentsObj[cid], 0);
+      var node = buildCommentNode(postId, cid, path, commentsObj[cid], 0, forum);
 
       // replies ששייכים לתגובה הזו: replies/{postId}/{cid}/...
       var rObj = (repliesRoot && repliesRoot[cid] && typeof repliesRoot[cid]==="object") ? repliesRoot[cid] : null;
@@ -1385,8 +1417,8 @@ function loadCommentsForPost(postId){
         rKeys.sort(function(a,b){ return num((rObj[a]||{}).time) - num((rObj[b]||{}).time); });
 
         rKeys.forEach(function(rid){
-          var rPath = REPLIES_PATH + "/" + postId + "/" + cid + "/" + rid;
-          wrap.appendChild(buildReplyNode(postId, rid, rPath, rObj[rid], 0));
+          var rPath = paths.replies + "/" + postId + "/" + cid + "/" + rid;
+          wrap.appendChild(buildReplyNode(postId, rid, rPath, rObj[rid], 0, forum));
         });
 
         node.appendChild(wrap);
@@ -1408,7 +1440,7 @@ function replyChildKeys(node){
   });
 }
 
-function buildReplyNode(postId, key, path, data, depth){
+function buildReplyNode(postId, key, path, data, depth, forum){
   data = data || {};
   var author = safe(data.author || data.username || data.user || data.name || "—");
   var text = safe(data.text || data.body || data.message || "");
@@ -1437,7 +1469,7 @@ function buildReplyNode(postId, key, path, data, depth){
     var act = b.getAttribute("data-act");
 
     if(act==="edit"){
-      openCommentEditor(path, postId, data);
+      openCommentEditor(path, postId, data, forum);
     }
 
     if(act==="del"){
@@ -1446,8 +1478,8 @@ function buildReplyNode(postId, key, path, data, depth){
       firebase.database().ref(path).remove()
         .then(function(){
           toast("נמחק ✅","ok");
-          return recalcPostMeta(postId, false).then(function(){
-            return loadCommentsForPost(postId);
+          return recalcPostMeta(postId, false, forum).then(function(){
+            return loadCommentsForPost(postId, forum);
           }).then(resetAndLoadPosts);
         })
         .catch(function(err){
@@ -1463,14 +1495,14 @@ function buildReplyNode(postId, key, path, data, depth){
       return num((data[a]||{}).time) - num((data[b]||{}).time);
     });
     kids.forEach(function(kid){
-      box.appendChild(buildReplyNode(postId, kid, path + "/" + kid, data[kid], depth+1));
+      box.appendChild(buildReplyNode(postId, kid, path + "/" + kid, data[kid], depth+1, forum));
     });
   }
 
   return box;
 }
 
-function buildCommentNode(postId, key, path, data, depth){
+function buildCommentNode(postId, key, path, data, depth, forum){
   data = data || {};
   var author = safe(data.author || data.username || data.user || data.name || "—");
   var text = safe(data.text || data.body || data.message || "");
@@ -1498,7 +1530,7 @@ function buildCommentNode(postId, key, path, data, depth){
     if(!b) return;
     var act = b.getAttribute("data-act");
     if(act==="edit"){
-      openCommentEditor(path, postId, data);
+      openCommentEditor(path, postId, data, forum);
     }
     if(act==="del"){
       if(!confirmDanger("למחוק תגובה? הילדים שלה ימחקו אוטומטית.")) return;
@@ -1507,14 +1539,14 @@ function buildCommentNode(postId, key, path, data, depth){
       up[path] = null;
 
       if(depth===0){
-        up[REPLIES_PATH + "/" + postId + "/" + key] = null;
+        up[getPaths(forum).replies + "/" + postId + "/" + key] = null;
       }
 
       firebase.database().ref().update(up)
         .then(function(){
           toast("נמחק ✅","ok");
-          return recalcPostMeta(postId, false).then(function(){
-            return loadCommentsForPost(postId);
+          return recalcPostMeta(postId, false, forum).then(function(){
+            return loadCommentsForPost(postId, forum);
           }).then(resetAndLoadPosts);
         })
         .catch(function(err){
@@ -1533,7 +1565,7 @@ function buildCommentNode(postId, key, path, data, depth){
       rKeys.sort(function(a,b){ return num((o[a]||{}).time) - num((o[b]||{}).time); });
       rKeys.forEach(function(rid){
         var childPath = path + "/" + cn.name + "/" + rid;
-        box.appendChild(buildCommentNode(postId, rid, childPath, o[rid], depth+1));
+        box.appendChild(buildCommentNode(postId, rid, childPath, o[rid], depth+1, forum));
       });
     });
   }
@@ -1634,12 +1666,13 @@ function maxTimeDeep(root, depth){
   walk(root, depth);
   return last;
 }
-function recalcPostMeta(postId, showToast){
+function recalcPostMeta(postId, showToast, forum){
   if(showToast) toast("מתקן מונים…","warn");
+  var paths = getPaths(forum||"A");
 
   return Promise.all([
-    firebase.database().ref(COMMENTS_PATH + "/" + postId).once("value"),
-    firebase.database().ref(REPLIES_PATH + "/" + postId).once("value")
+    firebase.database().ref(paths.comments + "/" + postId).once("value"),
+    firebase.database().ref(paths.replies + "/" + postId).once("value")
   ])
   .then(function(res){
     var snapC = res[0];
@@ -1653,8 +1686,8 @@ function recalcPostMeta(postId, showToast){
     var finalLast = Math.max(num(meta.lastCommentTime), num(repliesLast));
 
     var up = {};
-    up[POSTS_PATH + "/" + postId + "/commentsCount"] = num(meta.commentsCount);
-    up[POSTS_PATH + "/" + postId + "/lastCommentTime"] = num(finalLast);
+    up[paths.posts + "/" + postId + "/commentsCount"] = num(meta.commentsCount);
+    up[paths.posts + "/" + postId + "/lastCommentTime"] = num(finalLast);
 
     return firebase.database().ref().update(up).then(function(){
       if(showToast) toast("מונים עודכנו ✅","ok");
@@ -1668,6 +1701,8 @@ function recalcPostMeta(postId, showToast){
 function fixAllPosts(){
   if(!S.isAdmin) return;
   if(!confirmDanger("“עשה סדר” ירוץ על הרבה פוסטים (מוגבל ל-300). להמשיך?")) return;
+  
+  var forum = el("forumSelTools").value || "A";
 
   setBusy(true);
   progReset();
@@ -1676,7 +1711,7 @@ function fixAllPosts(){
 
   var HARD_LIMIT = 300;
 
-  firebase.database().ref(POSTS_PATH).orderByChild("time").limitToLast(HARD_LIMIT).once("value")
+  firebase.database().ref(getPaths(forum).posts).orderByChild("time").limitToLast(HARD_LIMIT).once("value")
     .then(function(snap){
       var ids = [];
       snap.forEach(function(ch){ ids.push(ch.key); });
@@ -1701,7 +1736,7 @@ function fixAllPosts(){
         prog(pct, "מתקן ("+(i+1)+"/"+ids.length+")");
         el("toolsMsg").textContent = "פוסט: " + ids[i];
 
-        recalcPostMeta(ids[i], false).finally(function(){
+        recalcPostMeta(ids[i], false, forum).finally(function(){
           i++;
           setTimeout(step, 25);
         });
@@ -1719,21 +1754,22 @@ el("btnFixAll").onclick = fixAllPosts;
 /* =========================
    DEEP DELETE POST
 ========================= */
-function deepDeletePost(postId, closeSheetAfter){
+function deepDeletePost(postId, closeSheetAfter, forum){
   if(!postId) return;
   if(!confirmDanger("למחוק פוסט עמוק?\nposts/"+postId+"\nוגם comments/"+postId+"\nוגם תמונות ב-storage אם יש")) return;
+  var paths = getPaths(forum||"A");
 
   setBusy(true);
   toast("מוחק…","warn");
 
   var up = {};
-  up[POSTS_PATH + "/" + postId] = null;
-  up[COMMENTS_PATH + "/" + postId] = null;
-  up[REPLIES_PATH + "/" + postId] = null;
+  up[paths.posts + "/" + postId] = null;
+  up[paths.comments + "/" + postId] = null;
+  up[paths.replies + "/" + postId] = null;
 
   firebase.database().ref().update(up)
     .then(function(){
-      var folderRef = firebase.storage().ref(STORAGE_POST_FOLDER + "/" + postId);
+      var folderRef = firebase.storage().ref(paths.storage + "/" + postId);
       return folderRef.listAll().then(function(res){
         var ps = [];
         (res.items||[]).forEach(function(itemRef){ ps.push(itemRef.delete().catch(function(){})); });
@@ -1836,9 +1872,11 @@ function renameInCommentTree(rootObj, rootPath, oldName, newName, depth){
   return up;
 }
 
-function renameEverywhere(oldName, newName){
+function renameEverywhere(oldName, newName, forum){
   oldName = safe(oldName).trim();
   newName = safe(newName).trim();
+  forum = forum || "A";
+  var paths = getPaths(forum);
 
   if(!oldName || !newName){ toast("חסר שם נוכחי או חדש","warn"); return; }
   if(oldName === newName){ toast("אין שינוי","warn"); return; }
@@ -1852,7 +1890,7 @@ function renameEverywhere(oldName, newName){
   var totalUpdates = 0;
 
   prog(5,"סורק users…");
-  firebase.database().ref(USERS_PATH).limitToLast(6000).once("value")
+  firebase.database().ref(paths.users).limitToLast(6000).once("value")
     .then(function(snap){
       var up = {};
       var matched = 0;
@@ -1861,7 +1899,7 @@ function renameEverywhere(oldName, newName){
         var uid = ch.key;
         var v = ch.val() || {};
         if(safe(v.username) === oldName){
-          up[USERS_PATH + "/" + uid + "/username"] = newName;
+          up[paths.users + "/" + uid + "/username"] = newName;
           matched++;
         }
       });
@@ -1872,7 +1910,7 @@ function renameEverywhere(oldName, newName){
     })
     .then(function(){
       prog(30,"סורק posts…");
-      return firebase.database().ref(POSTS_PATH).limitToLast(1500).once("value");
+      return firebase.database().ref(paths.posts).limitToLast(1500).once("value");
     })
     .then(function(ps){
       var up = {};
@@ -1881,7 +1919,7 @@ function renameEverywhere(oldName, newName){
       ps.forEach(function(ch){
         var id = ch.key;
         var v = ch.val() || {};
-        var base = POSTS_PATH + "/" + id;
+        var base = paths.posts + "/" + id;
 
         ["author","username","user","name"].forEach(function(f){
           if(v[f] !== undefined && v[f] !== null && safe(v[f]) === oldName){
@@ -1897,7 +1935,7 @@ function renameEverywhere(oldName, newName){
     })
     .then(function(){
       prog(60,"סורק comments…");
-      return firebase.database().ref(COMMENTS_PATH).limitToLast(900).once("value");
+      return firebase.database().ref(paths.comments).limitToLast(900).once("value");
     })
     .then(function(cs){
       var bigUp = {};
@@ -1908,7 +1946,7 @@ function renameEverywhere(oldName, newName){
         var obj = ch.val() || {};
         roots++;
 
-        var local = renameInCommentTree(obj, COMMENTS_PATH + "/" + postId, oldName, newName, MAX_REPLIES_DEPTH);
+        var local = renameInCommentTree(obj, paths.comments + "/" + postId, oldName, newName, MAX_REPLIES_DEPTH);
         Object.keys(local).forEach(function(k){ bigUp[k] = local[k]; });
       });
 
@@ -1928,7 +1966,7 @@ function renameEverywhere(oldName, newName){
     })
     .finally(function(){ setBusy(false); });
 }
-el("btnRename").onclick = function(){ renameEverywhere(el("oldName").value, el("newName").value); };
+el("btnRename").onclick = function(){ renameEverywhere(el("oldName").value, el("newName").value, el("forumSelRename").value); };
 
 /* =========================
    FIX: qSearch render filter without reload (keeps original list)
@@ -1980,10 +2018,10 @@ el("btnRename").onclick = function(){ renameEverywhere(el("oldName").value, el("
         var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
         if(!b) return;
         var act = b.getAttribute("data-act");
-        if(act==="edit") openPostEditor(p.id, false);
-        if(act==="comments") openPostEditor(p.id, true);
-        if(act==="recalc") recalcPostMeta(p.id, true);
-        if(act==="delete") deepDeletePost(p.id, true);
+        if(act==="edit") openPostEditor(p.id, false, el("forumSelPosts").value);
+        if(act==="comments") openPostEditor(p.id, true, el("forumSelPosts").value);
+        if(act==="recalc") recalcPostMeta(p.id, true, el("forumSelPosts").value);
+        if(act==="delete") deepDeletePost(p.id, true, el("forumSelPosts").value);
       });
       host.appendChild(card);
     });
@@ -1995,8 +2033,7 @@ el("btnRename").onclick = function(){ renameEverywhere(el("oldName").value, el("
    DB structure:
    presence/{uid} = { connectedAt, isOnline, lastSeen, username }
 ========================= */
-var _presenceRef = null;
-var _presenceHandler = null;
+var _presenceRefs = [];
 
 function normalizePresence(uid, v){
   v = v || {};
@@ -2047,9 +2084,16 @@ function renderUsersList(){
   host.innerHTML = "";
   arr.forEach(function(x){
     var isOnline = !!x.isOnline;
+    var statusText = isOnline ? "אונליין" : "אופליין";
+    if(x.source){
+      if(x.source==="A") statusText = "אונליין (A)";
+      else if(x.source==="B") statusText = "אונליין (B)";
+      else if(x.source==="BOTH") statusText = "אונליין (A+B)";
+    }
+
     var name = x.username || "משתמש ללא שם";
     var lastSeenLabel = isOnline ? "עכשיו" : formatLastSeenHuman(x.lastSeen);
-    var conn = computeConnectionInfo(isOnline, x.connectedAt, x.lastSeen);
+    var conn = computeConnectionInfo(isOnline, x.connectedAt, x.lastSeen, x.connLabel);
 
     var card = document.createElement("div");
     card.className = "uCard " + (isOnline ? "online" : "offline");
@@ -2062,7 +2106,7 @@ function renderUsersList(){
         </div>
         <div class="uStatus">
           <span class="sDot"></span>
-          <span>${isOnline ? "אונליין" : "אופליין"}</span>
+          <span>${escapeHtml(statusText)}</span>
         </div>
       </div>
 
@@ -2088,13 +2132,10 @@ function renderUsersList(){
 
 function stopPresenceWatch(){
   try{
-    if(_presenceRef && _presenceHandler){
-      _presenceRef.off("value", _presenceHandler);
-    }
+    _presenceRefs.forEach(function(r){ r.off(); });
   }catch(e){}
 
-  _presenceRef = null;
-  _presenceHandler = null;
+  _presenceRefs = [];
 
   S.presenceArr = [];
   S.presenceMap = {};
@@ -2107,35 +2148,87 @@ function startPresenceWatch(){
   if(!S.isAdmin) return;
   stopPresenceWatch();
 
-  var ref = firebase.database().ref(PRESENCE_PATH);
-  if(PRESENCE_LIST_LIMIT && PRESENCE_LIST_LIMIT > 0){
-    // if ever needed
-    ref = ref.orderByChild("lastSeen").limitToLast(PRESENCE_LIST_LIMIT);
+  var mode = el("forumSelUsers").value || "ALL";
+  var refs = [];
+
+  if(mode === "ALL"){
+    refs.push(firebase.database().ref(getPaths("A").presence));
+    refs.push(firebase.database().ref(getPaths("B").presence));
+  } else {
+    refs.push(firebase.database().ref(getPaths(mode).presence));
   }
-  _presenceRef = ref;
 
-  _presenceHandler = function(snap){
+  // We need to merge data from multiple refs
+  var dataMap = {}; // index -> { uid: val }
+
+  function onUpdate(){
+    var combined = {};
+    // Merge logic
+    // If single mode, dataMap[0] is enough
+    // If ALL mode, merge dataMap[0] (A) and dataMap[1] (B)
+    
+    if(mode !== "ALL"){
+      var raw = dataMap[0] || {};
+      Object.keys(raw).forEach(function(uid){
+        combined[uid] = normalizePresence(uid, raw[uid]);
+      });
+    } else {
+      var rawA = dataMap[0] || {};
+      var rawB = dataMap[1] || {};
+      var allUids = Object.keys(rawA).concat(Object.keys(rawB));
+      // unique
+      allUids = allUids.filter(function(item, pos) { return allUids.indexOf(item) == pos; });
+
+      allUids.forEach(function(uid){
+        var a = rawA[uid] ? normalizePresence(uid, rawA[uid]) : null;
+        var b = rawB[uid] ? normalizePresence(uid, rawB[uid]) : null;
+
+        // Name priority: A > B
+        var name = (a && a.username) ? a.username : (b && b.username ? b.username : "");
+        
+        // Online: A or B
+        var onlineA = a && a.isOnline;
+        var onlineB = b && b.isOnline;
+        var isOnline = onlineA || onlineB;
+        
+        // Source string
+        var source = "";
+        if(onlineA && onlineB) source = "BOTH";
+        else if(onlineA) source = "A";
+        else if(onlineB) source = "B";
+
+        // Last Seen: Max
+        var ls = Math.max(a ? a.lastSeen : 0, b ? b.lastSeen : 0);
+
+        // Connected At: If online in both, take the earliest start (longest session). If only one, take that.
+        var ca = 0;
+        if(onlineA && onlineB) ca = Math.min(a.connectedAt, b.connectedAt);
+        else if(onlineA) ca = a.connectedAt;
+        else if(onlineB) ca = b.connectedAt;
+
+        combined[uid] = { uid:uid, username:name, isOnline:isOnline, lastSeen:ls, connectedAt:ca, source:source, connLabel:"מחובר כבר (משוקלל)" };
+      });
+    }
+
     var arr = [];
-    var map = {};
-
-    snap.forEach(function(ch){
-      var uid = ch.key;
-      var item = normalizePresence(uid, ch.val());
-
-      map[uid] = item;
-      arr.push(item);
-    });
+    Object.keys(combined).forEach(function(k){ arr.push(combined[k]); });
 
     sortPresence(arr);
 
     S.presenceArr = arr;
-    S.presenceMap = map;
+    S.presenceMap = combined;
 
     renderUsersList();
-  };
+  }
 
-  _presenceRef.on("value", _presenceHandler, function(err){
-    toast("שגיאה בניטור משתמשים: " + safe(err && err.message || err), "err");
+  refs.forEach(function(ref, idx){
+    var handler = ref.on("value", function(snap){
+      dataMap[idx] = snap.val() || {};
+      onUpdate();
+    }, function(err){
+      toast("שגיאה בניטור: " + safe(err && err.message || err), "err");
+    });
+    _presenceRefs.push(ref);
   });
 
   if(el("usersList")) el("usersList").innerHTML = '<div class="mini muted">טוען משתמשים…</div>';
@@ -2143,6 +2236,9 @@ function startPresenceWatch(){
 
 if(el("usersSearch")){
   el("usersSearch").oninput = function(){ renderUsersList(); };
+}
+if(el("forumSelUsers")){
+  el("forumSelUsers").onchange = function(){ startPresenceWatch(); };
 }
 if(el("btnUsersRefresh")){
   el("btnUsersRefresh").onclick = function(){
