@@ -270,7 +270,7 @@
 </header>
 
 <!-- Backdrop לסגירה בלחיצה מחוץ לתפריט -->
-<div id="menuBackdrop" class="menu-backdrop"></div>
+<div id="menuBackdrop" class="menu-backdrop" style="display:none;"></div>
                   <!-- Pull To Refresh indicator -->                    <div id="pull-indicator" style="                    
   display:none;                    
   text-align:center;                    
@@ -1085,7 +1085,7 @@ function getPreviewUrlForFile(file, done) {
   }          
 }          
         
-function openImageViewer(url) {          
+function openImageViewer(url, imagePath, postEl) {          
   var overlay = document.getElementById("imageViewerOverlay");          
   var img = document.getElementById("imageViewerImg");          
   /*          
@@ -1102,6 +1102,20 @@ function openImageViewer(url) {
   if (!safe) return;          
         
  
+  try { img.__signedRefreshTried = false; } catch (eR0) {}
+  try { img.__handlingImgErr = false; } catch (eR1) {}
+  try { img.setAttribute("data-image-path", safeText(imagePath || "").trim()); } catch (eR2) {}
+  try { 
+    var pid0 = "";
+    try { if (postEl && postEl.getAttribute) pid0 = safeText(postEl.getAttribute("data-id") || ""); } catch (ePid0) {}
+    img.setAttribute("data-post-id", pid0 || "");
+  } catch (eR3) {}
+  try { 
+    var exp0 = 0;
+    try { if (postEl && postEl.getAttribute) exp0 = Number(postEl.getAttribute("data-image-exp") || 0) || 0; } catch (eExp0) {}
+    img.setAttribute("data-image-exp", exp0 ? String(exp0) : "");
+  } catch (eR4) {}
+
   bindImgLoadErrorOnce(img);
 img.setAttribute("src", safe);
 overlay.style.display = "flex";
@@ -1141,6 +1155,243 @@ overlay.style.display = "flex";
 /* =========================================================================================          
    NEW: mini image preview (requested: click chip -> small preview with X)          
    ========================================================================================= */          
+
+/* =========================================================================================
+   ✅ FIX: Refresh signed image URL ONLY when it is truly expired (or definitely unauthorized)
+   - If the signed URL is expired (detected by query params or HTTP 401/403/400), we fetch a new one via fetchSignedUrlForPath().
+   - We retry at most once per open to avoid loops / excess calls.
+   ========================================================================================= */
+var _signedImgRefreshByPathAt = Object.create(null);
+
+function _inferSignedUrlExpiryTs(url) {
+  try {
+    var u = safeText(url || "").trim();
+    if (!u) return 0;
+    var q = "";
+    try { q = (u.split("?")[1] || ""); } catch (eQ) { q = ""; }
+    if (!q) return 0;
+
+    var params = Object.create(null);
+    q.split("&").forEach(function (kv) {
+      try {
+        if (!kv) return;
+        var i = kv.indexOf("=");
+        var k = i >= 0 ? kv.slice(0, i) : kv;
+        var v = i >= 0 ? kv.slice(i + 1) : "";
+        k = decodeURIComponent(k || "");
+        v = decodeURIComponent(v || "");
+        if (k) params[k] = v;
+      } catch (eP) { }
+    });
+
+    function parseCompactUtc(s) {
+      // YYYYMMDDTHHMMSSZ
+      try {
+        s = safeText(s || "");
+        if (s.length < 16) return 0;
+        var y = Number(s.slice(0, 4));
+        var mo = Number(s.slice(4, 6)) - 1;
+        var d = Number(s.slice(6, 8));
+        var hh = Number(s.slice(9, 11));
+        var mm = Number(s.slice(11, 13));
+        var ss = Number(s.slice(13, 15));
+        if (!isFinite(y) || !isFinite(mo) || !isFinite(d)) return 0;
+        return Date.UTC(y, mo, d, hh, mm, ss);
+      } catch (eD) { return 0; }
+    }
+
+    var base = 0, sec = 0;
+
+    // Google Cloud Storage V4 signed URLs
+    if (params["X-Goog-Date"] && params["X-Goog-Expires"]) {
+      base = parseCompactUtc(params["X-Goog-Date"]);
+      sec = Number(params["X-Goog-Expires"] || 0) || 0;
+      if (base && sec) return base + (sec * 1000);
+    }
+
+    // AWS S3 presigned URLs
+    if (params["X-Amz-Date"] && params["X-Amz-Expires"]) {
+      base = parseCompactUtc(params["X-Amz-Date"]);
+      sec = Number(params["X-Amz-Expires"] || 0) || 0;
+      if (base && sec) return base + (sec * 1000);
+    }
+
+    // Generic "Expires" (epoch seconds or date string)
+    if (params["Expires"]) {
+      var ex = params["Expires"];
+      var n = Number(ex);
+      if (isFinite(n) && n > 1000000000) return n * 1000; // epoch seconds
+      var dt = Date.parse(ex);
+      if (!isNaN(dt)) return dt;
+    }
+
+    return 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+function _isSignedUrlExpired(url, expOverride) {
+  try {
+    var now = Date.now();
+    var exp = Number(expOverride || 0) || 0;
+    if (!exp) exp = _inferSignedUrlExpiryTs(url);
+    if (!exp) return false;
+    return now > (exp + 3000); // small grace window
+  } catch (e) {
+    return false;
+  }
+}
+
+function _probeImageHttpStatus(url) {
+  try {
+    var u = sanitizeImageUrl(url || "");
+    if (!u || typeof fetch !== "function") return Promise.resolve({ status: 0, ok: false });
+    return fetch(u, { method: "HEAD", mode: "cors", cache: "no-store", credentials: "omit" })
+      .then(function (resp) { return { status: Number(resp && resp.status || 0) || 0, ok: !!(resp && resp.ok) }; })
+      .catch(function () {
+        // fallback: tiny GET (some servers / proxies don't like HEAD)
+        try {
+          return fetch(u, { method: "GET", mode: "cors", cache: "no-store", credentials: "omit", headers: { "Range": "bytes=0-0" } })
+            .then(function (resp2) { return { status: Number(resp2 && resp2.status || 0) || 0, ok: !!(resp2 && resp2.ok) }; })
+            .catch(function () { return { status: 0, ok: false }; });
+        } catch (e2) {
+          return { status: 0, ok: false };
+        }
+      });
+  } catch (e) {
+    return Promise.resolve({ status: 0, ok: false });
+  }
+}
+
+function _getSignedImagePathFromEl(imgEl) {
+  try {
+    if (!imgEl) return "";
+    var p = safeText(imgEl.getAttribute("data-image-path") || "").trim();
+    if (p) return p;
+    var post = null;
+    try { post = imgEl.closest ? imgEl.closest(".post") : null; } catch (eC) { post = null; }
+    if (post) {
+      p = safeText(post.getAttribute("data-image-path") || "").trim();
+      if (p) return p;
+    }
+    return "";
+  } catch (e) {
+    return "";
+  }
+}
+
+function _updatePostSignedUrlCache(imgEl, newUrl, expiresAt) {
+  try {
+    var nu = sanitizeImageUrl(newUrl || "");
+    if (!nu) return;
+
+    var pid = "";
+    try { pid = safeText(imgEl.getAttribute("data-post-id") || "").trim(); } catch (ePid) { pid = ""; }
+
+    var post = null;
+    if (pid) {
+      try { post = document.querySelector('.post[data-id="' + pid.replace(/"/g, "") + '"]'); } catch (eSel) { post = null; }
+    }
+    if (!post) {
+      try { post = imgEl.closest ? imgEl.closest(".post") : null; } catch (eC2) { post = null; }
+    }
+
+    if (post) {
+      try { post.setAttribute("data-image", nu); } catch (eSet1) { }
+      try { post.setAttribute("data-image-exp", (expiresAt ? String(expiresAt) : "")); } catch (eSet2) { }
+    }
+
+    // Also update postsCacheData entry if present (so next render persists it)
+    try {
+      var id = post ? safeText(post.getAttribute("data-id") || "") : "";
+      if (id && typeof postsCacheData !== "undefined" && postsCacheData && postsCacheData.length) {
+        for (var i = 0; i < postsCacheData.length; i++) {
+          if (postsCacheData[i] && postsCacheData[i].id === id) {
+            postsCacheData[i].image = nu;
+            postsCacheData[i].imagePath = postsCacheData[i].imagePath || _getSignedImagePathFromEl(imgEl) || "";
+            postsCacheData[i].imageExp = Number(expiresAt || 0) || 0;
+            break;
+          }
+        }
+      }
+    } catch (ePC) { }
+  } catch (e) { }
+}
+
+function _maybeRefreshExpiredSignedUrl(imgEl) {
+  return new Promise(function (resolve) {
+    try {
+      if (!imgEl) { resolve(false); return; }
+      if (imgEl.__signedRefreshTried) { resolve(false); return; }
+
+      var src = sanitizeImageUrl(imgEl.getAttribute("src") || "");
+      if (!src) { resolve(false); return; }
+
+      var path = _getSignedImagePathFromEl(imgEl);
+      if (!path) { resolve(false); return; }
+
+      // Throttle per path (avoid bursts)
+      try {
+        var now = Date.now();
+        var lastAt = Number(_signedImgRefreshByPathAt[path] || 0) || 0;
+        if (lastAt && (now - lastAt) < 5000) { resolve(false); return; }
+      } catch (eTh) { }
+
+      // Strong signal 1: explicit expiry attribute or URL-derived expiry
+      var expAttr = 0;
+      try { expAttr = Number(imgEl.getAttribute("data-image-exp") || 0) || 0; } catch (eExp) { expAttr = 0; }
+      var expiredSure = _isSignedUrlExpired(src, expAttr);
+
+      var decide = expiredSure
+        ? Promise.resolve({ refresh: true, status: 0 })
+        : _probeImageHttpStatus(src).then(function (r) {
+            var st = Number(r && r.status || 0) || 0;
+            // Strong signal 2: definitely unauthorized / invalid signature
+            var refresh = (st === 401 || st === 403 || st === 400);
+            return { refresh: refresh, status: st };
+          });
+
+      decide.then(function (d) {
+        try {
+          if (!d || !d.refresh) { resolve(false); return; }
+          imgEl.__signedRefreshTried = true;
+          _signedImgRefreshByPathAt[path] = Date.now();
+
+          try { setStatus("טוען קישור חדש…", "info"); } catch (eS) { }
+
+          fetchSignedUrlForPath(path, true)
+            .then(function (r2) {
+              var nu = sanitizeImageUrl(r2 && r2.url ? r2.url : "");
+              if (!nu) { resolve(false); return; }
+
+              // propagate expiry if provided
+              var exp2 = Number(r2 && r2.expiresAt || 0) || 0;
+              try { imgEl.setAttribute("data-image-exp", exp2 ? String(exp2) : ""); } catch (eSetE) { }
+
+              _updatePostSignedUrlCache(imgEl, nu, exp2);
+
+              try { imgEl.setAttribute("src", nu); } catch (eSetSrc) { }
+
+              try { setStatus("", "info"); } catch (eClr) { }
+              resolve(true);
+            })
+            .catch(function () {
+              resolve(false);
+            });
+        } catch (eD) {
+          resolve(false);
+        }
+      }).catch(function () {
+        resolve(false);
+      });
+    } catch (e0) {
+      resolve(false);
+    }
+  });
+}
+
+
 function bindImgLoadErrorOnce(imgEl) {
   if (!imgEl || imgEl.__boundLoadErr) return;
   imgEl.__boundLoadErr = true;
@@ -1155,11 +1406,25 @@ function bindImgLoadErrorOnce(imgEl) {
     try {
       var current = (imgEl.getAttribute("src") || "").trim();
       if (!current) return;
-      setStatus("לא הצלחתי לטעון את התמונה.", "error");
+
+      // Prevent double-handling in some WebViews
+      if (imgEl.__handlingImgErr) return;
+      imgEl.__handlingImgErr = true;
+
+      _maybeRefreshExpiredSignedUrl(imgEl)
+        .then(function (refreshed) {
+          imgEl.__handlingImgErr = false;
+          if (refreshed) return; // will reload with new URL
+          setStatus("לא הצלחתי לטעון את התמונה.", "error");
+        })
+        .catch(function () {
+          imgEl.__handlingImgErr = false;
+          setStatus("לא הצלחתי לטעון את התמונה.", "error");
+        });
     } catch (e) {}
   });
 }
-function openMiniImagePreview(url) {          
+function openMiniImagePreview(url, imagePath, postEl) {          
   try {          
     var overlay = document.getElementById("miniImageOverlay");          
     var img = document.getElementById("miniPreviewImg");          
@@ -1169,7 +1434,21 @@ function openMiniImagePreview(url) {
     var safe = sanitizeImageUrl(url);          
     if (!safe) return;          
 
-   bindImgLoadErrorOnce(img);
+   try { img.__signedRefreshTried = false; } catch (eR0) {}
+  try { img.__handlingImgErr = false; } catch (eR1) {}
+  try { img.setAttribute("data-image-path", safeText(imagePath || "").trim()); } catch (eR2) {}
+  try { 
+    var pid0 = "";
+    try { if (postEl && postEl.getAttribute) pid0 = safeText(postEl.getAttribute("data-id") || ""); } catch (ePid0) {}
+    img.setAttribute("data-post-id", pid0 || "");
+  } catch (eR3) {}
+  try { 
+    var exp0 = 0;
+    try { if (postEl && postEl.getAttribute) exp0 = Number(postEl.getAttribute("data-image-exp") || 0) || 0; } catch (eExp0) {}
+    img.setAttribute("data-image-exp", exp0 ? String(exp0) : "");
+  } catch (eR4) {}
+
+  bindImgLoadErrorOnce(img);
 img.setAttribute("src", safe);
 overlay.style.display = "flex";
         
@@ -1597,7 +1876,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function openHeaderMenu() {
     if (!headerMenu || !menuBackdrop || !hamburgerBtn) return;
     headerMenu.style.right = "0";
-    menuBackdrop.style.pointerEvents = "auto";
+    menuBackdrop.style.pointerevents = "auto";
     menuBackdrop.style.opacity = "1";
     hamburgerBtn.setAttribute("aria-expanded", "true");
   }
@@ -1605,7 +1884,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function closeHeaderMenu() {
     if (!headerMenu || !menuBackdrop || !hamburgerBtn) return;
     headerMenu.style.right = "-200px";
-    menuBackdrop.style.pointerEvents = "none";
+    menuBackdrop.style.pointerevents = "none";
     menuBackdrop.style.opacity = "0";
     
     hamburgerBtn.setAttribute("aria-expanded", "false");
@@ -1723,10 +2002,20 @@ document.addEventListener("DOMContentLoaded", function () {
             var u = postEl.getAttribute("data-image") || "";          
             u = sanitizeImageUrl(u);          
         
-            // NEW: if no signed url yet but we have path -> fetch signed url then open          
+            
+            var pth = "";
+            try { pth = safeText(postEl.getAttribute("data-image-path") || "").trim(); } catch (ePth0) { pth = ""; }
+            var expA = 0;
+            try { expA = Number(postEl.getAttribute("data-image-exp") || 0) || 0; } catch (eExpA) { expA = 0; }
+            // If we can PROVE the URL is expired, clear it so we will fetch a fresh one.
+            if (u && pth && _isSignedUrlExpired(u, expA)) {
+              try { postEl.removeAttribute("data-image"); } catch (eRm) { }
+              u = "";
+            }
+// NEW: if no signed url yet but we have path -> fetch signed url then open          
             if (!u) {          
-              var pth = safeText(postEl.getAttribute("data-image-path") || "").trim();          
-              if (pth) {          
+              pth = safeText(postEl.getAttribute("data-image-path") || "").trim();
+if (pth) {          
                 setStatus("טוען תמונה…", "info");          
                 fetchSignedUrlForPath(pth, false)          
                   .then(function (r) {          
@@ -1734,7 +2023,8 @@ document.addEventListener("DOMContentLoaded", function () {
                       var su = sanitizeImageUrl(r && r.url ? r.url : "");          
                       if (su) {          
                         postEl.setAttribute("data-image", su);          
-                        openMiniImagePreview(su);          
+                        try { postEl.setAttribute("data-image-exp", String(Number(r && r.expiresAt || 0) || 0)); } catch (eExpC) {}
+                        openMiniImagePreview(su, pth, postEl);          
                         setStatus("", "info");          
                         return;          
                       }          
@@ -1755,7 +2045,7 @@ document.addEventListener("DOMContentLoaded", function () {
               }          
             }          
         
-            if (u) openMiniImagePreview(u);          
+            if (u) openMiniImagePreview(u, pth, postEl);          
           }          
         } catch (eOpenMini) { }          
         return;          
@@ -1769,7 +2059,11 @@ document.addEventListener("DOMContentLoaded", function () {
       src = sanitizeImageUrl(src);          
       if (!src) return;          
         
-      openImageViewer(src);          
+      var postEl2 = null;
+      try { postEl2 = img.closest ? img.closest(".post") : null; } catch (eP2) { postEl2 = null; }
+      var pth2 = "";
+      try { if (postEl2) pth2 = safeText(postEl2.getAttribute("data-image-path") || "").trim(); } catch (ePth2) { pth2 = ""; }
+      openImageViewer(src, pth2, postEl2);          
     }, false);          
   }          
         
@@ -2525,6 +2819,20 @@ var text = textEl ? (textEl.innerText || "") : "";
         } catch (eImg) { imageUrl = ""; }          
       }          
     
+
+      // ✅ NEW: If we already have a signed URL but it is DEFINITELY expired, clear it so we will prefetch a new one.
+      if (imagePath && imageUrl) {
+        try {
+          var expAttr = 0;
+          try { expAttr = Number(el.getAttribute("data-image-exp") || 0) || 0; } catch (eEA) { expAttr = 0; }
+          if (_isSignedUrlExpired(imageUrl, expAttr)) {
+            imageUrl = "";
+            try { el.removeAttribute("data-image"); } catch (eRm2) { }
+            try { el.removeAttribute("data-image-exp"); } catch (eRm3) { }
+          }
+        } catch (eExpChk) { }
+      }
+
       // NEW: if we have imagePath but no url, prefetch once (best effort)          
       if (imagePath && !imageUrl) {          
         try {          
@@ -2533,7 +2841,8 @@ var text = textEl ? (textEl.innerText || "") : "";
               try {          
                 var su = sanitizeImageUrl(r && r.url ? r.url : "");          
                 if (su) {          
-                  el.setAttribute("data-image", su);          
+                  el.setAttribute("data-image", su);
+                  try { el.setAttribute("data-image-exp", String(Number(r && r.expiresAt || 0) || 0)); } catch (eExpS) {}          
                   imageUrl = su;          
                   sessionStorage.setItem("currentPost", JSON.stringify({                    
                     id: postId,                    
@@ -2541,7 +2850,8 @@ var text = textEl ? (textEl.innerText || "") : "";
                     text: text || "",                    
                     author: author || "",          
                     image: imageUrl || "",                    
-                    imagePath: imagePath || ""                    
+                    imagePath: imagePath || "",
+                    imageExp: Number(el.getAttribute("data-image-exp") || 0) || 0                    
                   }));                    
                   location.href = "post.html?postId=" + encodeURIComponent(postId);                    
                 } else {          
@@ -2552,7 +2862,8 @@ var text = textEl ? (textEl.innerText || "") : "";
                     text: text || "",                    
                     author: author || "",          
                     image: imageUrl || "",                    
-                    imagePath: imagePath || ""                    
+                    imagePath: imagePath || "",
+                    imageExp: Number(el.getAttribute("data-image-exp") || 0) || 0                    
                   }));                    
                   location.href = "post.html?postId=" + encodeURIComponent(postId);                    
                 }          
@@ -2563,7 +2874,8 @@ var text = textEl ? (textEl.innerText || "") : "";
                   text: text || "",                    
                   author: author || "",          
                   image: imageUrl || "",                    
-                  imagePath: imagePath || ""                    
+                  imagePath: imagePath || "",
+                    imageExp: Number(el.getAttribute("data-image-exp") || 0) || 0                    
                 }));                    
                 location.href = "post.html?postId=" + encodeURIComponent(postId);                    
               }          
@@ -2575,7 +2887,8 @@ var text = textEl ? (textEl.innerText || "") : "";
                 text: text || "",                    
                 author: author || "",          
                 image: imageUrl || "",                    
-                imagePath: imagePath || ""                    
+                imagePath: imagePath || "",
+                    imageExp: Number(el.getAttribute("data-image-exp") || 0) || 0                    
               }));                    
               location.href = "post.html?postId=" + encodeURIComponent(postId);                    
             });          
@@ -2589,7 +2902,8 @@ var text = textEl ? (textEl.innerText || "") : "";
         text: text || "",                    
         author: author || "",          
         image: imageUrl || "",                    
-        imagePath: imagePath || ""                    
+        imagePath: imagePath || "",
+                    imageExp: Number(el.getAttribute("data-image-exp") || 0) || 0                    
       }));                    
     } catch (e) { }                    
         
