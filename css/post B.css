@@ -684,12 +684,13 @@ html[dir="ltr"] #post .post::before {
 .header-back-btn {
   align-items: center;
   gap: 6px;
+  display:none;
 
   padding: 8px 12px;
   border-radius: 999px;
 
-  border: 1px solid rgba(255,255,255,.18);
-  background: rgba(255,255,255,.08);
+  border: 0px;
+  background: rgba(255,255,255,0);
   backdrop-filter: blur(6px);
 
   color: rgb(6 16 74);
