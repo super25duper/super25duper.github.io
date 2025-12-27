@@ -19,7 +19,7 @@ body {
 .hamburger-btn {
   position: absolute;
   right: 12px;
-  top: 75%;
+  top: 70%;
   transform: translateY(-50%);
 
   width: 44px;
