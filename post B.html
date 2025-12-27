@@ -1441,7 +1441,7 @@ image: sanitizeImageUrl(v.image || "") // תאימות לאחור בלבד
     }
 
     if (list.length === 0) {
-      commentsBox.innerHTML = q ? "<p>לא נמצאו תוצאות.</p>" : "<p>אין תגובות עדיין.</p>";
+      commentsBox.innerHTML = q ? "<p>לא נמצאו תוצאות.</p>" : "<p style='color:var(--muted);'>אין תגובות עדיין.</p>";
       commentsRenderedHtml = commentsBox.innerHTML;
       return;
     }
