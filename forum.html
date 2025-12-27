@@ -537,7 +537,7 @@
    ========================================================================================= */                    
 var cached = null;                    
 try {                    
-  cached = sessionStorage.getItem("cachedPosts");                    
+  cached = sessionStorage.getItem("cachedPosts_A");                    
 } catch (e1) {                    
   cached = null;                    
 }                    
@@ -2363,7 +2363,7 @@ if (pth) {
       pulling = false;                    
       isRefreshing = true;                    
         
-      try { sessionStorage.removeItem("cachedPosts"); } catch (err2) { }                    
+      try { sessionStorage.removeItem("cachedPosts_A"); } catch (err2) { }                    
         
       loadPosts(true);                    
     }                    
@@ -2499,7 +2499,7 @@ startPresenceTracking();
         
         renderPostsFromCache();                    
         
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e2) { }                    
+    try { sessionStorage.setItem("cachedPosts_A", renderedHtmlCache); } catch (e2) { }                    
         
         if (fromRefresh) {                    
           setTimeout(function () {                    
@@ -3043,7 +3043,7 @@ function stopPresenceTracking() {
           closeCreatePostModal();                    
           setStatus("הפוסט פורסם בהצלחה.", "ok");                    
         
-          try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }                    
+          try { sessionStorage.setItem("cachedPosts_A", renderedHtmlCache); } catch (e3) { }                    
           try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }                    
         })                    
         .catch(function () {                    
@@ -3096,7 +3096,7 @@ function stopPresenceTracking() {
         closeCreatePostModal();                    
         setStatus("הפוסט פורסם בהצלחה.", "ok");                    
         
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e3) { }                    
+        try { sessionStorage.setItem("cachedPosts_A", renderedHtmlCache); } catch (e3) { }                    
         try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e4) { window.scrollTo(0, 0); }                    
       })          
       .catch(function (err) {          
@@ -3153,7 +3153,7 @@ function stopPresenceTracking() {
         
       if (!isRefreshing) {                    
         renderPostsFromCache();                    
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e5) { }                    
+        try { sessionStorage.setItem("cachedPosts_A", renderedHtmlCache); } catch (e5) { }                    
       }                    
     });                    
         
@@ -3194,7 +3194,7 @@ function stopPresenceTracking() {
         
       if (!isRefreshing) {                    
         renderPostsFromCache();                    
-        try { sessionStorage.setItem("cachedPosts", renderedHtmlCache); } catch (e6) { }                    
+        try { sessionStorage.setItem("cachedPosts_A", renderedHtmlCache); } catch (e6) { }                    
       }                    
     });                    
   }                    
