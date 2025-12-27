@@ -201,7 +201,14 @@
       submitBtn.textContent = "מתחבר...";
 
       try {
-        await firebase.auth().signInWithEmailAndPassword(email, password);
+        const userCred = await firebase.auth().signInWithEmailAndPassword(email, password);
+        const user = userCred.user;
+
+        // יצירת טוקן ייחודי ושמירה ב-DB וב-LocalStorage למניעת כניסה כפולה
+        const token = Date.now().toString(36) + Math.random().toString(36).substr(2);
+        await firebase.database().ref("forum B/sessions/" + user.uid + "/token").set(token);
+        localStorage.setItem("forumB_token", token);
+
         setStatus("ok", "התחברות הצליחה. מעביר לפורום...");
 
         window.location.href = TARGET_PAGE;
