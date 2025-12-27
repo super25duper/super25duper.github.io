@@ -694,7 +694,7 @@ function readFileAsDataURLWithRetry(file, tries, done) {
       <div class="post post-user-border" style="border-right-color:${escapeHTML(border)};">
         <h3 class="post-title-content">${escapeHTML(p.title || "")}</h3>
 <div class="post-content">${escapeHTML(p.text || "")}</div>
-        <small style="display:block; margin-top:6px;">מאת: ${escapeHTML(author)}</small>
+        <small style="display:block; margin-top:6px;">מאת: <bdi>${escapeHTML(author)}</bdi></small>
 
         ${(imageUrl || imagePath) ? `
           <div class="post-image-wrap" data-img-wrap="1" style="display:${(imageUrl ? "block" : "none")};">
@@ -1114,7 +1114,7 @@ postContainer.innerHTML = `
     <h3 class="post-title-content">${escapeHTML(p.title || "")}</h3>
 <div class="post-content">${escapeHTML(p.text || "")}</div>
 
-    <small>מאת: ${escapeHTML(author)}</small>
+    <small>מאת: <bdi>${escapeHTML(author)}</bdi></small>
 
     ${(imagePath || initialSrc) ? `
       <div class="post-image-wrap" data-img-wrap="1">
