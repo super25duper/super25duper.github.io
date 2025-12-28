@@ -1,5 +1,75 @@
 <!DOCTYPE html>                    <html lang="he">                    
 <head>
+<script>
+(function () {
+  // ====== הגדרות ======
+  // לאן להעיף את מי שלא מורשה:
+  var BLOCK_REDIRECT_URL = "/blocked.html"; // אפשר גם URL מלא
+
+  // אם בקודולאר אתה מוסיף ל-User-Agent מחרוזת ייחודית (מומלץ!), תשים אותה פה:
+  // לדוגמה: "MyKodularApp" או "KodularWebView"
+  var KODULAR_UA_MARKERS = [
+    "Kodular",          // לפעמים מופיע
+    "AppInventor",      // לפעמים מופיע בקומפילציות מסוימות
+    "MyKodularApp"      // <-- החלף למזהה שלך (מומלץ)
+  ];
+
+  // ====== עזרי זיהוי ======
+  function isIOS() {
+    // iPadOS חדש יכול להזדהות כ-Mac; לכן בודקים גם touch
+    var ua = navigator.userAgent || "";
+    var iOSUA = /iPad|iPhone|iPod/i.test(ua);
+    var iPadOS13Plus = (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    return iOSUA || iPadOS13Plus;
+  }
+
+  function isPWAStandalone() {
+    // iOS Safari (ישן): navigator.standalone
+    // תקני: display-mode standalone
+    return (window.navigator.standalone === true) ||
+           (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+           (document.referrer && document.referrer.startsWith("android-app://"));
+  }
+
+  function isAndroidWebView() {
+    // אינדיקציה נפוצה ל-WebView באנדרואיד
+    var ua = navigator.userAgent || "";
+    // "wv" או "Version/x.x" + Chrome בלי "Safari" וכד'
+    return /\bwv\b/.test(ua) || /Version\/[\d.]+.*Chrome\/[\d.]+/i.test(ua);
+  }
+
+  function isKodularWebView() {
+    var ua = navigator.userAgent || "";
+    var hitMarker = KODULAR_UA_MARKERS.some(function (m) { return m && ua.indexOf(m) !== -1; });
+
+    // אם יש לך marker ייחודי—זה מספיק.
+    // אם אין, ננסה "ניחוש" לפי WebView באנדרואיד (פחות אמין).
+    return hitMarker || (isAndroidWebView() && /Kodular|AppInventor/i.test(ua));
+  }
+
+  function allowed() {
+    // 1) PWA באפל (iOS) בלבד
+    if (isIOS() && isPWAStandalone()) return true;
+
+    // 2) WebView של Kodular
+    if (isKodularWebView()) return true;
+
+    return false;
+  }
+
+  // ====== חסימה ======
+  if (!allowed()) {
+    // מונע פלאש תוכן לפני רידיירקט
+    document.documentElement.style.display = "none";
+    try {
+      // Replace כדי למנוע "Back" שחוזר לדף החסום
+      window.location.replace(BLOCK_REDIRECT_URL);
+    } catch (e) {
+      window.location.href = BLOCK_REDIRECT_URL;
+    }
+  }
+})();
+</script>
   <link rel="manifest" href="for forum B/manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="My App">
