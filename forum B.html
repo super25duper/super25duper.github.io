@@ -1,32 +1,5 @@
 <!DOCTYPE html>                    <html lang="he">                    
 <head>
-<script>
-(function () {
-  try {
-    const ua = navigator.userAgent;
-
-    // ✅ Kodular WebView (זיהוי אמיתי, לא UA)
-    const isKodular =
-      window.AppInventor &&
-      typeof window.AppInventor.getWebViewString === "function";
-
-    // ✅ iOS
-    const isIOS = /iPhone|iPad|iPod/.test(ua);
-
-    // ✅ PWA (standalone)
-    const isPWA =
-      window.navigator.standalone === true ||
-      window.matchMedia("(display-mode: standalone)").matches;
-
-    if (!(isKodular || (isIOS && isPWA))) {
-      document.documentElement.style.display = "none";
-      location.replace("forbidden.html");
-    }
-  } catch (e) {
-    location.replace("forbidden.html");
-  }
-})();
-</script>
   <link rel="manifest" href="for forum B/manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="My App">
