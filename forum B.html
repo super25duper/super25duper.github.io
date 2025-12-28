@@ -3476,5 +3476,11 @@ function uploadPostImage(file, postId, uid) {
     );                    
   });                    
 }                    
-</script>                    </body>                    
+</script>                  <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js');
+  });
+}
+</script>  </body>                    
 </html>
