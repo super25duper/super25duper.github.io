@@ -13,7 +13,7 @@ body {
 }
 /* ===== Header hamburger menu (right) ===== */
 .top-bar {
-  position: fixed; /* כדי לאפשר absolute על הכפתור והתפריט בלי להזיז את הכותרת */
+  position: relative; /* כדי לאפשר absolute על הכפתור והתפריט בלי להזיז את הכותרת */
 }
 
 .hamburger-btn {
